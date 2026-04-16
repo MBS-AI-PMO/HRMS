@@ -714,19 +714,26 @@ class EmployeeController extends Controller
 
         // return $pdf->stream();
     }
-     public function updateAttendanceType(){
-        
-        try {
-        $updated = Employee::where('attendance_type', 'general')
-            ->update(['attendance_type' => 'location_based']);
+     
+     
+   public function updateAttendanceType()
+{
+    try {
+        $updated = \App\Models\Employee::query()->update([
+            'attendance_type' => 'location_based'
+        ]);
 
         return response()->json([
-            'success' => "$updated employees updated to Location-based attendance"
+            'success' => true,
+            'updated_count' => $updated
         ]);
     } catch (\Exception $e) {
         return response()->json([
-            'error' => $e->getMessage()
+            'success' => false,
+            'error' => $e->getMessage(),
+            'line' => $e->getLine()
         ]);
     }
-     }
+}
+
 }
