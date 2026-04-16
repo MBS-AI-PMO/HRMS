@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\traits\LeaveTypeDataManageTrait;
+use App\Imports\UsersImport;
 use App\Models\company;
 use App\Models\DeductionType;
 use App\Models\department;
 use App\Models\designation;
 use App\Models\DocumentType;
 use App\Models\Employee;
-use App\Http\traits\LeaveTypeDataManageTrait;
-use App\Imports\UsersImport;
+use App\Models\GeneralSetting;
 use App\Models\LoanType;
 use App\Models\office_shift;
 use App\Models\QualificationEducationLevel;
@@ -302,6 +303,7 @@ class EmployeeController extends Controller
 
     public function show(Employee $employee)
     {
+     
         if (auth()->user()->can('view-details-employee')) {
             $companies = Company::select('id', 'company_name')->get();
             $departments = department::select('id', 'department_name')
@@ -328,6 +330,7 @@ class EmployeeController extends Controller
             $loanTypes = LoanType::select('id','type_name')->get();
             $deductionTypes = DeductionType::select('id','type_name')->get();
             $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
+         
 
             return view('employee.dashboard', compact('employee', 'countries', 'companies',
                 'departments', 'designations', 'statuses', 'office_shifts', 'document_types',
@@ -711,4 +714,19 @@ class EmployeeController extends Controller
 
         // return $pdf->stream();
     }
+     public function updateAttendanceType(){
+        
+        try {
+        $updated = Employee::where('attendance_type', 'general')
+            ->update(['attendance_type' => 'location_based']);
+
+        return response()->json([
+            'success' => "$updated employees updated to Location-based attendance"
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage()
+        ]);
+    }
+     }
 }
