@@ -110,9 +110,9 @@
                                             href="{{route('variables_method.index')}}">{{__('Variable Method')}}</a>
                                 </li>
                             @endcan
-                            @can('view-general-setting')
+                            {{-- @can('view-general-setting')
                                 <li id="ip_setting"><a href="{{route('ip_setting.index')}}">{{__('IP Settings')}}</a></li>
-                            @endcan
+                            @endcan --}}
 
                         </ul>
                     </li>

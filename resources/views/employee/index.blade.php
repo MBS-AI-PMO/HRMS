@@ -264,7 +264,7 @@
                                 <select name="attendance_type" id="attendance_type" required class="selectpicker form-control"
                                         data-live-search="true" data-live-search-style="contains" title="{{__('Select Attendance Type...')}}">
                                     <option value="general">{{__('General')}}</option>
-                                    <option value="ip_based">{{__('IP Based')}}</option>
+                                    <option value="location_based">{{__('Location Based')}}</option>
                                 </select>
                             </div>
 

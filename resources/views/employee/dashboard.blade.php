@@ -385,9 +385,9 @@
                                                     <div class="col-md-4">
                                                         <label class="text-bold">{{__('Attendance Type')}} <span class="text-danger">*</span></label>
                                                         <select name="attendance_type" id="attendance_type" required class="selectpicker form-control"
-                                                                data-live-search="true" data-live-search-style="contains" title="{{__('Select Login Type...')}}">
+                                                                data-live-search="true" data-live-search-style="contains" title="{{__('Select Login Type...')}}" >
                                                                 <option value="general" @if($employee->attendance_type=='general') selected  @endif>{{__('General')}}</option>
-                                                                <option value="ip_based" @if($employee->attendance_type=='ip_based') selected  @endif>{{__('IP Based')}}</option>
+                                                                <option value="location_based" @if($employee->attendance_type=='location_based') selected  @endif>{{__('Location Based')}}</option>
                                                         </select>
                                                     </div>
 

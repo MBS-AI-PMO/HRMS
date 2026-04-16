@@ -100,7 +100,7 @@ class GeneralSettingController extends Controller
 			file_put_contents($path, str_replace($searchArray, $replaceArray, file_get_contents($path)));
 
 
-			$general_setting = GeneralSetting::findOrFail($id);
+			$general_setting = GeneralSetting::first();
 			$general_setting->id = 1;
 			$general_setting->site_title = $data['site_title'];
 			$general_setting->time_zone = $data['timezone'];
@@ -110,6 +110,8 @@ class GeneralSettingController extends Controller
 			$general_setting->default_payment_bank = $data['account_id'];
 			$general_setting->footer = $request->footer;
 			$general_setting->footer_link = $request->footer_link;
+			$general_setting->latitude = $request->latitude;
+            $general_setting->longitude = $request->longitude;
 
 			$logo = $request->site_logo;
 
@@ -143,7 +145,7 @@ class GeneralSettingController extends Controller
 			}
 			$general_setting->save();
 
-            $this->setErrorMessage('Data updated successfully');
+            $this->setSuccessMessage('Data updated successfully');
             return redirect()->back();
 		}
 

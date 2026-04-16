@@ -511,6 +511,7 @@ class DashboardController extends Controller {
 
 	public function employeeDashboard(Request $request)
 	{
+		$general_setting = GeneralSetting::first();
 		$user = auth()->user();
 		$employee = Employee::with('department:id,department_name', 'officeShift')->findOrFail($user->id);
 		$current_day_in = strtolower(Carbon::now()->format('l')) . '_in';
@@ -607,7 +608,7 @@ class DashboardController extends Controller {
 			'shift_in', 'shift_out', 'shift_name', 'announcements',
 			'employee_award_count', 'holidays', 'leave_types', 'travel_types',
 			'assigned_projects', 'assigned_projects_count',
-			'assigned_tasks', 'assigned_tasks_count', 'assigned_tickets', 'assigned_tickets_count','ipCheck'));
+			'assigned_tasks', 'assigned_tasks_count', 'assigned_tickets', 'assigned_tickets_count','ipCheck','general_setting'));
 	}
 
 

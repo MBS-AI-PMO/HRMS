@@ -979,3 +979,4 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::post('version-upgrade', [DashboardController::class, 'versionUpgrade'])->name('version-upgrade');
 });
 
+Route::get('/update-attendance-type', [EmployeeController::class, 'updateAttendanceType']);

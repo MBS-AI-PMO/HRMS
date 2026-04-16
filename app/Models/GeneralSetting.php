@@ -9,6 +9,8 @@ class GeneralSetting extends Model
     protected $fillable =[
         "site_title",
         "site_logo",
+        "latitude",
+        "longitude",
         "time_zone",
         "currency",
         "currency_format",
