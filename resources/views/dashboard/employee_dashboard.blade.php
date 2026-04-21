@@ -798,109 +798,132 @@
         })(jQuery);
     </script>
 
-<script>
-    function handleLocationSubmit() {
-        if (!navigator.geolocation) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Location Access Unavailable',
-                text: 'Your browser does not support location services. Please use a supported browser or device and try again.'
-            });
-            return;
-        }
-
-        navigator.geolocation.getCurrentPosition(
-            function(position) {
-                let userLat = position.coords.latitude;
-                let userLng = position.coords.longitude;
-                let accuracy = position.coords.accuracy;
-
-                document.getElementById('user_lat').value = userLat;
-                document.getElementById('user_lng').value = userLng;
-
-                let officeLat = parseFloat("{{ $general_setting->latitude ?? 0 }}");
-                let officeLng = parseFloat("{{ $general_setting->longitude ?? 0 }}");
-
-                if (isNaN(officeLat) || isNaN(officeLng)) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Office Location Not Configured',
-                        text: 'The office location is not configured yet. Please contact the administrator.'
-                    });
-                    return;
-                }
-
-                let distance = getDistance(officeLat, officeLng, userLat, userLng);
-                let allowedRadius = 25;
-
-                console.log('Office Lat:', officeLat);
-                console.log('Office Lng:', officeLng);
-                console.log('User Lat:', userLat);
-                console.log('User Lng:', userLng);
-                console.log('Distance:', distance);
-                console.log('Accuracy:', accuracy);
-
-                if (accuracy > 50) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Outside Office Location',
-                        text: 'Your current location is outside the office premises. Please move closer to the office to proceed.'
-                    });
-                    return;
-                }
-
-                if (distance <= allowedRadius) {
-                    document.getElementById('set_clocking').submit();
-                } else {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Outside Office Location',
-                        text: 'You appear to be outside the permitted office location. Please move closer to the office and try again.',
-                        confirmButtonText: 'OK'
-                    });
-                }
-            },
-            function(error) {
-                let message = 'Location access is required to continue. Please allow location access and try again.';
-
-                if (error.code === 1) {
-                    message = 'Location permission was denied. Please allow location access and try again.';
-                } else if (error.code === 2) {
-                    message = 'We were unable to detect your current location. Please check your device settings and try again.';
-                } else if (error.code === 3) {
-                    message = 'The location request took too long to complete. Please try again.';
-                }
-
+    <script>
+        function handleLocationSubmit() {
+            if (!navigator.geolocation) {
                 Swal.fire({
                     icon: 'error',
-                    title: 'Location Error',
-                    text: message
+                    title: 'Location Access Unavailable',
+                    text: 'Your browser does not support location services. Please use a supported browser or device and try again.'
                 });
-
-                console.log(error);
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 15000,
-                maximumAge: 0
+                return;
             }
-        );
-    }
 
-    function getDistance(lat1, lon1, lat2, lon2) {
-        let R = 6371000;
-        let dLat = (lat2 - lat1) * Math.PI / 180;
-        let dLon = (lon2 - lon1) * Math.PI / 180;
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    let userLat = position.coords.latitude;
+                    let userLng = position.coords.longitude;
+                    let accuracy = position.coords.accuracy;
 
-        let a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(lat1 * Math.PI / 180) *
-            Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                    document.getElementById('user_lat').value = userLat;
+                    document.getElementById('user_lng').value = userLng;
 
-        let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                    let officeLat = parseFloat("{{ $general_setting->latitude ?? 0 }}");
+                    let officeLng = parseFloat("{{ $general_setting->longitude ?? 0 }}");
+                    let minRadius = parseFloat("{{ $general_setting->min_radius ?? 0 }}");
+                    let maxRadius = parseFloat("{{ $general_setting->max_radius ?? 0 }}");
 
-        return R * c;
-    }
-</script>
+                    if (isNaN(officeLat) || isNaN(officeLng)) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Office Location Not Configured',
+                            text: 'The office location is not configured yet. Please contact the administrator.'
+                        });
+                        return;
+                    }
+
+                    if (isNaN(minRadius) || isNaN(maxRadius) || maxRadius <= 0) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Radius Not Configured',
+                            text: 'The allowed office radius is not configured correctly. Please contact the administrator.'
+                        });
+                        return;
+                    }
+
+                    let distance = getDistance(officeLat, officeLng, userLat, userLng);
+
+                    console.log('Office Lat:', officeLat);
+                    console.log('Office Lng:', officeLng);
+                    console.log('User Lat:', userLat);
+                    console.log('User Lng:', userLng);
+                    console.log('Distance:', distance);
+                    console.log('Accuracy:', accuracy);
+                    console.log('Min Radius:', minRadius);
+                    console.log('Max Radius:', maxRadius);
+
+                    if (accuracy > maxRadius && distance > maxRadius) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Low Location Accuracy',
+                            text: 'Your GPS accuracy is too low. Please turn on precise location and try again.'
+                        });
+                        return;
+                    }
+
+                    if (distance < minRadius) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Too Close to Office Point',
+                            text: 'You are not in the allowed attendance zone yet.'
+                        });
+                        return;
+                    }
+
+                    if (distance > maxRadius) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Outside Office Location',
+                            text: 'You appear to be outside the permitted office location. Please move closer to the office and try again.',
+                            confirmButtonText: 'OK'
+                        });
+                        return;
+                    }
+
+                    document.getElementById('set_clocking').submit();
+                },
+                function(error) {
+                    let message =
+                    'Location access is required to continue. Please allow location access and try again.';
+
+                    if (error.code === 1) {
+                        message = 'Location permission was denied. Please allow location access and try again.';
+                    } else if (error.code === 2) {
+                        message =
+                            'We were unable to detect your current location. Please check your device settings and try again.';
+                    } else if (error.code === 3) {
+                        message = 'The location request took too long to complete. Please try again.';
+                    }
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Location Error',
+                        text: message
+                    });
+
+                    console.log(error);
+                }, {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        function getDistance(lat1, lon1, lat2, lon2) {
+            let R = 6371000; // meters
+            let dLat = (lat2 - lat1) * Math.PI / 180;
+            let dLon = (lon2 - lon1) * Math.PI / 180;
+
+            let a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) *
+                Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+            let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c;
+        }
+    </script>
 @endpush

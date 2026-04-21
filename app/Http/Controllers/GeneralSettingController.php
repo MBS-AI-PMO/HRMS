@@ -112,6 +112,8 @@ class GeneralSettingController extends Controller
 			$general_setting->footer_link = $request->footer_link;
 			$general_setting->latitude = $request->latitude;
             $general_setting->longitude = $request->longitude;
+			$general_setting->min_radius = $request->min_radius;
+            $general_setting->max_radius = $request->max_radius;
 
 			$logo = $request->site_logo;
 
