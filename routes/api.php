@@ -18,3 +18,24 @@ use App\Http\Controllers\DemoAutoUpdateController;
 
 Route::get('is-update-available', [DemoAutoUpdateController::class, 'isUpdateAvailable'])->name('is-update-available');
 
+<<<<<<< Updated upstream
+=======
+Route::post('login', [ApiController::class, 'login']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('logout', [ApiController::class, 'logout']);
+    Route::get('profile', [ApiController::class, 'profile']);
+    Route::match(['put', 'patch'], 'profile', [ApiController::class, 'updateProfile']);
+    
+
+    Route::get('employees', [ApiController::class, 'employees']);
+    Route::get('employees/{id}', [ApiController::class, 'employeeDetails']);
+
+    Route::get('administrators', [ApiController::class, 'administrators']);
+    Route::get('office-info', [ApiController::class, 'officeInfo']);
+
+    Route::get('attendances', [ApiController::class, 'myAttendances']);
+});
+
+
+>>>>>>> Stashed changes
