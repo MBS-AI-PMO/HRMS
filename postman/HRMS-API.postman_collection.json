@@ -162,11 +162,6 @@
 							"mode": "formdata",
 							"formdata": [
 								{
-									"key": "first_name",
-									"value": "John",
-									"type": "text"
-								},
-								{
 									"key": "profile_photo",
 									"type": "file",
 									"src": []
@@ -174,19 +169,6 @@
 							]
 						},
 						"url": "{{base_url}}/api/profile"
-					}
-				},
-				{
-					"name": "Employees list",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Accept",
-								"value": "application/json"
-							}
-						],
-						"url": "{{base_url}}/api/employees"
 					}
 				},
 				{
@@ -199,7 +181,7 @@
 								"value": "application/json"
 							}
 						],
-						"url": "{{base_url}}/api/employees/1"
+						"url": "{{base_url}}/api/profile"
 					}
 				},
 				{
@@ -240,6 +222,50 @@
 						],
 						"description": "Optional query: date_from, date_to (Y-m-d). Example: {{base_url}}/api/attendances?date_from=2026-04-01&date_to=2026-04-30",
 						"url": "{{base_url}}/api/attendances"
+					}
+				},
+				{
+					"name": "Clock In",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"latitude\": 24.8607,\n  \"longitude\": 67.0011\n}"
+						},
+						"description": "For location_based attendance, send latitude/longitude. For general or ip_based, body can be empty.",
+						"url": "{{base_url}}/api/clock-in"
+					}
+				},
+				{
+					"name": "Clock Out",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"latitude\": 24.8607,\n  \"longitude\": 67.0011\n}"
+						},
+						"description": "For location_based attendance, send latitude/longitude. For general or ip_based, body can be empty.",
+						"url": "{{base_url}}/api/clock-out"
 					}
 				}
 			]
