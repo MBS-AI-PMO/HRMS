@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DemoAutoUpdateController;
+use App\Http\Controllers\Api\ApiController;
 
 
 /*
@@ -18,14 +19,14 @@ use App\Http\Controllers\DemoAutoUpdateController;
 
 Route::get('is-update-available', [DemoAutoUpdateController::class, 'isUpdateAvailable'])->name('is-update-available');
 
-<<<<<<< Updated upstream
-=======
 Route::post('login', [ApiController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [ApiController::class, 'logout']);
     Route::get('profile', [ApiController::class, 'profile']);
     Route::match(['put', 'patch'], 'profile', [ApiController::class, 'updateProfile']);
+    Route::post('clock-in', [ApiController::class, 'clockIn']);
+    Route::post('clock-out', [ApiController::class, 'clockOut']);
     
 
     Route::get('employees', [ApiController::class, 'employees']);
@@ -38,4 +39,3 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 
->>>>>>> Stashed changes

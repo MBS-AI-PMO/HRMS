@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\GeneralSetting;
+use App\Models\IpSetting;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -17,8 +19,87 @@ use Throwable;
 
 class ApiController extends Controller
 {
+    private function getTodayShiftTimes(Employee $employee): array
+    {
+        $day = strtolower(Carbon::now()->format('l'));
+        $inKey = $day.'_in';
+        $outKey = $day.'_out';
+
+        $shift = $employee->officeShift;
+        if (! $shift || empty($shift->$inKey) || empty($shift->$outKey)) {
+            return [null, null];
+        }
+
+        return [$shift->$inKey, $shift->$outKey];
+    }
+
+    private function getIpPrefix(string $ip): string
+    {
+        $parts = explode('.', $ip);
+        return implode('.', array_slice($parts, 0, 3));
+    }
+
+    private function checkAttendanceTypeRules(Request $request, Employee $employee): ?array
+    {
+        if ($employee->attendance_type === 'ip_based') {
+            $ipSettings = IpSetting::all();
+            if ($ipSettings->isEmpty()) {
+                return ['status' => false, 'message' => 'Office IP is not configured.', 'code' => 422];
+            }
+
+            $clientIpPrefix = $this->getIpPrefix($request->ip());
+            $allowed = $ipSettings->contains(function ($ipRow) use ($clientIpPrefix) {
+                return $this->getIpPrefix((string) $ipRow->ip_address) === $clientIpPrefix;
+            });
+
+            if (! $allowed) {
+                return ['status' => false, 'message' => 'Please connect to office internet for attendance.', 'code' => 403];
+            }
+        }
+
+        if ($employee->attendance_type === 'location_based') {
+            $validated = $request->validate([
+                'latitude' => 'required|numeric',
+                'longitude' => 'required|numeric',
+            ]);
+
+            $general = GeneralSetting::latest()->first();
+            if (! $general || $general->latitude === null || $general->longitude === null) {
+                return ['status' => false, 'message' => 'Office location is not configured.', 'code' => 422];
+            }
+
+            $distance = $this->calculateDistanceMeters(
+                (float) $general->latitude,
+                (float) $general->longitude,
+                (float) $validated['latitude'],
+                (float) $validated['longitude']
+            );
+
+            $maxRadius = (float) ($general->max_radius ?? 25);
+            if ($distance > $maxRadius) {
+                return ['status' => false, 'message' => 'You are outside the allowed office radius.', 'code' => 403];
+            }
+        }
+
+        return null;
+    }
+
+    private function calculateDistanceMeters(float $lat1, float $lon1, float $lat2, float $lon2): float
+    {
+        $earthRadius = 6371000;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a = sin($dLat / 2) * sin($dLat / 2)
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2))
+            * sin($dLon / 2) * sin($dLon / 2);
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadius * $c;
+    }
+
     public function login(Request $request)
     {
+      
         try {
             $validated = $request->validate([
                 'username' => 'required|string',
@@ -168,28 +249,12 @@ class ApiController extends Controller
         }
     }
 
-    public function employees()
+
+
+    public function employeeDetails()
     {
         try {
-            $employees = Employee::query()->latest('id')->get();
-
-            return response()->json([
-                'status' => true,
-                'count' => $employees->count(),
-                'data' => $employees,
-            ]);
-        } catch (Throwable $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Employees fetch failed.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function employeeDetails($id)
-    {
-        try {
+            $id = auth()->user()->id;
             $employee = Employee::find($id);
 
             if (! $employee) {
@@ -293,6 +358,211 @@ class ApiController extends Controller
             return response()->json([
                 'status' => false,
                 'message' => 'Attendance fetch failed.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function clockIn(Request $request)
+    {
+        try {
+            if (env('ENABLE_CLOCKIN_CLOCKOUT') === null) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Clock in/out is disabled.',
+                ], 403);
+            }
+
+            $user = $request->user();
+            $employee = Employee::with('officeShift')->find($user->id);
+            if (! $employee) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Employee profile not found.',
+                ], 404);
+            }
+
+            [$shiftInValue, $shiftOutValue] = $this->getTodayShiftTimes($employee);
+            if (! $shiftInValue || ! $shiftOutValue) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'No office shift assigned for today.',
+                ], 422);
+            }
+
+            $typeError = $this->checkAttendanceTypeRules($request, $employee);
+            if ($typeError) {
+                return response()->json([
+                    'status' => false,
+                    'message' => $typeError['message'],
+                ], $typeError['code']);
+            }
+
+            $today = now()->format('Y-m-d');
+            $last = Attendance::where('attendance_date', $today)
+                ->where('employee_id', $employee->id)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($last && (int) $last->clock_in_out === 1) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Already clocked in. Please clock out first.',
+                ], 422);
+            }
+
+            $shiftIn = new \DateTime($shiftInValue);
+            $currentTime = new \DateTime(now()->format('H:i'));
+
+            $data = [
+                'employee_id' => $employee->id,
+                'attendance_date' => $today,
+                'clock_in' => $currentTime->format('H:i'),
+                'clock_in_out' => 1,
+                'clock_in_ip' => $request->ip(),
+                'attendance_status' => 'present',
+                'time_late' => '00:00',
+                'total_rest' => '00:00',
+                'total_work' => '00:00',
+                'overtime' => '00:00',
+                'early_leaving' => '00:00',
+            ];
+
+            if ($currentTime > $shiftIn) {
+                $data['time_late'] = $shiftIn->diff(new \DateTime($data['clock_in']))->format('%H:%I');
+            } elseif (env('ENABLE_EARLY_CLOCKIN') === null) {
+                $data['clock_in'] = $shiftIn->format('H:i');
+            }
+
+            if ($last && (int) $last->clock_in_out === 0 && ! empty($last->clock_out)) {
+                $lastClockOut = new \DateTime($last->clock_out);
+                $data['total_rest'] = $lastClockOut->diff(new \DateTime($data['clock_in']))->format('%H:%I');
+                $data['total_work'] = $last->total_work;
+                $data['overtime'] = $last->overtime;
+                Attendance::whereKey($last->id)->update(['total_work' => '00:00', 'overtime' => '00:00']);
+            }
+
+            $attendance = Attendance::create($data);
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Clocked in successfully.',
+                'data' => $attendance,
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Clock in failed.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function clockOut(Request $request)
+    {
+        try {
+            if (env('ENABLE_CLOCKIN_CLOCKOUT') === null) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Clock in/out is disabled.',
+                ], 403);
+            }
+
+            $user = $request->user();
+            $employee = Employee::with('officeShift')->find($user->id);
+            if (! $employee) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Employee profile not found.',
+                ], 404);
+            }
+
+            [$shiftInValue, $shiftOutValue] = $this->getTodayShiftTimes($employee);
+            if (! $shiftInValue || ! $shiftOutValue) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'No office shift assigned for today.',
+                ], 422);
+            }
+
+            $typeError = $this->checkAttendanceTypeRules($request, $employee);
+            if ($typeError) {
+                return response()->json([
+                    'status' => false,
+                    'message' => $typeError['message'],
+                ], $typeError['code']);
+            }
+
+            $today = now()->format('Y-m-d');
+            $attendance = Attendance::where('attendance_date', $today)
+                ->where('employee_id', $employee->id)
+                ->orderByDesc('id')
+                ->first();
+
+            if (! $attendance || (int) $attendance->clock_in_out !== 1) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'No active clock-in found for today.',
+                ], 422);
+            }
+
+            $shiftIn = new \DateTime($shiftInValue);
+            $shiftOut = new \DateTime($shiftOutValue);
+            $currentTime = new \DateTime(now()->format('H:i'));
+
+            if ($currentTime <= $shiftIn && env('ENABLE_EARLY_CLOCKIN') === null) {
+                Attendance::whereKey($attendance->id)->delete();
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Clock-out rejected before shift start; attendance reset.',
+                ]);
+            }
+
+            $clockOut = $currentTime->format('H:i');
+            $clockIn = new \DateTime($attendance->clock_in);
+            $prevWork = new \DateTime($attendance->total_work);
+            $totalWork = $prevWork->add($clockIn->diff(new \DateTime($clockOut)));
+            $dutyTime = new \DateTime($shiftIn->diff($shiftOut)->format('%H:%I'));
+
+            $updateData = [
+                'clock_out' => $clockOut,
+                'clock_out_ip' => $request->ip(),
+                'clock_in_out' => 0,
+                'total_work' => $totalWork->format('H:i'),
+            ];
+
+            if ($currentTime < $shiftOut) {
+                $updateData['early_leaving'] = $shiftOut->diff(new \DateTime($clockOut))->format('%H:%I');
+            }
+
+            if ($totalWork > $dutyTime) {
+                $updateData['overtime'] = $totalWork->diff($dutyTime)->format('%H:%I');
+            }
+
+            $attendance->update($updateData);
+            $attendance->refresh();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Clocked out successfully.',
+                'data' => $attendance,
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Clock out failed.',
                 'error' => $e->getMessage(),
             ], 500);
         }
