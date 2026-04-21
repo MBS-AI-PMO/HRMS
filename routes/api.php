@@ -18,8 +18,6 @@ use App\Http\Controllers\DemoAutoUpdateController;
 
 Route::get('is-update-available', [DemoAutoUpdateController::class, 'isUpdateAvailable'])->name('is-update-available');
 
-<<<<<<< Updated upstream
-=======
 Route::post('login', [ApiController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -38,4 +36,3 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 
->>>>>>> Stashed changes

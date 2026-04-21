@@ -13,9 +13,10 @@
                         </div>
                         <div class="card-body">
                             <p class="italic">
-                                <small>{{ __('The field labels marked with * are required input fields') }}.</small></p>
-                            <form method="POST" id="general_settings_form" action="{{ route('general_settings.update', 1) }}"
-                                enctype="multipart/form-data">
+                                <small>{{ __('The field labels marked with * are required input fields') }}.</small>
+                            </p>
+                            <form method="POST" id="general_settings_form"
+                                action="{{ route('general_settings.update', 1) }}" enctype="multipart/form-data">
                                 @csrf
 
 
@@ -61,6 +62,33 @@
                                         @if ($errors->has('longitude'))
                                             <span>
                                                 <strong>{{ $errors->first('longitude') }}</strong>
+                                            </span>
+                                        @endif
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label><strong>{{ __('Min Radius') }} *</strong></label>
+                                            <input type="text" name="min_radius" class="form-control"
+                                                value="{{ $general_settings_data->min_radius ?? '' }}"
+                                                placeholder="Enter Minimum Radius" required disabled>
+                                        </div>
+                                        @if ($errors->has('min_radius'))
+                                            <span>
+                                                <strong>{{ $errors->first('min_radius') }}</strong>
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label><strong>{{ __('Max Radius') }} *</strong></label>
+                                            <input type="text" name="max_radius" class="form-control"
+                                                value="{{ $general_settings_data->max_radius ?? '' }}"
+                                                placeholder="Enter Maximum Radius" required>
+                                        </div>
+                                        @if ($errors->has('max_radius'))
+                                            <span>
+                                                <strong>{{ $errors->first('max_radius') }}</strong>
                                             </span>
                                         @endif
                                     </div>
@@ -183,7 +211,8 @@
                                     <div class="col-md-6">
                                         <div class="mt-4 form-check">
                                             <input type="checkbox" name="enable_early_clockin" class="form-check-input"
-                                                value="1" {{ env('ENABLE_EARLY_CLOCKIN') != null ? 'checked' : '' }} />
+                                                value="1"
+                                                {{ env('ENABLE_EARLY_CLOCKIN') != null ? 'checked' : '' }} />
                                             <label class="mr-4 form-check-label"><strong>{{ trans('file.Enable Early Clock In (Added to Worktime)') }}
                                                 </strong></label>
                                         </div>

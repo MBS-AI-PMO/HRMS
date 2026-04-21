@@ -54,6 +54,6 @@ Developed, maintained and client support for the SOLO HRM HRM Laravel app since 
 
 
 
--  #### Original Developer :  [Ashraf Shahadat](https://github.com/Ash-raf10) <small><i>[Till 2020]</i></small>
+-  #### Original Developer :   <small><i>[Till 2020]</i></small>
 
-- #### Contributors : [Irfan Chowdhury](https://github.com/Irfan-Chowdhury) <small><i>[January, 2021 - Present]</i></small>
+- #### Contributors : <small><i>[January, 2021 - Present]</i></small>
