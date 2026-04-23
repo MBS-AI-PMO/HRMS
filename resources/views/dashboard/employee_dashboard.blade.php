@@ -31,7 +31,7 @@
                         @endif
                         ({{ $shift_name }})
                     </p>
-                    <a class="btn btn-default btn-sm" id="my_profile" href="{{ route('employees.show', $employee->id) }}">
+                    <a class="btn btn-default btn-sm" id="my_profile" href="{{ route('profile') }}">
                         <i class="dripicons-user"></i> {{ trans('file.Profile') }}
                     </a>
                     @if (env('ENABLE_CLOCKIN_CLOCKOUT') != null)
