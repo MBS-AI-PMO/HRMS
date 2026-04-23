@@ -45,10 +45,10 @@
                 data: 'relation',
                 name: 'relation',
             },
-            {
+            {{-- {
                 data: 'personal_email',
                 name: 'personal_email',
-            },
+            }, --}}
 
             {
                 data: 'personal_phone',
@@ -75,7 +75,7 @@
         'columnDefs': [
             {
                 "orderable": false,
-                'targets': [0, 4],
+                'targets': [3],
             },
         ],
 

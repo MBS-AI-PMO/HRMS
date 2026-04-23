@@ -16,114 +16,17 @@
         }
     </style>
     <section>
-        @can('view-details-employee')
-            <div class="container-fluid">
+        
+           <div class="container-fluid">
                 <div class="card">
                     <div class="card-body">
                         <div class="text-center">
                             <h2>{{ $employee->user->username }}</h2>
                         </div>
-                        <ul class="nav nav-tabs d-flex justify-content-between" id="myTab" role="tablist">
-                            <li class="nav-item">
-                                <a class="nav-link active" id="general-tab" data-toggle="tab" href="#General" role="tab"
-                                    aria-controls="General" aria-selected="true">{{ trans('file.General') }}</a>
-                            </li>
-                            {{-- <li class="nav-item">
-                                <a class="nav-link" id="profile-tab" data-toggle="tab" href="#Profile" role="tab"
-                                    aria-controls="Profile" aria-selected="false">{{ trans('file.Profile') }}</a>
-                            </li> --}}
-                            <li class="nav-item">
-                                <a class="nav-link" id="set_salary-tab" data-toggle="tab" href="#Set_salary" role="tab"
-                                    aria-controls="Set_salary" aria-selected="false">{{ __('Set Salary') }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="leave-tab" data-toggle="tab" href="#Leave" role="tab"
-                                    aria-controls="Leave" aria-selected="false">{{ trans('file.Leave') }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="employee_core_hr-tab" data-toggle="tab" href="#Employee_Core_hr"
-                                    role="tab" aria-controls="Employee_Core_hr"
-                                    aria-selected="false">{{ __('Core HR') }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="employee_project_task-tab" data-toggle="tab"
-                                    href="#Employee_project_task" role="tab" aria-controls="Employee_project_task"
-                                    aria-selected="false">{{ trans('file.Project') }} & {{ trans('file.Task') }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="employee_payslip-tab" data-toggle="tab" href="#Employee_Payslip"
-                                    role="tab" aria-controls="Employee_Payslip"
-                                    aria-selected="false">{{ trans('file.Payslip') }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="remainingLeaveType-tab" data-toggle="tab" href="#remainingLeaveType"
-                                    role="tab" aria-controls="remainingLeaveType"
-                                    aria-selected="false">{{ trans('file.Remaining Leave') }}
-                                </a>
-                            </li>
-                        </ul>
-                        <div class="tab-content" id="myTabContent">
-                            <div class="tab-pane fade show active" id="General" role="tabpanel" aria-labelledby="general-tab">
-                                <!--Contents for General starts here-->
-                                {{ __('General Info') }}
-                                <hr>
                                 <div class="row">
-                                    <div class="col-md-3">
-                                        <ul class="nav nav-tabs vertical" id="myTab" role="tablist">
-                                            <li class="nav-item">
-                                                <a class="nav-link active" id="basic-tab" data-toggle="tab" href="#Basic"
-                                                    role="tab" aria-controls="Basic"
-                                                    aria-selected="true">{{ trans('file.Basic') }}</a>
-                                            </li>
-                                            {{-- <li class="nav-item">
-                                            <a class="nav-link" href="{{route('immigrations.show',$employee)}}"
-                                               id="immigration-tab" data-toggle="tab" data-table="immigration"
-                                               data-target="#Immigration" role="tab" aria-controls="Immigration"
-                                               aria-selected="false">{{trans('file.Immigration')}}</a>
-                                        </li> --}}
-                                            <li class="nav-item">
-                                                <a class="nav-link" href="{{ route('contacts.show', $employee) }}"
-                                                    id="emergency-tab" data-toggle="tab" data-table="emergency"
-                                                    data-target="#Emergency" role="tab" aria-controls="Emergency"
-                                                    aria-selected="false">{{ __('Emergency Contacts') }}</a>
-                                            </li>
-                                            <li class="nav-item">
-                                                <a class="nav-link" href="{{ route('social_profile.show', $employee) }}"
-                                                    id="social_profile-tab" data-toggle="tab" data-table="social_profile"
-                                                    data-target="#Social_profile" role="tab"
-                                                    aria-controls="Social_profile"
-                                                    aria-selected="false">{{ __('Social Profile') }}</a>
-                                            </li>
-                                            <li class="nav-item">
-                                                <a class="nav-link" href="{{ route('documents.show', $employee) }}"
-                                                    id="document-tab" data-toggle="tab" data-table="document"
-                                                    data-target="#Document" role="tab" aria-controls="Document"
-                                                    aria-selected="false">{{ trans('file.Document') }}</a>
-                                            </li>
-                                            <li class="nav-item">
-                                                <a class="nav-link" href="{{ route('qualifications.show', $employee) }}"
-                                                    id="qualification-tab" data-toggle="tab" data-table="qualification"
-                                                    data-target="#Qualification" role="tab" aria-controls="Qualification"
-                                                    aria-selected="false">{{ trans('file.Qualification') }}</a>
-                                            </li>
-                                            <li class="nav-item">
-                                                <a class="nav-link" href="{{ route('work_experience.show', $employee) }}"
-                                                    id="work_experience-tab" data-toggle="tab" data-table="work_experience"
-                                                    data-target="#Work_experience" role="tab"
-                                                    aria-controls="Work_experience"
-                                                    aria-selected="false">{{ __('Work Experience') }}</a>
-                                            </li>
-                                            <li class="nav-item">
-                                                <a class="nav-link" href="{{ route('bank_account.show', $employee) }}"
-                                                    id="bank_account-tab" data-toggle="tab" data-table="bank_account"
-                                                    data-target="#Bank_account" role="tab" aria-controls="Bank_account"
-                                                    aria-selected="false">{{ __('Bank Account') }}</a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                @endcan
-                                @can('modify-details-employee')
-                                    <div class="col-md-9">
+                                 
+                              
+                                    <div class="col-md-12">
                                         <div class="tab-content" id="myTabContent">
                                             <div class="tab-pane fade show active" id="Basic" role="tabpanel"
                                                 aria-labelledby="basic-tab">
@@ -154,7 +57,7 @@
                                                             </div>
 
                                                             {{-- File Input --}}
-                                                            <input type="file" required accept="image/*"
+                                                            <input type="file" accept="image/*"
                                                                 id="profile_photo"
                                                                 class="form-control @error('photo') is-invalid @enderror"
                                                                 name="profile_photo">
@@ -417,7 +320,7 @@
                                                         <div class="col-md-4">
                                                             <label class="text-bold">{{ __('Attendance Type') }} <span
                                                                     class="text-danger">*</span></label>
-                                                            <select name="attendance_type" id="attendance_type" required
+                                                            <select name="attendance_type" id="attendance_type" readonly
                                                                 class="selectpicker form-control" data-live-search="true"
                                                                 data-live-search-style="contains"
                                                                 title="{{ __('Select Login Type...') }}">
@@ -457,137 +360,17 @@
                                                     </div>
                                                 </form>
                                             </div>
-                                        @endcan
-
-                                        @can('view-details-employee')
-                                            <div class="tab-pane fade" id="Immigration" role="tabpanel"
-                                                aria-labelledby="immigration-tab">
-                                                {{ __('Assigned Immigration') }}
-                                                <hr>
-                                                @include('employee.immigration.index')
-                                            </div>
-
-                                            <div class="tab-pane fade" id="Emergency" role="tabpanel"
-                                                aria-labelledby="emergency-tab">
-                                                {{ __('Emergency Contacts') }}
-                                                <hr>
-                                                @include('employee.emergency_contacts.index')
-                                            </div>
-
-                                            <div class="tab-pane fade" id="Social_profile" role="tabpanel"
-                                                aria-labelledby="social_profile-tab">
-                                                {{ __('Social Profile') }}
-                                                <hr>
-                                                @include('employee.social_profile.index')
-                                            </div>
-                                            <div class="tab-pane fade" id="Document" role="tabpanel"
-                                                aria-labelledby="document-tab">
-                                                {{ __('All Documents') }}
-                                                <hr>
-                                                @include('employee.documents.index')
-                                            </div>
-                                            <div class="tab-pane fade" id="Qualification" role="tabpanel"
-                                                aria-labelledby="qualification-tab">
-                                                {{ __('All Qualifications') }}
-                                                <hr>
-                                                @include('employee.qualifications.index')
-                                            </div>
-                                            <div class="tab-pane fade" id="Work_experience" role="tabpanel"
-                                                aria-labelledby="work_experience-tab">
-                                                {{ __('Work Experience') }}
-                                                <hr>
-                                                @include('employee.work_experience.index')
-                                            </div>
-                                            <div class="tab-pane fade" id="Bank_account" role="tabpanel"
-                                                aria-labelledby="bank_account-tab">
-                                                {{ __('Bank Account') }}
-                                                <hr>
-                                                @include('employee.bank_account.index')
-                                            </div>
-
-
-                                        </div>
-                                    </div>
-                                </div>
-                                <!--Contents for General Ends here-->
-                            </div>
-                            <div class="tab-pane fade" id="Profile" role="tabpanel" aria-labelledby="profile-tab">
-                                <!--Contents for Profile starts here-->
-                                {{ __('Profile Picture') }}
-                                <hr>
-
-                                @include('employee.profile_picture.index')
-
-                                <!--Contents for Profile ends here-->
-                            </div>
-
-                            <div class="tab-pane fade" id="Set_salary" role="tabpanel" aria-labelledby="set_salary-tab">
-                                <!--Contents for Contact starts here-->
-                                {{ __('Salary Info') }}
-                                <hr>
-                                @include('employee.salary.index')
-
-                                <!--Contents for Contact ends here-->
-                            </div>
-
-                            <div class="tab-pane fade" id="Leave" role="tabpanel" aria-labelledby="leave-tab">
-                                <!--Contents for Contact starts here-->
-                                {{ __('Leave Info') }}
-                                <hr>
-                                @include('employee.leave.index')
-
-                                <!--Contents for Contact ends here-->
-                            </div>
-
-                            <div class="tab-pane fade" id="Employee_Core_hr" role="tabpanel"
-                                aria-labelledby="employee_core_hr-tab">
-                                <!--Contents for Contact starts here-->
-                                {{ __('Core HR') }}
-                                <hr>
-                                @include('employee.core_hr.award.index')
-
-                                <!--Contents for Contact ends here-->
-                            </div>
-
-                            <div class="tab-pane fade" id="Employee_project_task" role="tabpanel"
-                                aria-labelledby="employee_project_task-tab">
-                                <!--Contents for Contact starts here-->
-                                {{ trans('file.Project') }} & {{ trans('file.Task') }}
-                                <hr>
-                                @include('employee.project_task.index')
-
-                                <!--Contents for Contact ends here-->
-                            </div>
-
-                            <div class="tab-pane fade" id="Employee_Payslip" role="tabpanel"
-                                aria-labelledby="employee_payslip-tab">
-                                <!--Contents for Contact starts here-->
-                                {{ trans('file.Payslip') }}
-                                <hr>
-                                @include('employee.payslip.index')
-                                <!--Contents for Contact ends here-->
-                            </div>
-
-
-                            <div class="tab-pane fade" id="remainingLeaveType" role="tabpanel"
-                                aria-labelledby="remainingLeaveType-tab">
-                                {{ trans('file.Remaining Leave') }}
-                                <hr>
-                                @include('employee.remaining_leave.index')
-                            </div>
+                                      
 
                         </div>
                     </div>
                 </div>
             </div>
-        @endcan
-
-    </section>
+              </section>
 
 
 
 @endsection
-
 
 @push('scripts')
     <script type="text/javascript">
@@ -749,7 +532,7 @@
             // console.log(attendance_type);
 
             $.ajax({
-                url: "{{ route('employees_basicInfo.update', $employee->id) }}",
+                url: "{{ route('profile.Update', $employee->id) }}",
                 method: "POST",
                 data: new FormData(this),
                 contentType: false,

@@ -18,8 +18,8 @@
                 <th>{{__('Account Title')}}</th>
                 <th>{{__('Account Number')}}</th>
                 <th>{{__('Bank Name')}}</th>
-                <th>{{__('Bank Code')}}</th>
-                <th>{{__('Bank Branch')}}</th>
+                <th>{{__('IBAN Number')}}</th>
+                {{-- <th>{{__('Bank Branch')}}</th> --}}
                 <th class="not-exported">{{trans('file.action')}}</th>
             </tr>
             </thead>
@@ -39,7 +39,7 @@
 
                 <div class="modal-body">
                     <span id="bank_account_form_result"></span>
-                    <form method="bank_code" id="bank_account_sample_form" class="form-horizontal" autocomplete="off">
+                    <form method="iban_number" id="bank_account_sample_form" class="form-horizontal" autocomplete="off">
 
                         @csrf
                         <div class="row">
@@ -64,17 +64,17 @@
                             </div>
 
                             <div class="col-md-6 form-group">
-                                <label>{{__('Bank Code')}} *</label>
-                                <input type="text" name="bank_code" id="bank_bank_code" placeholder={{__('Bank Code')}}
+                                <label>{{__('IBAN Number')}} *</label>
+                                <input type="text" name="iban_number" id="bank_iban_number" placeholder={{__('IBAN Number')}}
                                         required class="form-control">
                             </div>
 
-                            <div class="col-md-6 form-group">
+                            {{-- <div class="col-md-6 form-group">
                                 <label>{{__('Bank Branch')}} *</label>
                                 <input type="text" name="bank_branch" id="bank_bank_branch"
                                        placeholder={{__('Bank Code')}}
                                                required class="form-control">
-                            </div>
+                            </div> --}}
 
 
                             <div class="container">

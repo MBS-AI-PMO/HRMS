@@ -54,10 +54,10 @@
                                                aria-selected="true">{{trans('file.Basic')}}</a>
                                         </li>
                                         <li class="nav-item">
-                                            <a class="nav-link" href="#Immigration"
-                                               id="immigration-tab" data-toggle="tab" data-table="immigration"
-                                               data-target="#Immigration" role="tab" aria-controls="Immigration"
-                                               aria-selected="false">{{trans('file.Immigration')}}</a>
+                                            <a class="nav-link" href="#"
+                                               id="-tab" data-toggle="tab" data-table=""
+                                               data-target="#" role="tab" aria-controls=""
+                                               aria-selected="false">{{trans('file.')}}</a>
                                         </li>
                                         <li class="nav-item">
                                             <a class="nav-link" href="#Emergency"
@@ -260,11 +260,11 @@
                                         </div>
 
 
-                                        <div class="tab-pane fade" id="Immigration" role="tabpanel"
-                                             aria-labelledby="immigration-tab">
-                                            {{__('Assigned Immigration')}}
+                                        <div class="tab-pane fade" id="" role="tabpanel"
+                                             aria-labelledby="-tab">
+                                            {{__('Assigned ')}}
                                             <hr>
-                                            @include('employee.immigration.index')
+                                            @include('employee..index')
                                         </div>
                                         <div class="tab-pane fade" id="Emergency" role="tabpanel"
                                              aria-labelledby="emergency-tab">
@@ -403,8 +403,8 @@
             });
         });
 
-        $('[data-table="immigration"]').one('click', function (e) {
-            @include('employee.immigration.index_js')
+        $('[data-table=""]').one('click', function (e) {
+            @include('employee.leave.index_js')
         });
 
         $('[data-table="emergency"]').one('click', function (e) {

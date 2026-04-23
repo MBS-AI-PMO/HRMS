@@ -884,7 +884,7 @@
                 },
                 function(error) {
                     let message =
-                    'Location access is required to continue. Please allow location access and try again.';
+                        'Location access is required to continue. Please allow location access and try again.';
 
                     if (error.code === 1) {
                         message = 'Location permission was denied. Please allow location access and try again.';

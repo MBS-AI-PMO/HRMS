@@ -49,13 +49,13 @@ $('#bank_account-table').DataTable().clear().destroy();
                 data: 'bank_name',
                 name: 'bank_name',
             },
-            {
+            {{-- {
                 data: 'bank_branch',
                 name: 'bank_branch',
-            },
+            }, --}}
             {
-                data: 'bank_code',
-                name: 'bank_code',
+                data: 'iban_number',
+                name: 'iban_number',
             },
             {
                 data: 'action',
@@ -78,7 +78,7 @@ $('#bank_account-table').DataTable().clear().destroy();
         'columnDefs': [
             {
                 "orderable": false,
-                'targets': [0, 5],
+                'targets': [0, 4],
             },
         ],
 
@@ -184,8 +184,8 @@ $('#bank_account-table').DataTable().clear().destroy();
                 $('#bank_account_title').val(html.data.account_title);
                 $('#bank_account_number').val(html.data.account_number);
                 $('#bank_bank_name').val(html.data.bank_name);
-                $('#bank_bank_code').val(html.data.bank_code);
-                $('#bank_bank_branch').val(html.data.bank_branch);
+                $('#bank_iban_number').val(html.data.iban_number);
+                {{-- $('#bank_bank_branch').val(html.data.bank_branch); --}}
 
 
                 $('#bank_account_hidden_id').val(html.data.id);

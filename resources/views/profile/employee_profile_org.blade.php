@@ -405,7 +405,7 @@
         });
 
         $('[data-table="immigration"]').one('click', function (e) {
-            @include('employee.immigration.index_js')
+            @include('employee..index_js')
         });
 
         $('[data-table="emergency"]').one('click', function (e) {
