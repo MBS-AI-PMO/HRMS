@@ -17,7 +17,7 @@
             <tr>
                 <th>{{trans('file.Name')}}</th>
                 <th>{{trans('file.Relation')}}</th>
-                <th>{{trans('file.Email')}}</th>
+                {{-- <th>{{trans('file.Email')}}</th> --}}
                 <th>{{trans('file.Phone')}}</th>
                 <th class="not-exported">{{trans('file.action')}}</th>
             </tr>
@@ -52,7 +52,7 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-6 form-group">
+                            {{-- <div class="col-md-6 form-group">
                                 <label>{{trans('file.Email')}} *</label>
                                 <input type="text" name="work_email" id="contact_work_email"
                                        placeholder="{{trans('file.Work')}}"
@@ -60,9 +60,9 @@
                                 <input type="text" name="personal_email" id="contact_personal_email"
                                        placeholder="{{trans('file.Personal')}}"
                                        required class="form-control">
-                            </div>
+                            </div> --}}
 
-                            <div class="col-md-6 form-group">
+                            {{-- <div class="col-md-6 form-group">
                                 <div class="custom-control custom-checkbox">
                                     <input type="checkbox" class="custom-control-input" name="is_primary"
                                            id="contact_is_primary" value="1">
@@ -77,7 +77,7 @@
                                            for="contact_is_dependent">{{trans('file.Dependent')}}</label>
                                 </div>
 
-                            </div>
+                            </div> --}}
 
 
                             <div class="col-md-6 form-group">
@@ -87,7 +87,7 @@
                                        required class="form-control">
                             </div>
 
-                            <div class="col-md-6 form-group">
+                            {{-- <div class="col-md-6 form-group">
                                 <label>{{trans('file.Address')}} *</label>
                                 <input type="text" name="address_1" id="contact_address_1"
                                        placeholder="{{__('Address Line 1')}}"
@@ -95,25 +95,25 @@
                                 <input type="text" name="address_2" id="contact_address_2"
                                        placeholder="{{__('Address Line 2')}}"
                                        class="form-control">
-                            </div>
+                            </div> --}}
 
                             <div class="col-md-6 form-group">
-                                <label>{{trans('file.Mobile')}} *</label>
-                                <input type="text" name="work_phone" id="contact_work_phone"
+                                <label>Phone Number *</label>
+                                {{-- <input type="text" name="work_phone" id="contact_work_phone"
                                        placeholder="{{trans('file.Work')}}"
                                        class="form-control mb-2">
                                 <input type="text" name="work_phone_ext" id="contact_work_phone_ext"
                                        placeholder="{{trans('file.Ext')}}"
-                                       class="form-control mb-2">
+                                       class="form-control mb-2"> --}}
                                 <input type="text" name="personal_phone" id="contact_personal_phone"
-                                       placeholder="{{trans('file.Mobile')}}"
+                                       placeholder="Phone Number"
                                        required class="form-control mb-2">
-                                <input type="text" name="home_phone" id="contact_home_phone"
+                                {{-- <input type="text" name="home_phone" id="contact_home_phone"
                                        placeholder="{{trans('file.Home')}}"
-                                       class="form-control ">
+                                       class="form-control "> --}}
                             </div>
 
-
+{{-- 
                             <div class="col-md-4 form-group">
                                 <label>{{trans('file.City')}} </label>
                                 <input type="text" name="city" id="contact_city" placeholder="{{trans('file.City')}}"
@@ -131,10 +131,10 @@
                                 <label>{{trans('file.ZIP')}} </label>
                                 <input type="text" name="zip" id="contact_zip" placeholder="{{trans('file.ZIP')}}"
                                        required class="form-control">
-                            </div>
+                            </div> --}}
 
 
-                            <div class="col-md-4">
+                            {{-- <div class="col-md-4">
                                 <div class="form-group">
                                     <label>{{trans('file.Country')}}</label>
                                     <select name="country_id" id="contact_country" required
@@ -146,7 +146,7 @@
                                         @endforeach
                                     </select>
                                 </div>
-                            </div>
+                            </div> --}}
 
 
                             <div class="container">

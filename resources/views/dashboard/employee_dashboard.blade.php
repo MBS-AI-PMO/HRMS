@@ -31,7 +31,7 @@
                         @endif
                         ({{ $shift_name }})
                     </p>
-                    <a class="btn btn-default btn-sm" id="my_profile" href="{{ route('profile') }}">
+                    <a class="btn btn-default btn-sm" id="my_profile" href="{{ route('employees.show', $employee->id) }}">
                         <i class="dripicons-user"></i> {{ trans('file.Profile') }}
                     </a>
                     @if (env('ENABLE_CLOCKIN_CLOCKOUT') != null)
@@ -884,7 +884,7 @@
                 },
                 function(error) {
                     let message =
-                    'Location access is required to continue. Please allow location access and try again.';
+                        'Location access is required to continue. Please allow location access and try again.';
 
                     if (error.code === 1) {
                         message = 'Location permission was denied. Please allow location access and try again.';

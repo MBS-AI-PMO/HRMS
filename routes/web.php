@@ -186,7 +186,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::get('/all/notifications', [RouteClosureHandlerController::class, 'allNotifications'])->name('seeAllNoti');
     Route::get('clearAll', [RouteClosureHandlerController::class, 'clearAll'])->name('clearAll');
 
-    Route::get('/profile', [DashboardController::class, 'profile'])->name('profile');
+    Route::get('/profile', [EmployeeController::class, 'index'])->name('profile');
     Route::put('/profile/{id}', [DashboardController::class, 'profile_update'])->name('profile_update');
     Route::post('/profile/employee/{id}', [DashboardController::class, 'employeeProfileUpdate'])->name('employee_profile_update');
     Route::post('/profile/change_password/{id}', [DashboardController::class, 'change_password'])->name('change_password');

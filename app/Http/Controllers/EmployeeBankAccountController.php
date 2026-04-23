@@ -50,13 +50,13 @@ class EmployeeBankAccountController extends Controller
 		if ($logged_user->can('store-details-employee')||$logged_user->id==$employee)
 		{
 			$validator = Validator::make($request->only( 'account_title','account_number','bank_name',
-				'bank_code','bank_branch'),
+				'iban_number','bank_branch'),
 				[
 					'account_title' => 'required',
-					'bank_branch' => 'required',
+					// 'bank_branch' => 'required',
 					'account_number' =>'required',
 					'bank_name' =>'required',
-					'bank_code' =>'required'
+					'iban_number' =>'required'
 				]
 //				,
 //				[
@@ -64,7 +64,7 @@ class EmployeeBankAccountController extends Controller
 //					'account_number.required' => 'Account Number can not be empty',
 //					'bank_name.required' => 'Bank Name can not be empty',
 //					'bank_branch.required' => 'Bank Branch can not be empty',
-//					'bank_code.required' => 'Bank Code can not be empty',
+//					'iban_number.required' => 'Bank Code can not be empty',
 //				]
 			);
 
@@ -79,10 +79,10 @@ class EmployeeBankAccountController extends Controller
 
 			$data['account_title'] =  $request->account_title;
 			$data['employee_id'] = $employee;
-			$data['bank_branch'] = $request->bank_branch;
+			// $data['bank_branch'] = $request->bank_branch;
 			$data ['account_number'] = $request->account_number;
 			$data ['bank_name'] = $request->bank_name;
-			$data ['bank_code'] = $request->bank_code;
+			$data ['iban_number'] = $request->iban_number;
 
 			EmployeeBankAccount::create($data);
 
@@ -111,13 +111,13 @@ class EmployeeBankAccountController extends Controller
 		{
 
 			$validator = Validator::make($request->only( 'account_title','account_number','bank_name',
-				'bank_code','bank_branch'),
+				'iban_number','bank_branch'),
 				[
 					'account_title' => 'required',
-					'bank_branch' => 'required',
+					// 'bank_branch' => 'required',
 					'account_number' =>'required',
 					'bank_name' =>'required',
-					'bank_code' =>'required',
+					'iban_number' =>'required',
 				]
 //				,
 //				[
@@ -125,7 +125,7 @@ class EmployeeBankAccountController extends Controller
 //					'account_number.required' => 'Account Number can not be empty',
 //					'bank_name.required' => 'Bank Name can not be empty',
 //					'bank_branch.required' => 'Bank Branch can not be empty',
-//					'bank_code.required' => 'Bank Code can not be empty',
+//					'iban_number.required' => 'Bank Code can not be empty',
 //				]
 			);
 
@@ -139,10 +139,10 @@ class EmployeeBankAccountController extends Controller
 			$data = [];
 
 			$data['account_title'] =  $request->account_title;
-			$data['bank_branch'] = $request->bank_branch;
+			// $data['bank_branch'] = $request->bank_branch;
 			$data ['account_number'] = $request->account_number;
 			$data ['bank_name'] = $request->bank_name;
-			$data ['bank_code'] = $request->bank_code;
+			$data ['iban_number'] = $request->iban_number;
 
 			EmployeeBankAccount::whereId($id)->update($data);
 

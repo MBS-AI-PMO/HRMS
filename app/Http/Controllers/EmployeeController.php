@@ -408,108 +408,121 @@ class EmployeeController extends Controller
         return response()->json(['success' => __('You are not authorized')]);
     }
 
-    public function infoUpdate(Request $request, $employee)
-    {
-        $logged_user = auth()->user();
+   public function infoUpdate(Request $request, $employee)
+{
+    $logged_user = auth()->user();
 
-        if ($logged_user->can('modify-details-employee')) {
-            if (request()->ajax()) {
-                $validator = Validator::make($request->only('first_name', 'last_name', 'staff_id', 'email', 'contact_no', 'date_of_birth', 'gender',
-                    'username', 'role_users_id', 'company_id', 'department_id', 'designation_id', 'office_shift_id', 'location_id', 'status_id',
-                    'marital_status', 'joining_date', 'permission_role_id', 'address', 'city', 'state', 'country', 'zip_code', 'attendance_type', 'total_leave'
+    if ($logged_user->can('modify-details-employee')) {
+        if (request()->ajax()) {
+            $validator = Validator::make(
+                $request->only(
+                    'first_name', 'last_name', 'staff_id', 'email', 'contact_no', 'date_of_birth', 'gender',
+                    'username', 'role_users_id', 'company_id', 'department_id', 'designation_id', 'office_shift_id',
+                    'location_id', 'status_id', 'marital_status', 'joining_date', 'permission_role_id', 'address',
+                    'city', 'state', 'country', 'zip_code', 'attendance_type', 'total_leave'
                 ),
-                    [
-                        'first_name' => 'required',
-                        'last_name' => 'required',
-                        'username' => 'required|unique:users,username,'.$employee,
-                        'staff_id' => 'required|numeric|unique:employees,staff_id,'.$employee,
-                        'email' => 'nullable|email|unique:users,email,'.$employee,
-                        'contact_no' => 'required|numeric|unique:users,contact_no,'.$employee,
-                        'date_of_birth' => 'required',
-                        'company_id' => 'required',
-                        'department_id' => 'required',
-                        'designation_id' => 'required',
-                        'office_shift_id' => 'required',
-                        'role_users_id' => 'required',
-                        'attendance_type' => 'required',
-                        'total_leave' => 'numeric|min:0',
-                        'joining_date' => 'required',
-                        'exit_date' => 'nullable',
-                    ]
-                );
+                [
+                    'first_name'      => 'required',
+                    'last_name'       => 'required',
+                    'username'        => 'required|unique:users,username,' . $employee,
+                    'staff_id'        => 'required|numeric|unique:employees,staff_id,' . $employee,
+                    'email'           => 'nullable|email|unique:users,email,' . $employee,
+                    'contact_no'      => 'required|numeric|unique:users,contact_no,' . $employee,
+                    'date_of_birth'   => 'required',
+                    'company_id'      => 'required',
+                    'department_id'   => 'required',
+                    'designation_id'  => 'required',
+                    'office_shift_id' => 'required',
+                    'role_users_id'   => 'required',
+                    'attendance_type' => 'required',
+                    'total_leave'     => 'numeric|min:0',
+                    'joining_date'    => 'required',
+                    'exit_date'       => 'nullable',
+                ]
+            );
 
-                if ($validator->fails()) {
-                    return response()->json(['errors' => $validator->errors()->all()]);
-                }
-
-                $data = [];
-                $data['first_name'] = $request->first_name;
-                $data['last_name'] = $request->last_name;
-                $data['staff_id'] = $request->staff_id;
-                $data['date_of_birth'] = $request->date_of_birth;
-                $data['gender'] = $request->gender;
-                $data['department_id'] = $request->department_id;
-                $data['company_id'] = $request->company_id;
-                $data['designation_id'] = $request->designation_id;
-                $data['office_shift_id'] = $request->office_shift_id;
-                $data['status_id'] = $request->status_id;
-                $data['marital_status'] = $request->marital_status;
-                if ($request->joining_date) {
-                    $data['joining_date'] = $request->joining_date;
-                }
-
-                $data['exit_date'] = $request->exit_date ? date('Y-m-d', strtotime($request->exit_date)) : null;
-                $data['address'] = $request->address;
-                $data['city'] = $request->city;
-                $data['state'] = $request->state;
-                $data['country'] = $request->country;
-                $data['zip_code'] = $request->zip_code;
-
-                $data['email'] = strtolower(trim($request->email));
-                $data['role_users_id'] = $request->role_users_id;
-                $data['contact_no'] = $request->contact_no;
-                $data['attendance_type'] = $request->attendance_type;
-                $data['is_active'] = 1;
-
-
-
-                $user = [];
-                $user['first_name'] = $request->first_name;
-                $user['last_name'] = $request->last_name;
-                $user['username'] = strtolower(trim($request->username));
-                $user['email'] = strtolower(trim($request->email));
-                $user['role_users_id'] = $request->role_users_id;
-                $user['contact_no'] = $request->contact_no;
-                $user['is_active'] = 1;
-
-                // return response()->json($data);
-
-
-                DB::beginTransaction();
-                try {
-                    User::whereId($employee)->update($user);
-                    employee::find($employee)->update($data);
-
-                    $usertest = User::find($employee); //--new--
-                    $usertest->syncRoles($data['role_users_id']); //--new--
-
-                    DB::commit();
-                } catch (Exception $e) {
-                    DB::rollback();
-
-                    return response()->json(['error' => $e->getMessage()]);
-                } catch (Throwable $e) {
-                    DB::rollback();
-
-                    return response()->json(['error' => $e->getMessage()]);
-                }
-
-                return response()->json(['success' => __('Data Added successfully.')]);
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()->all()]);
             }
-        }
 
-        return response()->json(['success' => __('You are not authorized')]);
+            $data = [];
+            $user = [];
+            $file_name = null;
+
+            $photo = $request->profile_photo;
+
+            if (isset($photo) && $photo->isValid()) {
+                $new_user = $request->username; // employee_username ki jagah username use karo
+                $file_name = preg_replace('/\s+/', '', $new_user) . '_' . time() . '.' . $photo->getClientOriginalExtension();
+
+                $photo->storeAs('profile_photos', $file_name);
+
+                // Purani image delete karni ho to
+                $this->unlink($employee);
+
+                // IMPORTANT: profile photo User table me update hogi
+                $user['profile_photo'] = $file_name;
+            }
+
+            $data['first_name'] = $request->first_name;
+            $data['last_name'] = $request->last_name;
+            $data['staff_id'] = $request->staff_id;
+            $data['date_of_birth'] = $request->date_of_birth;
+            $data['gender'] = $request->gender;
+            $data['department_id'] = $request->department_id;
+            $data['company_id'] = $request->company_id;
+            $data['designation_id'] = $request->designation_id;
+            $data['office_shift_id'] = $request->office_shift_id;
+            $data['status_id'] = $request->status_id;
+            $data['marital_status'] = $request->marital_status;
+
+            if ($request->joining_date) {
+                $data['joining_date'] = $request->joining_date;
+            }
+
+            $data['exit_date'] = $request->exit_date ? date('Y-m-d', strtotime($request->exit_date)) : null;
+            $data['address'] = $request->address;
+            $data['city'] = $request->city;
+            $data['state'] = $request->state;
+            $data['country'] = $request->country;
+            $data['zip_code'] = $request->zip_code;
+            $data['attendance_type'] = $request->attendance_type;
+            $data['is_active'] = 1;
+
+            $user['first_name'] = $request->first_name;
+            $user['last_name'] = $request->last_name;
+            $user['username'] = strtolower(trim($request->username));
+            $user['email'] = strtolower(trim($request->email));
+            $user['role_users_id'] = $request->role_users_id;
+            $user['contact_no'] = $request->contact_no;
+            $user['is_active'] = 1;
+
+            DB::beginTransaction();
+            try {
+                User::whereId($employee)->update($user);
+                Employee::find($employee)->update($data);
+
+                $usertest = User::find($employee);
+                $usertest->syncRoles($request->role_users_id);
+
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollback();
+                return response()->json(['error' => $e->getMessage()]);
+            } catch (\Throwable $e) {
+                DB::rollback();
+                return response()->json(['error' => $e->getMessage()]);
+            }
+
+            return response()->json([
+                'success' => __('Data Updated successfully.'),
+                'profile_picture' => $file_name
+            ]);
+        }
     }
+
+    return response()->json(['success' => __('You are not authorized')]);
+}
 
     public function socialProfileShow(Employee $employee)
     {

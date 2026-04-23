@@ -25,7 +25,7 @@ return new class extends Migration
             $table->string('profile_bg', 191)->nullable();
             $table->unsignedBigInteger('role_users_id');
             $table->boolean('is_active')->nullable();
-            $table->string('contact_no', 15);
+            $table->string('contact_no', 15)->nullable();
             $table->string('last_login_ip', 32)->nullable();
             $table->timestamp('last_login_date', 2)->nullable();
             $table->rememberToken();

@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\traits\AutoUpdateTrait;
+use App\Http\traits\CalendarableModelTrait;
+use App\Http\traits\ENVFilePutContent;
+use App\Http\traits\ShiftTimingOnDay;
 use App\Models\Announcement;
 use App\Models\Attendance;
 use App\Models\Award;
-use App\Models\GeneralSetting;
 use App\Models\Client;
 use App\Models\company;
 use App\Models\DocumentType;
@@ -16,11 +19,8 @@ use App\Models\EmployeeTicket;
 use App\Models\EmployeeWorkExperience;
 use App\Models\FinanceDeposit;
 use App\Models\FinanceExpense;
+use App\Models\GeneralSetting;
 use App\Models\Holiday;
-use App\Http\traits\AutoUpdateTrait;
-use App\Http\traits\ENVFilePutContent;
-use App\Http\traits\CalendarableModelTrait;
-use App\Http\traits\ShiftTimingOnDay;
 use App\Models\Invoice;
 use App\Models\IpSetting;
 use App\Models\leave;
@@ -44,10 +44,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
+use Spatie\Permission\Models\Role;
 use Throwable;
 use ZipArchive;
-use Illuminate\Support\Facades\File;
 
 
 class DashboardController extends Controller {
@@ -293,7 +294,9 @@ class DashboardController extends Controller {
 	{
 
 		$user = auth()->user();
-
+         $companies = company::select('id', 'company_name')->get();
+        $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
+        $currentDate = date('Y-m-d');
 		$employee = Employee::find($user->id);
 
 		if (!$employee)
@@ -303,7 +306,7 @@ class DashboardController extends Controller {
 				return view('profile.client_profile', compact('user'));
 			}
 
-			return view('profile.user_profile', compact('user'));
+			return view('profile.user_profile', compact('user','companies','roles','currentDate'));
 		} else
 		{
 			$statuses = status::select('id', 'status_title')->get();
@@ -319,8 +322,8 @@ class DashboardController extends Controller {
                                         ->orderByRaw('DATE_FORMAT(first_date, "%y-%m")')
                                         ->get();
 
-			return view('profile.employee_profile', compact('user', 'employee', 'statuses',
-				'countries', 'document_types', 'education_levels', 'language_skills', 'general_skills', 'relationTypes', 'salary_basics'));
+			return view('profile.employee_profile', compact('user', 'employee', 'statuses','roles','currentDate',
+				'countries', 'document_types', 'education_levels', 'language_skills', 'general_skills', 'relationTypes', 'salary_basics','companies'));
 		}
 	}
 

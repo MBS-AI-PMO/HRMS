@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('account_title', 191);
             $table->string('account_number', 191);
             $table->string('bank_name', 191);
-            $table->string('bank_code', 191);
+            $table->string('iban_number', 191);
             $table->string('bank_branch', 191);
             $table->timestamps();
 
