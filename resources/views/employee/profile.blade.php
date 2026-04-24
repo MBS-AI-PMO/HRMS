@@ -45,12 +45,12 @@
                                     aria-controls="Employee_project_task" aria-selected="false">{{ trans('file.Project') }} &amp; {{ trans('file.Task') }}</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" id="employee_travel-tab" data-toggle="tab" href="#Employee_travel" role="tab"
-                                    aria-controls="Employee_travel" aria-selected="false">{{ trans('file.Travel') }}</a>
+                                <a class="nav-link" id="employee_travel-tab" data-toggle="tab" href="#Profile_travel" role="tab"
+                                    aria-controls="Profile_travel" aria-selected="false">{{ trans('file.Travel') }}</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" id="employee_ticket-tab" data-toggle="tab" href="#Employee_ticket" role="tab"
-                                    aria-controls="Employee_ticket" aria-selected="false">{{ trans('file.Ticket') }}</a>
+                                <a class="nav-link" id="employee_complain-tab" data-toggle="tab" href="#Employee_complain" role="tab"
+                                    aria-controls="Employee_complain" aria-selected="false">{{ __('Complain') }}</a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" id="employee_payslip-tab" data-toggle="tab" href="#Employee_Payslip" role="tab"
@@ -422,16 +422,16 @@
                                         @include('employee.project_task.index')
                                     </div>
 
-                                    <div class="tab-pane fade" id="Employee_travel" role="tabpanel" aria-labelledby="employee_travel-tab">
+                                    <div class="tab-pane fade" id="Profile_travel" role="tabpanel" aria-labelledby="employee_travel-tab">
                                         {{ trans('file.Travel') }}
                                         <hr>
                                         @include('employee.core_hr.travel.index')
                                     </div>
 
-                                    <div class="tab-pane fade" id="Employee_ticket" role="tabpanel" aria-labelledby="employee_ticket-tab">
-                                        {{ trans('file.Ticket') }}
+                                    <div class="tab-pane fade" id="Employee_complain" role="tabpanel" aria-labelledby="employee_complain-tab">
+                                        {{ __('Complain') }}
                                         <hr>
-                                        @include('employee.core_hr.ticket.index')
+                                        @include('employee.core_hr.ticket.index_profile')
                                     </div>
 
                                     <div class="tab-pane fade" id="Employee_Payslip" role="tabpanel" aria-labelledby="employee_payslip-tab">
@@ -533,12 +533,31 @@
             @include('employee.project_task.task.index_js')
         });
 
-        $('#employee_travel-tab').one('click', function(e) {
+        let travelTabInitialized = false;
+        let complainTabInitialized = false;
+
+        const initTravelTab = function() {
+            if (travelTabInitialized) {
+                return;
+            }
+            travelTabInitialized = true;
             @include('employee.core_hr.travel.index_js')
+        };
+
+        const initComplainTab = function() {
+            if (complainTabInitialized) {
+                return;
+            }
+            complainTabInitialized = true;
+            @include('employee.core_hr.ticket.index_js_profile')
+        };
+
+        $('#employee_travel-tab').on('shown.bs.tab', function() {
+            initTravelTab();
         });
 
-        $('#employee_ticket-tab').one('click', function(e) {
-            @include('employee.core_hr.ticket.index_js')
+        $('#employee_complain-tab').on('shown.bs.tab', function() {
+            initComplainTab();
         });
 
         $('#employee_award-tab').one('click', function(e) {
@@ -670,6 +689,15 @@
             var $top = $('#profileMainTabs a[href="' + h + '"]');
             if ($top.length) {
                 $top.tab('show');
+                // Deep-link par lazy-loaded tab JS (one-click handlers) bhi run karao.
+                $top.trigger('click');
+
+                if (h === '#Profile_travel') {
+                    initTravelTab();
+                }
+                if (h === '#Employee_complain') {
+                    initComplainTab();
+                }
             }
         })();
     </script>

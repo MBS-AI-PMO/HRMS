@@ -205,7 +205,7 @@
                         <h3 class="text-center">Travel</h3>
                     </div>
                     <div class="d-flex justify-content-between">
-                        <a class="btn btn-link btn-block" href="{{ route('profile') . '#Employee_travel' }}">
+                        <a class="btn btn-link btn-block" href="{{ route('profile') . '#Profile_travel' }}">
                             {{ __('View Travel Info') }}
                         </a>
                         <button class="btn btn-light btn-block mt-0"
@@ -221,7 +221,7 @@
                         <h3 class="text-center">{{ __('Complain') }}</h3>
                     </div>
                     <div class="d-flex justify-content-between">
-                        <a class="btn btn-link btn-block" href="{{ route('profile') . '#Employee_ticket' }}">
+                        <a class="btn btn-link btn-block" href="{{ route('profile') . '#Employee_complain' }}">
                             {{ __('Complain Info') }}
                         </a>
                         <button class="btn btn-light btn-block mt-0"
@@ -524,7 +524,7 @@
                 <div class="modal-content">
 
                     <div class="modal-header">
-                        <h5 id="exampleModalLabel" class="modal-title">{{ __('Open Ticket') }}</h5>
+                        <h5 id="exampleModalLabel" class="modal-title">{{ __('Open Complain') }}</h5>
                         <button type="button" data-dismiss="modal" id="close" aria-label="Close"
                             class="close"><span aria-hidden="true">×</span></button>
                     </div>
@@ -559,13 +559,13 @@
                                 </div>
 
                                 <div class="col-md-6 form-group">
-                                    <label>{{ __('Ticket Note') }}</label>
+                                    <label>{{ __('Complain Note') }}</label>
                                     <input type="text" name="ticket_note" id="ticket_note" class="form-control"
                                         placeholder="{{ trans('file.Optional') }}">
                                 </div>
 
                                 <div class="col-md-6 form-group hide_edit">
-                                    <label>{{ __('Ticket Attachments') }} </label>
+                                    <label>{{ __('Complain Attachments') }} </label>
                                     <input type="file" name="ticket_attachments" id="ticket_attachments"
                                         class="form-control">
                                 </div>
@@ -755,22 +755,16 @@
                             html += '<div class="alert alert-danger">' + data.error + '</div>';
                         } else if (data.success) {
                             html = '<div class="alert alert-success">' + data.success + '</div>';
+                            $('#leave_form_result').html(html).slideDown(300);
 
-                            // message show karo
-                            $('#leave_form_result')
-                                .html(html)
-                                .fadeIn();
-
-                            // 3 sec baad reset + modal close
                             setTimeout(function() {
                                 $('#leaveSampleForm')[0].reset();
                                 $('select').selectpicker('refresh');
                                 $('.date').datepicker('update');
                                 $('#leaveModal').modal('hide');
-
-                                // message hide
-                                $('#leave_form_result').fadeOut();
-                            }, 3000);
+                                $('#leave_form_result').html('');
+                            }, 1500);
+                            return;
                         }
                         $('#leave_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                     }
@@ -805,9 +799,16 @@
                         }
                         if (data.success) {
                             html = '<div class="alert alert-success">' + data.success + '</div>';
-                            $('#travel_sample_form')[0].reset();
-                            $('select').selectpicker('refresh');
-                            $('.date').datepicker('update');
+                            $('#travel_form_result').html(html).slideDown(300);
+
+                            setTimeout(function() {
+                                $('#travel_sample_form')[0].reset();
+                                $('select').selectpicker('refresh');
+                                $('.date').datepicker('update');
+                                $('#travelModal').modal('hide');
+                                $('#travel_form_result').html('');
+                            }, 1500);
+                            return;
                         }
                         $('#travel_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                     }
@@ -837,8 +838,15 @@
                         }
                         if (data.success) {
                             html = '<div class="alert alert-success">' + data.success + '</div>';
-                            $('#ticket_sample_form')[0].reset();
-                            $('select').selectpicker('refresh');
+                            $('#ticket_form_result').html(html).slideDown(300);
+
+                            setTimeout(function() {
+                                $('#ticket_sample_form')[0].reset();
+                                $('select').selectpicker('refresh');
+                                $('#ticketModal').modal('hide');
+                                $('#ticket_form_result').html('');
+                            }, 1500);
+                            return;
                         }
                         $('#ticket_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                     }

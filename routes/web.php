@@ -368,6 +368,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::get('employee_training/details/{id}', [EmployeeTrainingController::class, 'show'])->name('employee_training.show');
 
         Route::get('employee_ticket/{employee}', [EmployeeTicketController::class, 'index'])->name('employee_ticket.index');
+        Route::get('employee_ticket_my_complains', [EmployeeTicketController::class, 'myComplains'])->name('employee_ticket.my');
         Route::get('employee_ticket/details', [EmployeeTicketController::class, 'details'])->name('employee_ticket.details');
         Route::get('employee_ticket/details/{id}', [EmployeeTicketController::class, 'show'])->name('employee_ticket.show');
 
