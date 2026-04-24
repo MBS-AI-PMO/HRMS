@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Validator;
 use App\Notifications\EmployeeLeaveNotification; //Mail
 use App\Notifications\LeaveNotification; //Database
 use App\Notifications\LeaveNotificationToAdmin; //Database
+use App\Notifications\WfhRequestNotificationToApprover; //Database
 use App\Models\User;
 use App\Models\EmployeeLeaveTypeDetail;
 use DateTime;
@@ -22,6 +23,7 @@ use Exception;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 
 class LeaveController extends Controller
 {
@@ -127,7 +129,14 @@ class LeaveController extends Controller
                 $data['end_date'] = $request->end_date;
                 $data['total_days'] = $request->diff_date_hidden;
 
-                if ($request->status == 'approved') {
+                $isWfhLeave = $this->isWfhLeaveTypeId((int) $request->leave_type);
+                if ($isWfhLeave) {
+                    $data['status'] = 'pending';
+                    $data['hr_approval_status'] = 'pending';
+                    $data['manager_approval_status'] = 'pending';
+                }
+
+                if (($data['status'] ?? $request->status) == 'approved') {
                     try {
                         $this->employeeLeaveTypeDataManage(null, $request, $request->employee_id, false);
                     } catch (Exception $e) {
@@ -141,6 +150,8 @@ class LeaveController extends Controller
                     $text = "A new leave-notification has been published";
                     $notifiable = User::findOrFail($data['employee_id']);
                     $notifiable->notify(new LeaveNotification($text)); //To Employee
+                } elseif ($isWfhLeave) {
+                    $this->notifyWfhApprovers($leave);
                 } elseif ((Auth::user()->role_users_id != 1) && ($leave->is_notify == NULL)) {
                     //get-leave-notification - 294
                     $role_ids = DB::table('role_has_permissions')->where('permission_id', 294)->get()->pluck('role_id');
@@ -215,9 +226,17 @@ class LeaveController extends Controller
     public function update(Request $request)
     {
         $logged_user = auth()->user();
+        $id = $request->hidden_id;
+        $leaveForPermission = leave::with('department:id,department_head')->find($id);
+        $isWfhForPermission = $leaveForPermission
+            ? $this->isWfhLeaveTypeId((int) ($request->leave_type ?: $leaveForPermission->leave_type_id))
+            : false;
+        $isDepartmentManager = $leaveForPermission
+            ? (int) $leaveForPermission->department?->department_head === (int) auth()->id()
+            : false;
+        $canManageWfhApproval = $isWfhForPermission && ($this->isHrUser() || $isDepartmentManager);
 
-        if ($logged_user->can('edit-leave')) {
-            $id = $request->hidden_id;
+        if ($logged_user->can('edit-leave') || $canManageWfhApproval) {
 
             $validator = Validator::make(
                 $request->only(
@@ -284,19 +303,43 @@ class LeaveController extends Controller
 
 
             $leave = leave::find($id);
+            $isWfhLeave = $this->isWfhLeaveTypeId((int) ($request->leave_type ?: $leave->leave_type_id));
+
+            if ($isWfhLeave) {
+                $this->applyWfhApprovalStatus($leave, $data, $request);
+            }
 
             //Employee Remaining Leave Manage
             $isEmplyoeeRemaingLeaveRestore = null;
-            if ($leave->status == 'approved' && ($request->status == 'pending' || $request->status == 'rejected')) {
+            if (
+                ! $isWfhLeave &&
+                $leave->status == 'approved' &&
+                ($request->status == 'pending' || $request->status == 'rejected')
+            ) {
                 $isEmplyoeeRemaingLeaveRestore = true;
-            } else if (($leave->status == 'pending' || $leave->status == 'rejected') && $request->status === 'approved') {
+            } else if (
+                ! $isWfhLeave &&
+                ($leave->status == 'pending' || $leave->status == 'rejected') &&
+                $request->status === 'approved'
+            ) {
                 $isEmplyoeeRemaingLeaveRestore = false;
             }
 
             try {
-                $this->employeeLeaveTypeDataManage($leave, $request, $employee_id, $isEmplyoeeRemaingLeaveRestore);
+                $shouldManageLeaveQuota = ! $isWfhLeave && $request->status !== null;
+                if ($shouldManageLeaveQuota) {
+                    $this->employeeLeaveTypeDataManage($leave, $request, $employee_id, $isEmplyoeeRemaingLeaveRestore);
+                }
 
                 $leave->update($data);
+
+                if (
+                    $isWfhLeave &&
+                    ($data['status'] ?? $leave->status) === 'approved'
+                ) {
+                    $this->syncEmployeeAttendanceTypeForWfh($leave->employee_id);
+                }
+
                 if ($data['is_notify'] != NULL) {
                     $text = "A leave-notification has been updated";
                     $notifiable = User::findOrFail($data['employee_id']);
@@ -311,6 +354,109 @@ class LeaveController extends Controller
         return response()->json(['success' => __('You are not authorized')]);
     }
 
+
+    private function isWfhLeaveTypeId(int $leaveTypeId): bool
+    {
+        if (! $leaveTypeId) {
+            return false;
+        }
+
+        $leaveType = LeaveType::find($leaveTypeId);
+
+        if (! $leaveType || ! isset($leaveType->leave_type)) {
+            return false;
+        }
+
+        $name = strtolower((string) $leaveType->leave_type);
+        return strpos($name, 'wfh') !== false || strpos($name, 'work from home') !== false;
+    }
+
+    private function applyWfhApprovalStatus(leave $leave, array &$data, Request $request): void
+    {
+        $requestStatus = $request->status;
+        if (! in_array($requestStatus, ['approved', 'rejected', 'pending'], true)) {
+            $requestStatus = 'pending';
+        }
+
+        $currentHrStatus = $leave->hr_approval_status ?: 'pending';
+        $currentManagerStatus = $leave->manager_approval_status ?: 'pending';
+
+        $isAdmin = (int) auth()->user()->role_users_id === 1;
+        $isHr = $this->isHrUser();
+        $isDepartmentManager = (int) $leave->department?->department_head === (int) auth()->id();
+
+        if ($isAdmin || $isHr) {
+            $data['hr_approval_status'] = $requestStatus;
+            $currentHrStatus = $requestStatus;
+        }
+
+        if ($isAdmin || $isDepartmentManager) {
+            $data['manager_approval_status'] = $requestStatus;
+            $currentManagerStatus = $requestStatus;
+        }
+
+        if ($currentHrStatus === 'rejected' || $currentManagerStatus === 'rejected') {
+            $data['status'] = 'rejected';
+        } elseif ($currentHrStatus === 'approved' && $currentManagerStatus === 'approved') {
+            $data['status'] = 'approved';
+        } else {
+            $data['status'] = 'pending';
+        }
+    }
+
+    private function isHrUser(): bool
+    {
+        $role = Role::find(auth()->user()->role_users_id);
+        $roleName = strtolower((string) ($role->name ?? ''));
+        return strpos($roleName, 'hr') !== false || strpos($roleName, 'human') !== false;
+    }
+
+    private function syncEmployeeAttendanceTypeForWfh(int $employeeId): void
+    {
+        $today = now()->toDateString();
+        $hasActiveWfh = leave::query()
+            ->join('leave_types', 'leave_types.id', '=', 'leaves.leave_type_id')
+            ->where('leaves.employee_id', $employeeId)
+            ->where('leaves.status', 'approved')
+            ->where('leaves.hr_approval_status', 'approved')
+            ->where('leaves.manager_approval_status', 'approved')
+            ->whereDate('leaves.start_date', '<=', $today)
+            ->whereDate('leaves.end_date', '>=', $today)
+            ->where(function ($query) {
+                $query->where('leave_types.leave_type', 'like', '%wfh%')
+                    ->orWhere('leave_types.leave_type', 'like', '%work from home%');
+            })
+            ->exists();
+
+        Employee::where('id', $employeeId)->update([
+            'attendance_type' => $hasActiveWfh ? 'general' : 'location_based',
+        ]);
+    }
+
+    private function notifyWfhApprovers(leave $leave): void
+    {
+        $hrRoleIds = Role::query()
+            ->where(function ($query) {
+                $query->where('name', 'like', '%hr%')
+                    ->orWhere('name', 'like', '%human%');
+            })
+            ->pluck('id');
+
+        $hrUsers = User::query()
+            ->whereIn('role_users_id', $hrRoleIds)
+            ->get();
+
+        $departmentHeadId = department::where('id', $leave->department_id)->value('department_head');
+        $departmentHeadUser = $departmentHeadId ? User::find($departmentHeadId) : null;
+
+        foreach ($hrUsers as $item) {
+            $item->notify(new WfhRequestNotificationToApprover());
+        }
+
+        if ($departmentHeadUser && ! $hrUsers->contains('id', $departmentHeadUser->id)) {
+            $departmentHeadUser->notify(new WfhRequestNotificationToApprover());
+        }
+    }
 
     private function employeeLeaveTypeDataManage($leave, $request, $employee_id, $isRestore)
     {

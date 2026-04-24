@@ -122,7 +122,7 @@
                                         </ul>
                                     </div>
                                 @endcan
-                                @can('modify-details-employee')
+                                @canany(['modify-details-employee', 'view-details-employee'])
                                     <div class="col-md-9">
                                         <div class="tab-content" id="myTabContent">
                                             <div class="tab-pane fade show active" id="Basic" role="tabpanel"
@@ -130,6 +130,7 @@
                                                 <!--Contents for Basic starts here-->
                                                 {{ __('Basic Information') }}
                                                 <hr>
+                                                @can('modify-details-employee')
                                                 <span id="form_result"></span>
                                                 <form method="post" id="basic_sample_form" class="form-horizontal"
                                                     enctype="multipart/form-data" autocomplete="off">
@@ -456,8 +457,42 @@
 
                                                     </div>
                                                 </form>
+                                                @else
+                                                    <div class="table-responsive">
+                                                        <table class="table table-bordered">
+                                                            <tr>
+                                                                <th>{{ __('Name') }}</th>
+                                                                <td>{{ $employee->full_name }}</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>{{ trans('file.Username') }}</th>
+                                                                <td>{{ $employee->user->username ?? '' }}</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>{{ trans('file.Email') }}</th>
+                                                                <td>{{ $employee->email }}</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>{{ trans('file.Phone') }}</th>
+                                                                <td>{{ $employee->contact_no }}</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>{{ __('Department') }}</th>
+                                                                <td>{{ $employee->department->department_name ?? '' }}</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>{{ __('Designation') }}</th>
+                                                                <td>{{ $employee->designation->designation_name ?? '' }}</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <th>{{ __('Attendance Type') }}</th>
+                                                                <td>{{ ucfirst(str_replace('_', ' ', $employee->attendance_type)) }}</td>
+                                                            </tr>
+                                                        </table>
+                                                    </div>
+                                                @endcan
                                             </div>
-                                        @endcan
+                                        @endcanany
 
                                         @can('view-details-employee')
                                             <div class="tab-pane fade" id="Immigration" role="tabpanel"
@@ -857,17 +892,23 @@
         // });
     </script>
     <script>
-        document.getElementById('profile_photo').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const preview = document.getElementById('profile_photo_preview');
+        const profilePhotoInput = document.getElementById('profile_photo');
+        if (profilePhotoInput) {
+            profilePhotoInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                const preview = document.getElementById('profile_photo_preview');
+                if (!preview) {
+                    return;
+                }
 
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(ev) {
+                        preview.src = ev.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
     </script>
 @endpush

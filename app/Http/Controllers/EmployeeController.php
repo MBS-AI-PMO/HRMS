@@ -887,13 +887,35 @@ class EmployeeController extends Controller
    public function updateAttendanceType()
 {
     try {
-        $updated = \App\Models\Employee::query()->update([
-            'attendance_type' => 'location_based'
-        ]);
+        $today = now()->toDateString();
+
+        $activeWfhEmployeeIds = \App\Models\leave::query()
+            ->join('leave_types', 'leave_types.id', '=', 'leaves.leave_type_id')
+            ->where('leaves.status', 'approved')
+            ->where('leaves.hr_approval_status', 'approved')
+            ->where('leaves.manager_approval_status', 'approved')
+            ->whereDate('leaves.start_date', '<=', $today)
+            ->whereDate('leaves.end_date', '>=', $today)
+            ->where(function ($query) {
+                $query->where('leave_types.leave_type', 'like', '%wfh%')
+                    ->orWhere('leave_types.leave_type', 'like', '%work from home%');
+            })
+            ->distinct()
+            ->pluck('leaves.employee_id');
+
+        $toGeneral = \App\Models\Employee::query()
+            ->whereIn('id', $activeWfhEmployeeIds)
+            ->where('attendance_type', '!=', 'general')
+            ->update(['attendance_type' => 'general']);
+
+        $toLocationBased = \App\Models\Employee::query()
+            ->whereNotIn('id', $activeWfhEmployeeIds)
+            ->where('attendance_type', 'general')
+            ->update(['attendance_type' => 'location_based']);
 
         return response()->json([
             'success' => true,
-            'updated_count' => $updated
+            'updated_count' => $toGeneral + $toLocationBased
         ]);
     } catch (\Exception $e) {
         return response()->json([

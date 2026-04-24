@@ -23,14 +23,50 @@
                         <div class="text-center">
                             <h2>{{ $employee->user->username }}</h2>
                         </div>
-                                <div class="row">
-                                 
-                              
-                                    <div class="col-md-12">
-                                        <div class="tab-content" id="myTabContent">
-                                            <div class="tab-pane fade show active" id="Basic" role="tabpanel"
-                                                aria-labelledby="basic-tab">
-                                                <!--Contents for Basic starts here-->
+                        <ul class="nav nav-tabs d-flex flex-wrap" id="profileMainTabs" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" id="general-tab" data-toggle="tab" href="#General" role="tab"
+                                    aria-controls="General" aria-selected="true">{{ trans('file.General') }}</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="leave-tab" data-toggle="tab" href="#Leave" role="tab"
+                                    aria-controls="Leave" aria-selected="false">{{ trans('file.Leave') }}</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="wfh-tab" data-toggle="tab" href="#WFH" role="tab"
+                                    aria-controls="WFH" aria-selected="false">WFH</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="employee_award-tab" data-toggle="tab" href="#Employee_award" role="tab"
+                                    aria-controls="Employee_award" aria-selected="false">{{ trans('file.Award') }}</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="employee_project_task-tab" data-toggle="tab" href="#Employee_project_task" role="tab"
+                                    aria-controls="Employee_project_task" aria-selected="false">{{ trans('file.Project') }} &amp; {{ trans('file.Task') }}</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="employee_travel-tab" data-toggle="tab" href="#Employee_travel" role="tab"
+                                    aria-controls="Employee_travel" aria-selected="false">{{ trans('file.Travel') }}</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="employee_ticket-tab" data-toggle="tab" href="#Employee_ticket" role="tab"
+                                    aria-controls="Employee_ticket" aria-selected="false">{{ trans('file.Ticket') }}</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="employee_payslip-tab" data-toggle="tab" href="#Employee_Payslip" role="tab"
+                                    aria-controls="Employee_Payslip" aria-selected="false">{{ trans('file.Payslip') }}</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="remainingLeaveType-tab" data-toggle="tab" href="#remainingLeaveType" role="tab"
+                                    aria-controls="remainingLeaveType" aria-selected="false">{{ trans('file.Remaining Leave') }}</a>
+                            </li>
+                        </ul>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="tab-content" id="myTabContent">
+                                    <div class="tab-pane fade show active" id="General" role="tabpanel"
+                                        aria-labelledby="general-tab">
+                                                <!--Contents for General / Basic starts here-->
                                                 {{ __('Basic Information') }}
                                                 <hr>
                                                 <span id="form_result"></span>
@@ -359,14 +395,63 @@
 
                                                     </div>
                                                 </form>
-                                            </div>
-                                      
+                                    </div>
 
+                                    <div class="tab-pane fade" id="Leave" role="tabpanel" aria-labelledby="leave-tab">
+                                        {{ __('Leave Info') }}
+                                        <hr>
+                                        @include('employee.leave.index')
+                                    </div>
+
+                                    <div class="tab-pane fade" id="WFH" role="tabpanel" aria-labelledby="wfh-tab">
+                                        {{ __('WFH') }}
+                                        <p class="text-muted small mb-0">{{ __('Work from home requests and approval status') }}</p>
+                                        <hr>
+                                        @include('employee.leave.wfh_index')
+                                    </div>
+
+                                    <div class="tab-pane fade" id="Employee_award" role="tabpanel" aria-labelledby="employee_award-tab">
+                                        {{ __('Award Info') }}
+                                        <hr>
+                                        @include('employee.core_hr.award.index')
+                                    </div>
+
+                                    <div class="tab-pane fade" id="Employee_project_task" role="tabpanel" aria-labelledby="employee_project_task-tab">
+                                        {{ trans('file.Project') }} &amp; {{ trans('file.Task') }}
+                                        <hr>
+                                        @include('employee.project_task.index')
+                                    </div>
+
+                                    <div class="tab-pane fade" id="Employee_travel" role="tabpanel" aria-labelledby="employee_travel-tab">
+                                        {{ trans('file.Travel') }}
+                                        <hr>
+                                        @include('employee.core_hr.travel.index')
+                                    </div>
+
+                                    <div class="tab-pane fade" id="Employee_ticket" role="tabpanel" aria-labelledby="employee_ticket-tab">
+                                        {{ trans('file.Ticket') }}
+                                        <hr>
+                                        @include('employee.core_hr.ticket.index')
+                                    </div>
+
+                                    <div class="tab-pane fade" id="Employee_Payslip" role="tabpanel" aria-labelledby="employee_payslip-tab">
+                                        {{ trans('file.Payslip') }}
+                                        <hr>
+                                        @include('employee.payslip.index')
+                                    </div>
+
+                                    <div class="tab-pane fade" id="remainingLeaveType" role="tabpanel" aria-labelledby="remainingLeaveType-tab">
+                                        {{ trans('file.Remaining Leave') }}
+                                        <hr>
+                                        @include('employee.remaining_leave.index')
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-              </section>
+    </section>
 
 
 
@@ -402,6 +487,8 @@
                 minViewMode: 1,
                 autoclose: true,
             }).datepicker("setDate", new Date());
+
+            @include('employee.leave.index_js_both_for_profile')
         });
 
         $('[data-table="immigration"]').one('click', function(e) {
@@ -433,83 +520,8 @@
             @include('employee.profile_picture.index_js')
         });
 
-        $('#set_salary-tab').one('click', function(e) {
-            @include('employee.salary.basic.index_js') //employee.salary.index_js.blade.php - both are same
-        });
-
-        $('#salary_allowance-tab').one('click', function(e) {
-            @include('employee.salary.allowance.index_js')
-        });
-
-        $('#salary_commission-tab').one('click', function(e) {
-            @include('employee.salary.commission.index_js')
-        });
-
-        $('#salary_loan-tab').one('click', function(e) {
-            @include('employee.salary.loan.index_js')
-        });
-
-        $('#salary_deduction-tab').one('click', function(e) {
-            @include('employee.salary.deduction.index_js')
-        });
-
-        $('#other_payment-tab').one('click', function(e) {
-            @include('employee.salary.other_payment.index_js')
-        });
-
-        $('#salary_overtime-tab').one('click', function(e) {
-            @include('employee.salary.overtime.index_js')
-        });
-
-        $('#salary_pension-tab').one('click', function(e) {
-            @include('employee.salary.pension_amount_js')
-        });
-
-
-        $('#leave-tab').one('click', function(e) {
-            @include('employee.leave.index_js')
-        });
-
-
         $('#remainingLeaveType-tab').one('click', function(e) {
             @include('employee.remaining_leave.index_js')
-        });
-
-
-
-        $('#employee_core_hr-tab').one('click', function(e) {
-            @include('employee.core_hr.award.index_js')
-        });
-
-        $('#employee_travel-tab').one('click', function(e) {
-            @include('employee.core_hr.travel.index_js')
-        });
-
-        $('#employee_training-tab').one('click', function(e) {
-            @include('employee.core_hr.training.index_js')
-        });
-
-        $('#employee_ticket-tab').one('click', function(e) {
-            @include('employee.core_hr.ticket.index_js')
-        });
-
-
-        $('#employee_transfer-tab').one('click', function(e) {
-            @include('employee.core_hr.transfer.index_js')
-        });
-
-
-        $('#employee_promotion-tab').one('click', function(e) {
-            @include('employee.core_hr.promotion.index_js')
-        });
-
-        $('#employee_complaint-tab').one('click', function(e) {
-            @include('employee.core_hr.complaint.index_js')
-        });
-
-
-        $('#employee_warning-tab').one('click', function(e) {
-            @include('employee.core_hr.warning.index_js')
         });
 
         $('#employee_project_task-tab').one('click', function(e) {
@@ -521,10 +533,21 @@
             @include('employee.project_task.task.index_js')
         });
 
+        $('#employee_travel-tab').one('click', function(e) {
+            @include('employee.core_hr.travel.index_js')
+        });
+
+        $('#employee_ticket-tab').one('click', function(e) {
+            @include('employee.core_hr.ticket.index_js')
+        });
+
+        $('#employee_award-tab').one('click', function(e) {
+            @include('employee.core_hr.award.index_js')
+        });
+
         $('#employee_payslip-tab').one('click', function(e) {
             @include('employee.payslip.index_js')
         });
-
 
         $('#basic_sample_form').on('submit', function(event) {
             event.preventDefault();
@@ -638,6 +661,17 @@
         //         $('#ipField').empty();
         //     }
         // });
+
+        (function () {
+            var h = window.location.hash;
+            if (!h) {
+                return;
+            }
+            var $top = $('#profileMainTabs a[href="' + h + '"]');
+            if ($top.length) {
+                $top.tab('show');
+            }
+        })();
     </script>
     <script>
         document.getElementById('profile_photo').addEventListener('change', function(e) {
