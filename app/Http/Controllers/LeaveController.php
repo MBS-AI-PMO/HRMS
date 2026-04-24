@@ -33,12 +33,17 @@ class LeaveController extends Controller
         $logged_user = auth()->user();
         $companies = company::select('id', 'company_name')->get();
         $leave_types = LeaveType::select('id', 'leave_type', 'allocated_day')->get();
-        $leave = leave::with('employee', 'department', 'LeaveType')->orderBy('id', 'DESC')->get();
-
-
         if ($logged_user->can('view-leave')) {
             if (request()->ajax()) {
-                return datatables()->of($leave)
+                $leaveQuery = leave::query()
+                    ->with([
+                        'employee:id,first_name,last_name',
+                        'department:id,department_name',
+                        'LeaveType:id,leave_type',
+                    ])
+                    ->orderByDesc('id');
+
+                return datatables()->of($leaveQuery)
                     ->setRowId(function ($row) {
                         return $row->id;
                     })
@@ -165,14 +170,24 @@ class LeaveController extends Controller
                     //Mail
                     $department = department::with('DepartmentHead:id,email')->where('id', $request->department_id)->first();
                     if(isset($department->DepartmentHead->email)) {
-                        Notification::route('mail', $department->DepartmentHead->email)
-                        ->notify(new EmployeeLeaveNotification(
-                            $leave->employee->full_name,
-                            $leave->total_days,
-                            $leave->start_date,
-                            $leave->end_date,
-                            $leave->leave_reason,
-                        ));
+                        $departmentHeadEmail = $department->DepartmentHead->email;
+                        $employeeName = $leave->employee->full_name;
+                        $totalDays = $leave->total_days;
+                        $startDate = $leave->start_date;
+                        $endDate = $leave->end_date;
+                        $leaveReason = $leave->leave_reason;
+
+                        // Do not block leave submission on slow SMTP.
+                        dispatch(function () use ($departmentHeadEmail, $employeeName, $totalDays, $startDate, $endDate, $leaveReason) {
+                            Notification::route('mail', $departmentHeadEmail)
+                                ->notify(new EmployeeLeaveNotification(
+                                    $employeeName,
+                                    $totalDays,
+                                    $startDate,
+                                    $endDate,
+                                    $leaveReason
+                                ));
+                        })->afterResponse();
                     }
 
                 }
