@@ -333,11 +333,10 @@ class LeaveController extends Controller
 
                 $leave->update($data);
 
-                if (
-                    $isWfhLeave &&
-                    ($data['status'] ?? $leave->status) === 'approved'
-                ) {
-                    $this->syncEmployeeAttendanceTypeForWfh($leave->employee_id);
+                // Always re-sync employee attendance type after any WFH status change
+                // so approval/rejection/date updates are reflected immediately.
+                if ($isWfhLeave) {
+                    $this->syncEmployeeAttendanceTypeForWfh((int) $employee_id);
                 }
 
                 if ($data['is_notify'] != NULL) {

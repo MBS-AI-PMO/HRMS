@@ -34,7 +34,8 @@ class Kernel extends ConsoleKernel
 		$schedule->command('document:expiry')->everyMinute();
         $schedule->command('officialDocument:expiry')->everyMinute();
         $schedule->command('employeeImmigration:expiry')->everyMinute();
-        $schedule->command('attendance:sync-wfh')->everyMinute();
+        // Daily sync: set active WFH employees to general, expired ones to location_based
+        $schedule->command('attendance:sync-wfh')->dailyAt('00:10');
 	}
 
     /**
