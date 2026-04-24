@@ -734,8 +734,8 @@
                     $('#hidden_id').val(html.data.id);
                     $('#employee_id_hidden').val(html.data.employee_id);
                     $('#leave_type_hidden').val(html.data.leave_type_id);
-                    $('.modal-title').text('{{trans('file.Edit')}}');
-                    $('#action_button').val('{{trans('file.Edit')}}');
+                    $('.modal-title').text('{{trans('file.Update')}}');
+                    $('#action_button').val('{{trans('file.Update')}}');
                     $('#action').val('{{trans('file.Edit')}}');
                     $('#formModal').modal('show');
                 }

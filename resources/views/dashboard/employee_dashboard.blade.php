@@ -193,8 +193,7 @@
                         <a class="btn btn-link btn-block" href="{{ route('profile') . '#WFH' }}">
                             {{ __('View WFH Info') }}
                         </a>
-                        <button class="btn btn-light btn-block mt-0"
-                            id="wfh_request">{{ __('Request WFH') }}</button>
+                        <button class="btn btn-light btn-block mt-0" id="wfh_request">{{ __('Request WFH') }}</button>
                     </div>
                 </div>
             </div>
@@ -219,14 +218,14 @@
             <div class="col-md-3 mt-4">
                 <div class="card">
                     <div class="card-body">
-                        <h3 class="text-center">{{ __('Ticket') }}</h3>
+                        <h3 class="text-center">{{ __('Complain') }}</h3>
                     </div>
                     <div class="d-flex justify-content-between">
                         <a class="btn btn-link btn-block" href="{{ route('profile') . '#Employee_ticket' }}">
-                            {{ __('Ticket Info') }}
+                            {{ __('Complain Info') }}
                         </a>
                         <button class="btn btn-light btn-block mt-0"
-                            id="ticket_request">{{ __('Open A Ticket') }}</button>
+                            id="ticket_request">{{ __('Open A Complain') }}</button>
                     </div>
                 </div>
             </div>
@@ -696,7 +695,8 @@
                     $('#leave_type').selectpicker('val', wfhOption.val());
                     $('#leave_type').selectpicker('refresh');
                 } else {
-                    let html = '<div class="alert alert-danger"><p>{{ __('WFH leave type is not configured yet. Please contact HR/Admin.') }}</p></div>';
+                    let html =
+                        '<div class="alert alert-danger"><p>{{ __('WFH leave type is not configured yet. Please contact HR/Admin.') }}</p></div>';
                     $('#leave_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                 }
             });
@@ -720,7 +720,8 @@
 
                 let allocatedDay = $("#leave_type option:selected").data('day');
                 let selectedLeaveText = ($("#leave_type option:selected").text() || '').toLowerCase();
-                let isWfhType = selectedLeaveText.includes('wfh') || selectedLeaveText.includes('work from home');
+                let isWfhType = selectedLeaveText.includes('wfh') || selectedLeaveText.includes(
+                    'work from home');
 
                 let html = '';
                 if (!isWfhType && allocatedDay < totalDaysInput.val()) {
@@ -753,12 +754,23 @@
                         } else if (data.error) {
                             html += '<div class="alert alert-danger">' + data.error + '</div>';
                         } else if (data.success) {
-                            html += '<div class="alert alert-success">' + data.success + '</div>';
-                            $('#leaveSampleForm')[0].reset();
-                            $('select').selectpicker('refresh');
-                            $('.date').datepicker('update');
-                            $('#leaveModal').modal('hide');
-                            $('#leave_form_result').html('');
+                            html = '<div class="alert alert-success">' + data.success + '</div>';
+
+                            // message show karo
+                            $('#leave_form_result')
+                                .html(html)
+                                .fadeIn();
+
+                            // 3 sec baad reset + modal close
+                            setTimeout(function() {
+                                $('#leaveSampleForm')[0].reset();
+                                $('select').selectpicker('refresh');
+                                $('.date').datepicker('update');
+                                $('#leaveModal').modal('hide');
+
+                                // message hide
+                                $('#leave_form_result').fadeOut();
+                            }, 3000);
                         }
                         $('#leave_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                     }
