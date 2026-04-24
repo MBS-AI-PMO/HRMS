@@ -234,7 +234,7 @@ class LeaveController extends Controller
         $isDepartmentManager = $leaveForPermission
             ? (int) $leaveForPermission->department?->department_head === (int) auth()->id()
             : false;
-        $canManageWfhApproval = $isWfhForPermission && ($this->isHrUser() || $isDepartmentManager);
+        $canManageWfhApproval = $isWfhForPermission && $isDepartmentManager;
 
         if ($logged_user->can('edit-leave') || $canManageWfhApproval) {
 
@@ -378,26 +378,18 @@ class LeaveController extends Controller
             $requestStatus = 'pending';
         }
 
-        $currentHrStatus = $leave->hr_approval_status ?: 'pending';
         $currentManagerStatus = $leave->manager_approval_status ?: 'pending';
 
-        $isAdmin = (int) auth()->user()->role_users_id === 1;
-        $isHr = $this->isHrUser();
         $isDepartmentManager = (int) $leave->department?->department_head === (int) auth()->id();
 
-        if ($isAdmin || $isHr) {
-            $data['hr_approval_status'] = $requestStatus;
-            $currentHrStatus = $requestStatus;
-        }
-
-        if ($isAdmin || $isDepartmentManager) {
+        if ($isDepartmentManager) {
             $data['manager_approval_status'] = $requestStatus;
             $currentManagerStatus = $requestStatus;
         }
 
-        if ($currentHrStatus === 'rejected' || $currentManagerStatus === 'rejected') {
+        if ($currentManagerStatus === 'rejected') {
             $data['status'] = 'rejected';
-        } elseif ($currentHrStatus === 'approved' && $currentManagerStatus === 'approved') {
+        } elseif ($currentManagerStatus === 'approved') {
             $data['status'] = 'approved';
         } else {
             $data['status'] = 'pending';
@@ -418,7 +410,6 @@ class LeaveController extends Controller
             ->join('leave_types', 'leave_types.id', '=', 'leaves.leave_type_id')
             ->where('leaves.employee_id', $employeeId)
             ->where('leaves.status', 'approved')
-            ->where('leaves.hr_approval_status', 'approved')
             ->where('leaves.manager_approval_status', 'approved')
             ->whereDate('leaves.start_date', '<=', $today)
             ->whereDate('leaves.end_date', '>=', $today)
@@ -435,25 +426,10 @@ class LeaveController extends Controller
 
     private function notifyWfhApprovers(leave $leave): void
     {
-        $hrRoleIds = Role::query()
-            ->where(function ($query) {
-                $query->where('name', 'like', '%hr%')
-                    ->orWhere('name', 'like', '%human%');
-            })
-            ->pluck('id');
-
-        $hrUsers = User::query()
-            ->whereIn('role_users_id', $hrRoleIds)
-            ->get();
-
         $departmentHeadId = department::where('id', $leave->department_id)->value('department_head');
         $departmentHeadUser = $departmentHeadId ? User::find($departmentHeadId) : null;
 
-        foreach ($hrUsers as $item) {
-            $item->notify(new WfhRequestNotificationToApprover());
-        }
-
-        if ($departmentHeadUser && ! $hrUsers->contains('id', $departmentHeadUser->id)) {
+        if ($departmentHeadUser) {
             $departmentHeadUser->notify(new WfhRequestNotificationToApprover());
         }
     }

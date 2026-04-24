@@ -34,7 +34,6 @@ class SyncWfhAttendanceType extends Command
         $activeWfhEmployeeIds = leave::query()
             ->join('leave_types', 'leave_types.id', '=', 'leaves.leave_type_id')
             ->where('leaves.status', 'approved')
-            ->where('leaves.hr_approval_status', 'approved')
             ->where('leaves.manager_approval_status', 'approved')
             ->whereDate('leaves.start_date', '<=', $today)
             ->whereDate('leaves.end_date', '>=', $today)
