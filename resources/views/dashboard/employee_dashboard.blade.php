@@ -757,6 +757,8 @@
                             $('#leaveSampleForm')[0].reset();
                             $('select').selectpicker('refresh');
                             $('.date').datepicker('update');
+                            $('#leaveModal').modal('hide');
+                            $('#leave_form_result').html('');
                         }
                         $('#leave_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                     }
