@@ -19,6 +19,7 @@ class Kernel extends ConsoleKernel
 		Commands\DocumentExpiryReminder::class,
         Commands\OfficialDocumentExpiryReminder::class,
         Commands\EmployeeImmigrationExpiryReminder::class,
+        Commands\SyncWfhAttendanceType::class,
 
 	];
 
@@ -33,6 +34,7 @@ class Kernel extends ConsoleKernel
 		$schedule->command('document:expiry')->everyMinute();
         $schedule->command('officialDocument:expiry')->everyMinute();
         $schedule->command('employeeImmigration:expiry')->everyMinute();
+        $schedule->command('attendance:sync-wfh')->everyMinute();
 	}
 
     /**

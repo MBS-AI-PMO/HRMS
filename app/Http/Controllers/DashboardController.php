@@ -186,6 +186,10 @@ class DashboardController extends Controller {
 
 
 		$companies = company::select('id', 'company_name')->get();
+		LeaveType::firstOrCreate(
+            ['leave_type' => 'WFH'],
+            ['allocated_day' => 365, 'company_id' => null]
+        );
 		$leave_types = LeaveType::select('id', 'leave_type', 'allocated_day')->get();
 		$travel_types = TravelType::select('id', 'arrangement_type')->get();
 		$training_types = TrainingType::select('id', 'type')->get();
@@ -534,6 +538,10 @@ class DashboardController extends Controller {
 			->where('company_id', $employee->company_id)
 			->select('id', 'event_name', 'start_date', 'end_date')->latest()->take(3)->get();
 
+		LeaveType::firstOrCreate(
+            ['leave_type' => 'WFH'],
+            ['allocated_day' => 365, 'company_id' => null]
+        );
 		$leave_types = LeaveType::select('id', 'leave_type', 'allocated_day')->get();
 		$travel_types = TravelType::select('id', 'arrangement_type')->get();
 

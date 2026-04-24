@@ -126,7 +126,7 @@
                         <div class="icon purple-text ml-2 mr-3">
                             <i class="dripicons-trophy"></i>
                         </div>
-                        <a href="{{ route('profile') . '#Employee_Core_hr' }}">
+                        <a href="{{ route('profile') . '#Employee_award' }}">
                             <div class="name">
                                 <h4>{{ $employee_award_count }} {{ __('Award') }}</h4>
                             </div>
@@ -169,7 +169,7 @@
         </div>
 
         <div class="row">
-            <div class="col-md-4 mt-4">
+            <div class="col-md-3 mt-4">
                 <div class="card">
                     <div class="card-body">
                         <h3 class="text-center">Leave</h3>
@@ -184,8 +184,23 @@
                 </div>
             </div>
 
+            <div class="col-md-3 mt-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="text-center">WFH</h3>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <a class="btn btn-link btn-block" href="{{ route('profile') . '#WFH' }}">
+                            {{ __('View WFH Info') }}
+                        </a>
+                        <button class="btn btn-light btn-block mt-0"
+                            id="wfh_request">{{ __('Request WFH') }}</button>
+                    </div>
+                </div>
+            </div>
 
-            <div class="col-md-4 mt-4">
+
+            <div class="col-md-3 mt-4">
                 <div class="card">
                     <div class="card-body">
                         <h3 class="text-center">Travel</h3>
@@ -201,7 +216,7 @@
             </div>
 
 
-            <div class="col-md-4 mt-4">
+            <div class="col-md-3 mt-4">
                 <div class="card">
                     <div class="card-body">
                         <h3 class="text-center">{{ __('Ticket') }}</h3>
@@ -328,7 +343,7 @@
                 <div class="modal-content">
 
                     <div class="modal-header">
-                        <h5 id="exampleModalLabel" class="modal-title">{{ __('Leave Request') }}</h5>
+                        <h5 id="leaveModalTitle" class="modal-title">{{ __('Leave Request') }}</h5>
                         <button type="button" data-dismiss="modal" id="close" aria-label="Close"
                             class="close"><span aria-hidden="true">×</span></button>
                     </div>
@@ -664,7 +679,26 @@
             });
 
             $('#leave_request').on('click', function() {
+                $('#leaveModalTitle').text("{{ __('Leave Request') }}");
                 $('#leaveModal').modal('show');
+            });
+
+            $('#wfh_request').on('click', function() {
+                $('#leaveModalTitle').text("{{ __('WFH Request') }}");
+                $('#leaveModal').modal('show');
+
+                let wfhOption = $('#leave_type option').filter(function() {
+                    const optionText = ($(this).text() || '').toLowerCase();
+                    return optionText.includes('wfh') || optionText.includes('work from home');
+                }).first();
+
+                if (wfhOption.length) {
+                    $('#leave_type').selectpicker('val', wfhOption.val());
+                    $('#leave_type').selectpicker('refresh');
+                } else {
+                    let html = '<div class="alert alert-danger"><p>{{ __('WFH leave type is not configured yet. Please contact HR/Admin.') }}</p></div>';
+                    $('#leave_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
+                }
             });
 
             $('#travel_request').on('click', function() {
@@ -685,9 +719,11 @@
                 $('#diff_date_hidden').val(dayDiff);
 
                 let allocatedDay = $("#leave_type option:selected").data('day');
+                let selectedLeaveText = ($("#leave_type option:selected").text() || '').toLowerCase();
+                let isWfhType = selectedLeaveText.includes('wfh') || selectedLeaveText.includes('work from home');
 
                 let html = '';
-                if (allocatedDay < totalDaysInput.val()) {
+                if (!isWfhType && allocatedDay < totalDaysInput.val()) {
                     html += '<div class="alert alert-danger">' + '<p>Insufficient Allocated Day</p>' + '</div>';
                     return $('#leave_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                 }
