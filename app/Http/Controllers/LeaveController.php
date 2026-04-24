@@ -305,6 +305,11 @@ class LeaveController extends Controller
             $leave = leave::find($id);
             $isWfhLeave = $this->isWfhLeaveTypeId((int) ($request->leave_type ?: $leave->leave_type_id));
 
+            // WFH approval is manager-only. HR/Admin can view, but cannot approve/reject.
+            if ($isWfhLeave && ! $isDepartmentManager) {
+                return response()->json(['error' => __('Only department manager can approve/reject WFH request.')]);
+            }
+
             if ($isWfhLeave) {
                 $this->applyWfhApprovalStatus($leave, $data, $request);
             }
@@ -332,11 +337,16 @@ class LeaveController extends Controller
                 }
 
                 $leave->update($data);
+                $leave->refresh();
 
-                // Always re-sync employee attendance type after any WFH status change
-                // so approval/rejection/date updates are reflected immediately.
                 if ($isWfhLeave) {
-                    $this->syncEmployeeAttendanceTypeForWfh((int) $employee_id);
+                    // Direct update on manager approval (no dependency on sync timing).
+                    if (($leave->manager_approval_status ?? 'pending') === 'approved' && $leave->status === 'approved') {
+                        Employee::where('id', $leave->employee_id)->update(['attendance_type' => 'general']);
+                    } else {
+                        // For rejected/pending/date changes, fall back to calculated sync.
+                        $this->syncEmployeeAttendanceTypeForWfh((int) $leave->employee_id);
+                    }
                 }
 
                 if ($data['is_notify'] != NULL) {
@@ -393,6 +403,7 @@ class LeaveController extends Controller
         } else {
             $data['status'] = 'pending';
         }
+
     }
 
     private function isHrUser(): bool
