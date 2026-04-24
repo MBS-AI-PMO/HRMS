@@ -20,7 +20,7 @@
                     <li>Date format should be (According to general settings)</li>
                     <li>Company, Department, Designation, Shift and Role name must be matched with your existing data.</li>
                     <li>Gender must be Male / Female / Other.</li>
-                    <li>Attendance Type must be general / ip_based.</li>
+                    <li>Attendance Type must be general / location_based.</li>
                     <li>You must follow the file, otherwise you will get an error while importing the file.</li>
                 </ul>
                 <form action="{{ route('employees.importPost') }}" name="import_employee" id="import_employee" autocomplete="off" enctype="multipart/form-data"
