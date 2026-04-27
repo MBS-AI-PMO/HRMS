@@ -91,6 +91,14 @@
                                                 <strong>{{ $errors->first('max_radius') }}</strong>
                                             </span>
                                         @endif
+
+                                        <div class="form-group">
+                                            <label><strong>Late Arrival Margin (minutes)</strong></label>
+                                            <input type="number" name="late_grace_minutes" class="form-control"
+                                                value="{{ $general_settings_data->late_grace_minutes ?? 0 }}"
+                                                min="0">
+                                        </div>
+
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">
