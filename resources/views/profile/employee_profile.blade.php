@@ -112,6 +112,7 @@
                                             <hr>
                                             <div class="container">
                                                 <div class="widget-user-image">
+                                                    
                                                     <img src={{ URL::to('/uploads/profile_photos')}}/{{$user->profile_photo ?? 'avatar.jpg'}}  width='150'
                                                          class='rounded-circle'>
                                                     <div class="mt-2">
