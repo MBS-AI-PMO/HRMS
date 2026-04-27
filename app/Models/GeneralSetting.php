@@ -20,6 +20,7 @@ class GeneralSetting extends Model
         "date_format",
         "theme",
         "footer",
-        "footer_link"
+        "footer_link",
+        "late_grace_minutes"
     ];
 }
