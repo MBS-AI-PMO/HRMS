@@ -498,10 +498,8 @@ class EmployeeController extends Controller
 
                 $photo->storeAs('profile_photos', $file_name);
 
-                // Purani image delete karni ho to
                 $this->unlink($employee);
 
-                // IMPORTANT: profile photo User table me update hogi
                 $user['profile_photo'] = $file_name;
             }
 
@@ -529,6 +527,7 @@ class EmployeeController extends Controller
             $data['zip_code'] = $request->zip_code;
             $data['attendance_type'] = $request->attendance_type;
             $data['is_active'] = 1;
+            $data['role_users_id'] = $request->role_users_id;
 
             $user['first_name'] = $request->first_name;
             $user['last_name'] = $request->last_name;
