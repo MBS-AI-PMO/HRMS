@@ -155,7 +155,7 @@
                                                             </div>
 
                                                             {{-- File Input --}}
-                                                            <input type="file" required accept="image/*"
+                                                            <input type="file"  accept="image/*"
                                                                 id="profile_photo"
                                                                 class="form-control @error('photo') is-invalid @enderror"
                                                                 name="profile_photo">
