@@ -5,7 +5,7 @@
         <div class="main-menu">
             <ul id="side-main-menu" class="side-menu list-unstyled">
 
-                <li><a href="{{url('/client/dashboard')}}"> <i
+                <li><a href="{{url('/employee/dashboard')}}"> <i
                                 class="dripicons-meter"></i><span>{{trans('file.Dashboard')}}</span></a>
                 </li>
 

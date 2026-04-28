@@ -23,7 +23,7 @@
                 <thead>
                 <tr>
                     <th class="not-exported"></th>
-                    <th>{{__('Ticket Code')}}</th>
+                    <th>{{__('Complain Code')}}</th>
                     <th>{{trans('file.Employee')}}</th>
                     <th>{{trans('file.Company')}}</th>
                     <th>{{trans('file.Subject')}}</th>
@@ -45,7 +45,7 @@
             <div class="modal-content">
 
                 <div class="modal-header">
-                    <h5 id="exampleModalLabel" class="modal-title">{{__('Add Ticket')}}</h5>
+                    <h5 id="exampleModalLabel" class="modal-title">{{__('Add Complain')}}</h5>
                     <button type="button" data-dismiss="modal" id="close" aria-label="Close" class="close"><i class="dripicons-cross"></i></button>
                 </div>
 
