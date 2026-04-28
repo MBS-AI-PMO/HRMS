@@ -10,6 +10,7 @@ use App\Models\department;
 use App\Models\designation;
 use App\Models\DocumentType;
 use App\Models\Employee;
+use App\Models\EmployeeActivityLog;
 use App\Models\GeneralSetting;
 use App\Models\LoanType;
 use App\Models\office_shift;
@@ -21,6 +22,7 @@ use App\Models\status;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Exception;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -379,6 +381,42 @@ class EmployeeController extends Controller
                 'departments', 'designations', 'statuses', 'office_shifts', 'document_types',
                 'education_levels', 'language_skills', 'general_skills', 'roles','relationTypes','loanTypes','deductionTypes'));
        
+    }
+
+    public function profileActivityLogs(Request $request)
+    {
+        $user = Auth::user();
+        $employee = Employee::where('id', $user->id)->firstOrFail();
+
+        $logs = EmployeeActivityLog::with([
+            'performer:id,username',
+        ])->where('employee_id', $employee->id)->orderByDesc('id');
+
+        if ($request->activity_date) {
+            $logs->whereDate('created_at', Carbon::parse($request->activity_date)->format('Y-m-d'));
+        }
+
+        return datatables()->of($logs)
+            ->setRowId(function ($row) {
+                return $row->id;
+            })
+            ->addColumn('action', function ($row) {
+                return $row->action ?? '---';
+            })
+            ->addColumn('description', function ($row) {
+                return $row->description ?? '---';
+            })
+            ->addColumn('performed_by', function ($row) {
+                return optional($row->performer)->username ?? __('System');
+            })
+            ->addColumn('ip_address', function ($row) {
+                return $row->ip_address ?? '---';
+            })
+            ->addColumn('created_at', function ($row) {
+                return Carbon::parse($row->created_at)->format(env('Date_Format') . ' H:i');
+            })
+            ->rawColumns([])
+            ->make(true);
     }
 
     public function destroy($id)

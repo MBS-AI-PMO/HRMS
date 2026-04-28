@@ -16,6 +16,7 @@ use App\Notifications\EmployeeLeaveNotification; //Mail
 use App\Notifications\LeaveNotification; //Database
 use App\Notifications\LeaveNotificationToAdmin; //Database
 use App\Notifications\WfhRequestNotificationToApprover; //Database
+use App\Notifications\WfhEventNotification; //Database+Mail
 use App\Models\User;
 use App\Models\EmployeeLeaveTypeDetail;
 use DateTime;
@@ -33,15 +34,38 @@ class LeaveController extends Controller
         $logged_user = auth()->user();
         $companies = company::select('id', 'company_name')->get();
         $leave_types = LeaveType::select('id', 'leave_type', 'allocated_day')->get();
-        if ($logged_user->can('view-leave')) {
+        $managedDepartmentIds = department::where('department_head', $logged_user->id)->pluck('id');
+        $isDepartmentManager = $managedDepartmentIds->isNotEmpty();
+        $canViewLeaveModule = $logged_user->can('view-leave') || $isDepartmentManager;
+        $wfhOnly = request()->boolean('wfh');
+
+        if ($canViewLeaveModule) {
             if (request()->ajax()) {
                 $leaveQuery = leave::query()
                     ->with([
                         'employee:id,first_name,last_name',
-                        'department:id,department_name',
+                        'department:id,department_name,department_head',
                         'LeaveType:id,leave_type',
                     ])
                     ->orderByDesc('id');
+
+                if (!$logged_user->can('view-leave') && $isDepartmentManager) {
+                    $leaveQuery->whereIn('department_id', $managedDepartmentIds);
+                }
+
+                if ($wfhOnly) {
+                    $leaveQuery->whereHas('LeaveType', function ($query) {
+                        $query->where('leave_type', 'like', '%wfh%')
+                            ->orWhere('leave_type', 'like', '%work from home%');
+                    });
+                } else {
+                    $leaveQuery->where(function ($query) {
+                        $query->whereDoesntHave('LeaveType', function ($wfhQuery) {
+                            $wfhQuery->where('leave_type', 'like', '%wfh%')
+                                ->orWhere('leave_type', 'like', '%work from home%');
+                        })->orWhereNull('leave_type_id');
+                    });
+                }
 
                 return datatables()->of($leaveQuery)
                     ->setRowId(function ($row) {
@@ -57,29 +81,29 @@ class LeaveController extends Controller
                         return $row->employee->full_name ?? '';
                     })
                     ->addColumn('action', function ($data) {
-                        $start_date = new DateTime($data->start_date);
-                        $end_date = new DateTime($data->end_date);
-                        $current_date = new DateTime();
-                        if ($start_date < $current_date->setTime(0, 0, 0, 0) && $end_date < $current_date->setTime(0, 0, 0, 0)) {
-                            return $button = '<button type="button" name="show" id="' . $data->id . '" class="show_new btn btn-success btn-sm"><i class="dripicons-preview"></i></button>';
+                        $button = '<button type="button" name="show" id="' . $data->id . '" class="show_new btn btn-success btn-sm"><i class="dripicons-preview"></i></button>';
+
+                        if (($data->status ?? '') !== 'pending') {
+                            return $button;
                         }
 
-                        $button = '<button type="button" name="show" id="' . $data->id . '" class="show_new btn btn-success btn-sm"><i class="dripicons-preview"></i></button>';
-                        $button .= '&nbsp;&nbsp;';
-                        if (auth()->user()->can('edit-leave')) {
-                            $button .= '<button type="button" name="edit" id="' . $data->id . '" class="edit btn btn-primary btn-sm"><i class="dripicons-pencil"></i></button>';
+                        $isDepartmentManager = (int) ($data->department->department_head ?? 0) === (int) auth()->id();
+                        $canManagePending = auth()->user()->can('edit-leave') || $isDepartmentManager;
+
+                        if ($canManagePending) {
                             $button .= '&nbsp;&nbsp;';
+                            $button .= '<button type="button" name="approve" id="' . $data->id . '" class="approve-leave btn btn-primary btn-sm">'.__('Approve').'</button>';
+                            $button .= '&nbsp;&nbsp;';
+                            $button .= '<button type="button" name="reject" id="' . $data->id . '" class="reject-leave btn btn-danger btn-sm">'.__('Reject').'</button>';
                         }
-                        if (auth()->user()->can('delete-leave')) {
-                            $button .= '<button type="button" name="delete" id="' . $data->id . '" class="delete btn btn-danger btn-sm"><i class="dripicons-trash"></i></button>';
-                        }
+
                         return $button;
                     })
                     ->rawColumns(['action'])
                     ->make(true);
             }
 
-            return view('timesheet.leave.index', compact('companies', 'leave_types'));
+            return view('timesheet.leave.index', compact('companies', 'leave_types', 'wfhOnly'));
         }
 
         return abort('403', __('You are not authorized'));
@@ -156,7 +180,7 @@ class LeaveController extends Controller
                     $notifiable = User::findOrFail($data['employee_id']);
                     $notifiable->notify(new LeaveNotification($text)); //To Employee
                 } elseif ($isWfhLeave) {
-                    $this->notifyWfhApprovers($leave);
+                    $this->notifyWfhEvent($leave, 'requested');
                 } elseif ((Auth::user()->role_users_id != 1) && ($leave->is_notify == NULL)) {
                     //get-leave-notification - 294
                     $role_ids = DB::table('role_has_permissions')->where('permission_id', 294)->get()->pluck('role_id');
@@ -243,15 +267,11 @@ class LeaveController extends Controller
         $logged_user = auth()->user();
         $id = $request->hidden_id;
         $leaveForPermission = leave::with('department:id,department_head')->find($id);
-        $isWfhForPermission = $leaveForPermission
-            ? $this->isWfhLeaveTypeId((int) ($request->leave_type ?: $leaveForPermission->leave_type_id))
-            : false;
         $isDepartmentManager = $leaveForPermission
             ? (int) $leaveForPermission->department?->department_head === (int) auth()->id()
             : false;
-        $canManageWfhApproval = $isWfhForPermission && $isDepartmentManager;
 
-        if ($logged_user->can('edit-leave') || $canManageWfhApproval) {
+        if ($logged_user->can('edit-leave') || $isDepartmentManager) {
 
             $validator = Validator::make(
                 $request->only(
@@ -319,11 +339,8 @@ class LeaveController extends Controller
 
             $leave = leave::find($id);
             $isWfhLeave = $this->isWfhLeaveTypeId((int) ($request->leave_type ?: $leave->leave_type_id));
-
-            // WFH approval is manager-only. HR/Admin can view, but cannot approve/reject.
-            if ($isWfhLeave && ! $isDepartmentManager) {
-                return response()->json(['error' => __('Only department manager can approve/reject WFH request.')]);
-            }
+            $previousManagerStatus = $leave->manager_approval_status;
+            $previousStatus = $leave->status;
 
             if ($isWfhLeave) {
                 $this->applyWfhApprovalStatus($leave, $data, $request);
@@ -362,6 +379,19 @@ class LeaveController extends Controller
                         // For rejected/pending/date changes, fall back to calculated sync.
                         $this->syncEmployeeAttendanceTypeForWfh((int) $leave->employee_id);
                     }
+
+                    if (
+                        $leave->manager_approval_status !== $previousManagerStatus ||
+                        $leave->status !== $previousStatus
+                    ) {
+                        if ($leave->status === 'approved') {
+                            $this->notifyWfhEvent($leave, 'approved');
+                        } elseif ($leave->status === 'rejected') {
+                            $this->notifyWfhEvent($leave, 'rejected');
+                        } else {
+                            $this->notifyWfhEvent($leave, 'pending');
+                        }
+                    }
                 }
 
                 if ($data['is_notify'] != NULL) {
@@ -376,6 +406,35 @@ class LeaveController extends Controller
             return response()->json(['success' => __('Data is successfully updated')]);
         }
         return response()->json(['success' => __('You are not authorized')]);
+    }
+
+    public function decision(Request $request, $id)
+    {
+        $status = strtolower((string) $request->status);
+        if (!in_array($status, ['approved', 'rejected'], true)) {
+            return response()->json(['error' => __('Invalid status')]);
+        }
+
+        $leave = leave::findOrFail($id);
+
+        $proxyRequest = new Request([
+            'hidden_id' => $leave->id,
+            'leave_type' => $leave->leave_type_id,
+            'company_id' => $leave->company_id,
+            'department_id' => $leave->department_id,
+            'employee_id' => $leave->employee_id,
+            'start_date' => $leave->start_date,
+            'end_date' => $leave->end_date,
+            'leave_reason' => $leave->leave_reason,
+            'remarks' => $leave->remarks,
+            'status' => $status,
+            'is_notify' => $leave->is_notify,
+            'diff_date_hidden' => $leave->total_days,
+            'leave_type_hidden' => $leave->leave_type_id,
+            'employee_id_hidden' => $leave->employee_id,
+        ]);
+
+        return $this->update($proxyRequest);
     }
 
 
@@ -449,13 +508,48 @@ class LeaveController extends Controller
         ]);
     }
 
-    private function notifyWfhApprovers(leave $leave): void
+    private function notifyWfhEvent(leave $leave, string $event): void
     {
+        $employee = User::find($leave->employee_id);
         $departmentHeadId = department::where('id', $leave->department_id)->value('department_head');
         $departmentHeadUser = $departmentHeadId ? User::find($departmentHeadId) : null;
+        $hrRoleIds = Role::query()
+            ->where(function ($query) {
+                $query->where('name', 'like', '%hr%')
+                    ->orWhere('name', 'like', '%human%');
+            })
+            ->pluck('id');
+        $hrUsers = User::query()->whereIn('role_users_id', $hrRoleIds)->get();
 
-        if ($departmentHeadUser) {
-            $departmentHeadUser->notify(new WfhRequestNotificationToApprover());
+        $link = route('leaves.index');
+        if ($event === 'requested') {
+            $subject = 'WFH request submitted';
+            $message = 'A new WFH request has been submitted.';
+        } elseif ($event === 'approved') {
+            $subject = 'WFH request approved';
+            $message = 'WFH request has been approved.';
+        } elseif ($event === 'rejected') {
+            $subject = 'WFH request rejected';
+            $message = 'WFH request has been rejected.';
+        } else {
+            $subject = 'WFH request updated';
+            $message = 'WFH request status is pending.';
+        }
+
+        $alreadyNotified = collect();
+
+        foreach ($hrUsers as $user) {
+            $user->notify(new WfhEventNotification($subject, $message, $link));
+            $alreadyNotified->push($user->id);
+        }
+
+        if ($departmentHeadUser && ! $alreadyNotified->contains($departmentHeadUser->id)) {
+            $departmentHeadUser->notify(new WfhEventNotification($subject, $message, $link));
+            $alreadyNotified->push($departmentHeadUser->id);
+        }
+
+        if ($employee && ! $alreadyNotified->contains($employee->id)) {
+            $employee->notify(new WfhEventNotification($subject, $message, route('profile') . '#WFH'));
         }
     }
 

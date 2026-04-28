@@ -59,7 +59,7 @@
                 </div>
             </div>
             <span class="attendace_mark_info mb-3">
-                <small>{{trans('file.present')}} = P  , {{trans('file.Absent')}} = A  ,{{trans('file.Leave')}} = L  , {{trans('file.Holiday')}} = H  ,{{__('Off Day')}} = O</small>
+                <small>{{trans('file.present')}} = P  , {{__('Late Arrival')}} = LA  , WFH = WFH  , {{trans('file.Absent')}} = A  ,{{trans('file.Leave')}} = L  , {{trans('file.Holiday')}} = H  ,{{__('Off Day')}} = O</small>
             </span>
         </div>
         <div class="table-responsive">

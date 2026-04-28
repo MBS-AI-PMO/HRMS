@@ -1,14 +1,33 @@
 @extends('layout.main')
 @section('content')
 
+    @php
+        $isWfhView = (bool)($wfhOnly ?? false);
+        $moduleTitle = $isWfhView ? __('WFH Management') : __('Leave Management');
+        $addLabel = $isWfhView ? __('Add WFH Request') : __('Add Leave');
+        $typeLabel = $isWfhView ? __('WFH Type') : __('Leave Type');
+        $infoLabel = $isWfhView ? __('WFH Info') : __('Leave Info');
+        $forLabel = $isWfhView ? __('WFH For') : __('Leave For');
+        $reasonLabel = $isWfhView ? __('WFH Reason') : __('Leave Reason');
+        $filteredLeaveTypes = collect($leave_types)->filter(function ($leaveType) use ($isWfhView) {
+            $name = strtolower((string) ($leaveType->leave_type ?? ''));
+            $isWfhType = str_contains($name, 'wfh') || str_contains($name, 'work from home');
+
+            return $isWfhView ? $isWfhType : ! $isWfhType;
+        });
+    @endphp
+
 
     <section>
         <div class="container-fluid"><span id="general_result"></span></div>
+        <div class="container-fluid mb-2">
+            <h4>{{ $moduleTitle }}</h4>
+        </div>
 
         <div class="container-fluid mb-3">
             @can('store-leave')
                 <button type="button" class="btn btn-info" name="create_record" id="create_record"><i
-                            class="fa fa-plus"></i> {{__('Add Leave')}}</button>
+                            class="fa fa-plus"></i> {{ $addLabel }}</button>
             @endcan
             @can('delete-leave')
                 <button type="button" class="btn btn-danger" name="bulk_delete" id="bulk_delete"><i
@@ -22,7 +41,7 @@
                 <thead>
                 <tr>
                     <th class="not-exported"></th>
-                    <th>{{__('Leave Type')}}</th>
+                    <th>{{ $typeLabel }}</th>
                     <th>{{trans('file.Employee')}}</th>
                     <th>{{trans('file.Department')}}</th>
                     <th>{{trans('file.Duration')}}</th>
@@ -42,7 +61,7 @@
             <div class="modal-content">
 
                 <div class="modal-header">
-                    <h5 id="exampleModalLabel" class="modal-title">{{__('Add Leave')}}</h5>
+                    <h5 id="exampleModalLabel" class="modal-title">{{ $addLabel }}</h5>
                     <button type="button" data-dismiss="modal" id="close" aria-label="Close" class="close"><i class="dripicons-cross"></i></button>
                 </div>
 
@@ -54,12 +73,10 @@
                         <div class="row">
 
                             <div class="col-md-6 form-group">
-                                <label>{{__('Leave Type')}} *</label>
-                                <select name="leave_type" id="leave_type" class="form-control selectpicker " data-live-search="true" data-live-search-style="contains" title='{{__('Leave Type')}}'>
-                                    @foreach($leave_types as $leave_type)
-                                        <option value="{{$leave_type->id}}">{{$leave_type->leave_type}}
-                                            ({{$leave_type->allocated_day}} Days)
-                                        </option>
+                                <label>{{ $typeLabel }} *</label>
+                                <select name="leave_type" id="leave_type" class="form-control selectpicker " data-live-search="true" data-live-search-style="contains" title='{{ $typeLabel }}'>
+                                    @foreach($filteredLeaveTypes as $leave_type)
+                                        <option value="{{$leave_type->id}}">{{$leave_type->leave_type}}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -180,7 +197,7 @@
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title" id="myModalLabel">{{__('Leave Info')}}</h4>
+                    <h4 class="modal-title" id="myModalLabel">{{ $infoLabel }}</h4>
                     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
                 </div>
                 <div class="modal-body">
@@ -198,7 +215,7 @@
                                     </tr>
 
                                     <tr>
-                                        <th>{{__('Leave For')}}</th>
+                                        <th>{{ $forLabel }}</th>
                                         <td id="employee_id_show"></td>
                                     </tr>
 
@@ -208,12 +225,12 @@
                                     </tr>
 
                                     <tr>
-                                        <th>{{__('Leave Type')}}</th>
+                                        <th>{{ $typeLabel }}</th>
                                         <td id="leave_type_id"></td>
                                     </tr>
 
                                     <tr>
-                                        <th>{{__('Leave Reason')}}</th>
+                                        <th>{{ $reasonLabel }}</th>
                                         <td id="leave_reason_id"></td>
                                     </tr>
 
@@ -302,6 +319,9 @@
 
     (function($) {
         "use strict";
+        const isWfhView = @json($wfhOnly ?? false);
+        const addLabel = @json($addLabel);
+        const infoLabel = @json($infoLabel);
 
         let global_start_date;
         let global_end_date;
@@ -401,7 +421,7 @@
                 processing: true,
                 serverSide: true,
                 ajax: {
-                    url: "{{ route('leaves.index') }}",
+                    url: isWfhView ? "{{ route('leaves.index') }}?wfh=1" : "{{ route('leaves.index') }}",
                 },
 
                 columns: [
@@ -525,7 +545,7 @@
 
 
         $('#create_record').on('click', function () {
-            $('.modal-title').text('{{__('Add Leave')}}');
+            $('.modal-title').text(addLabel);
             $('#action_button').val('{{trans("file.Add")}}');
             $('#action').val('{{trans("file.Add")}}');
             $('#formModal').modal('show');
@@ -668,7 +688,7 @@
 
 
                     $('#leave_model').modal('show');
-                    $('.modal-title').text("{{__('Leave Info')}}");
+                    $('.modal-title').text(infoLabel);
                 }
             });
         });
@@ -740,6 +760,67 @@
                     $('#formModal').modal('show');
                 }
             })
+        });
+
+        $(document).on('click', '.approve-leave, .reject-leave', function () {
+            let id = $(this).attr('id');
+            let status = $(this).hasClass('approve-leave') ? 'approved' : 'rejected';
+            let actionLabel = status === 'approved' ? '{{__("Approve")}}' : '{{__("Reject")}}';
+            Swal.fire({
+                title: '{{__("Are you sure?")}}',
+                text: actionLabel + '?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: actionLabel,
+                cancelButtonText: '{{__("Cancel")}}',
+                reverseButtons: true
+            }).then((result) => {
+                if (!result.isConfirmed) {
+                    return;
+                }
+
+                $.ajax({
+                    url: "{{ route('leaves.index') }}/" + id + "/decision",
+                    method: "POST",
+                    data: {
+                        status: status,
+                        _token: "{{ csrf_token() }}"
+                    },
+                    success: function (data) {
+                        let html = '';
+                        if (data.success) {
+                            html = '<div class="alert alert-success">' + data.success + '</div>';
+                            Swal.fire({
+                                icon: 'success',
+                                title: data.success,
+                                timer: 1800,
+                                showConfirmButton: false
+                            });
+                        }
+                        if (data.error) {
+                            html = '<div class="alert alert-danger">' + data.error + '</div>';
+                            Swal.fire({
+                                icon: 'error',
+                                title: data.error
+                            });
+                        }
+                        if (data.errors) {
+                            html = '<div class="alert alert-danger">';
+                            for (var count = 0; count < data.errors.length; count++) {
+                                html += '<p>' + data.errors[count] + '</p>';
+                            }
+                            html += '</div>';
+                            Swal.fire({
+                                icon: 'error',
+                                title: '{{__("Validation Error")}}',
+                                html: html
+                            });
+                        }
+                        $('#general_result').html(html).slideDown(300).delay(5000).slideUp(300);
+                        $('#leave-table').DataTable().ajax.reload();
+                    }
+                });
+            });
         });
 
 

@@ -60,6 +60,10 @@
                                 <a class="nav-link" id="remainingLeaveType-tab" data-toggle="tab" href="#remainingLeaveType" role="tab"
                                     aria-controls="remainingLeaveType" aria-selected="false">{{ trans('file.Remaining Leave') }}</a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="activity-log-tab" data-toggle="tab" href="#ActivityLog" role="tab"
+                                    aria-controls="ActivityLog" aria-selected="false">{{ __('Activity Log') }}</a>
+                            </li>
                         </ul>
                         <div class="row">
                             <div class="col-md-12">
@@ -445,6 +449,34 @@
                                         <hr>
                                         @include('employee.remaining_leave.index')
                                     </div>
+
+                                    <div class="tab-pane fade" id="ActivityLog" role="tabpanel" aria-labelledby="activity-log-tab">
+                                        {{ __('Activity Log') }}
+                                        <hr>
+                                        <div class="row mb-3">
+                                            <div class="col-md-4">
+                                                <input class="form-control date" placeholder="{{__('Select Date')}}" readonly id="activity_log_date" type="text">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <button type="button" class="btn btn-primary" id="activity_log_filter_btn">
+                                                    <i class="fa fa-search"></i> {{trans('file.Search')}}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="table-responsive">
+                                            <table id="profile-activity-log-table" class="table">
+                                                <thead>
+                                                <tr>
+                                                    <th>{{__('Action')}}</th>
+                                                    <th>{{__('Description')}}</th>
+                                                    <th>{{__('Performed By')}}</th>
+                                                    <th>{{__('IP Address')}}</th>
+                                                    <th>{{__('Date Time')}}</th>
+                                                </tr>
+                                                </thead>
+                                            </table>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -535,6 +567,7 @@
 
         let travelTabInitialized = false;
         let complainTabInitialized = false;
+        let activityLogTabInitialized = false;
 
         const initTravelTab = function() {
             if (travelTabInitialized) {
@@ -552,12 +585,64 @@
             @include('employee.core_hr.ticket.index_js_profile')
         };
 
+        const initActivityLogTab = function() {
+            if (activityLogTabInitialized) {
+                return;
+            }
+            activityLogTabInitialized = true;
+
+            const renderActivityLogTable = function(activity_date = '') {
+                if ($.fn.DataTable.isDataTable('#profile-activity-log-table')) {
+                    $('#profile-activity-log-table').DataTable().destroy();
+                }
+
+                $('#profile-activity-log-table').DataTable({
+                    processing: true,
+                    serverSide: true,
+                    ajax: {
+                        url: "{{ route('profile.activity_logs') }}",
+                        data: {
+                            activity_date: activity_date,
+                            "_token": "{{ csrf_token()}}"
+                        }
+                    },
+                    columns: [
+                        { data: 'action', name: 'action' },
+                        { data: 'description', name: 'description' },
+                        { data: 'performed_by', name: 'performed_by' },
+                        { data: 'ip_address', name: 'ip_address' },
+                        { data: 'created_at', name: 'created_at' },
+                    ],
+                    order: [],
+                    language: {
+                        lengthMenu: '_MENU_ {{__("records per page")}}',
+                        info: '{{trans("file.Showing")}} _START_ - _END_ (_TOTAL_)',
+                        search: '{{trans("file.Search")}}',
+                        paginate: {
+                            previous: '{{trans("file.Previous")}}',
+                            next: '{{trans("file.Next")}}'
+                        }
+                    },
+                });
+            };
+
+            renderActivityLogTable();
+
+            $('#activity_log_filter_btn').off('click').on('click', function() {
+                renderActivityLogTable($('#activity_log_date').val());
+            });
+        };
+
         $('#employee_travel-tab').on('shown.bs.tab', function() {
             initTravelTab();
         });
 
         $('#employee_complain-tab').on('shown.bs.tab', function() {
             initComplainTab();
+        });
+
+        $('#activity-log-tab').on('shown.bs.tab', function() {
+            initActivityLogTab();
         });
 
         $('#employee_award-tab').one('click', function(e) {
@@ -697,6 +782,9 @@
                 }
                 if (h === '#Employee_complain') {
                     initComplainTab();
+                }
+                if (h === '#ActivityLog') {
+                    initActivityLogTab();
                 }
             }
         })();

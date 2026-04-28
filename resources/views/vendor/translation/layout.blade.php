@@ -490,6 +490,7 @@
                             @can('view-leave')
                                 <li id="leave"><a href="{{route('leaves.index')}}">{{__('Manage Leaves')}}</a></li>
                             @endcan
+                            <li id="employee_activity_logs"><a href="{{route('employee_activity_logs.index')}}">{{__('Employee Activity Logs')}}</a></li>
                         </ul>
                     </li>
                 @endcan

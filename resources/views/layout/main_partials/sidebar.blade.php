@@ -204,7 +204,7 @@
 
 
                 @can('timesheet')
-                    <li class="has-dropdown {{ (request()->is('timesheet*')) ? 'active' : '' }}"><a href="#Timesheets"
+                    <li class="has-dropdown {{ (request()->is('timesheet*') && !request()->is('timesheet/leaves*')) ? 'active' : '' }}"><a href="#Timesheets"
                                                                                                     aria-expanded="false"
                                                                                                     data-toggle="collapse">
                             <i class="dripicons-clock"></i><span>{{trans('file.Timesheets')}}</span></a>
@@ -229,12 +229,68 @@
                             @can('view-holiday')
                                 <li id="holiday"><a href="{{route('holidays.index')}}">{{__('Manage Holiday')}}</a></li>
                             @endcan
-                            @can('view-leave')
-                                <li id="leave"><a href="{{route('leaves.index')}}">{{__('Manage Leaves')}}</a></li>
-                            @endcan
+                            <li id="employee_activity_logs"><a href="{{route('employee_activity_logs.index')}}">{{__('Employee Activity Logs')}}</a></li>
                         </ul>
                     </li>
                 @endcan
+
+                @php
+                    $leaveManagerSidebarUser = auth()->user();
+                    $managedDepartmentIds = \App\Models\department::where('department_head', $leaveManagerSidebarUser->id)->pluck('id');
+                    $isDepartmentManager = $managedDepartmentIds->isNotEmpty();
+                    $isHrUser = $leaveManagerSidebarUser->can('view-leave');
+                    $showLeaveManagementTabs = $isDepartmentManager || $isHrUser;
+
+                    $pendingLeaveCount = 0;
+                    $pendingWfhCount = 0;
+
+                    if ($showLeaveManagementTabs) {
+                        $pendingLeaveQuery = \App\Models\leave::query()->where('status', 'pending');
+                        $pendingWfhQuery = \App\Models\leave::query()
+                            ->where('status', 'pending')
+                            ->whereHas('LeaveType', function ($query) {
+                                $query->where('leave_type', 'like', '%wfh%')
+                                    ->orWhere('leave_type', 'like', '%work from home%');
+                            });
+
+                        if (! $isHrUser && $isDepartmentManager) {
+                            $pendingLeaveQuery->whereIn('department_id', $managedDepartmentIds);
+                            $pendingWfhQuery->whereIn('department_id', $managedDepartmentIds);
+                        }
+
+                        $pendingLeaveCount = $pendingLeaveQuery->count();
+                        $pendingWfhCount = $pendingWfhQuery->count();
+                    }
+                    $pendingLeaveManagementTotal = $pendingLeaveCount + $pendingWfhCount;
+                @endphp
+                @if($showLeaveManagementTabs)
+                    <li class="has-dropdown {{ (request()->is('timesheet/leaves*')) ? 'active' : '' }}">
+                        <a href="#LeaveWFHManagement" aria-expanded="false" data-toggle="collapse">
+                            <i class="dripicons-archive"></i><span>{{__('L/ WFH Requests')}}</span>
+                            @if($pendingLeaveManagementTotal > 0)
+                                <span class="badge badge-danger ml-1">{{$pendingLeaveManagementTotal}}</span>
+                            @endif
+                        </a>
+                        <ul id="LeaveWFHManagement" class="collapse list-unstyled">
+                            <li id="leave">
+                                <a href="{{route('leaves.index')}}">
+                                    {{__('Leave Management')}}
+                                    @if($pendingLeaveCount > 0)
+                                        <span class="badge badge-danger ml-1">{{$pendingLeaveCount}}</span>
+                                    @endif
+                                </a>
+                            </li>
+                            <li id="wfh_manage">
+                                <a href="{{route('leaves.index', ['wfh' => 1])}}">
+                                    {{__('WFH Management')}}
+                                    @if($pendingWfhCount > 0)
+                                        <span class="badge badge-danger ml-1">{{$pendingWfhCount}}</span>
+                                    @endif
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                @endif
 
                 @can('payment-module')
                     <li class="has-dropdown {{ (request()->is('payroll*')) ? 'active' : '' }}">
