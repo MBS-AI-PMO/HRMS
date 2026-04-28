@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\company;
 use App\Models\department;
 use App\Models\Employee;
+use App\Models\EmployeeActivityLog;
 use App\Models\leave;
 use App\Models\LeaveType;
 use Illuminate\Http\Request;
@@ -28,6 +29,17 @@ use Spatie\Permission\Models\Role;
 
 class LeaveController extends Controller
 {
+    private function logEmployeeActivity(int $employeeId, string $action, string $description, array $meta = []): void
+    {
+        EmployeeActivityLog::create([
+            'employee_id' => $employeeId,
+            'performed_by' => optional(auth()->user())->id,
+            'action' => $action,
+            'description' => $description,
+            'meta' => empty($meta) ? null : $meta,
+            'ip_address' => request()->ip(),
+        ]);
+    }
 
     public function index()
     {
@@ -143,6 +155,13 @@ class LeaveController extends Controller
 
 
             try {
+                if ((int) $request->leave_type === 0) {
+                    $fallbackWfhType = LeaveType::firstOrCreate(
+                        ['leave_type' => 'WFH'],
+                        ['allocated_day' => 365, 'company_id' => null]
+                    );
+                    $request->merge(['leave_type' => $fallbackWfhType->id]);
+                }
 
                 $leave = LeaveType::findOrFail($request->leave_type);
                 $data = [];
@@ -175,12 +194,21 @@ class LeaveController extends Controller
 
                 $leave = leave::create($data);
 
-                if ($leave->is_notify == 1) {
+                $this->logEmployeeActivity((int) $leave->employee_id, $isWfhLeave ? 'wfh.requested' : 'leave.requested', $isWfhLeave ? 'WFH request submitted.' : 'Leave request submitted.', [
+                    'leave_id' => $leave->id,
+                    'leave_type_id' => $leave->leave_type_id,
+                    'status' => $leave->status,
+                    'start_date' => $leave->start_date,
+                    'end_date' => $leave->end_date,
+                    'total_days' => $leave->total_days,
+                ]);
+
+                if ($isWfhLeave) {
+                    $this->notifyWfhEvent($leave, 'requested');
+                } elseif ($leave->is_notify == 1) {
                     $text = "A new leave-notification has been published";
                     $notifiable = User::findOrFail($data['employee_id']);
                     $notifiable->notify(new LeaveNotification($text)); //To Employee
-                } elseif ($isWfhLeave) {
-                    $this->notifyWfhEvent($leave, 'requested');
                 } elseif ((Auth::user()->role_users_id != 1) && ($leave->is_notify == NULL)) {
                     //get-leave-notification - 294
                     $role_ids = DB::table('role_has_permissions')->where('permission_id', 294)->get()->pluck('role_id');
@@ -371,6 +399,15 @@ class LeaveController extends Controller
                 $leave->update($data);
                 $leave->refresh();
 
+                $this->logEmployeeActivity((int) $leave->employee_id, $isWfhLeave ? 'wfh.updated' : 'leave.updated', $isWfhLeave ? 'WFH request updated.' : 'Leave request updated.', [
+                    'leave_id' => $leave->id,
+                    'leave_type_id' => $leave->leave_type_id,
+                    'status' => $leave->status,
+                    'manager_approval_status' => $leave->manager_approval_status,
+                    'start_date' => $leave->start_date,
+                    'end_date' => $leave->end_date,
+                ]);
+
                 if ($isWfhLeave) {
                     // Direct update on manager approval (no dependency on sync timing).
                     if (($leave->manager_approval_status ?? 'pending') === 'approved' && $leave->status === 'approved') {
@@ -513,13 +550,11 @@ class LeaveController extends Controller
         $employee = User::find($leave->employee_id);
         $departmentHeadId = department::where('id', $leave->department_id)->value('department_head');
         $departmentHeadUser = $departmentHeadId ? User::find($departmentHeadId) : null;
-        $hrRoleIds = Role::query()
-            ->where(function ($query) {
-                $query->where('name', 'like', '%hr%')
-                    ->orWhere('name', 'like', '%human%');
-            })
-            ->pluck('id');
-        $hrUsers = User::query()->whereIn('role_users_id', $hrRoleIds)->get();
+        // Use the same permission-based audience as leave notifications,
+        // so WFH alerts are delivered to the expected approvers.
+        $roleIds = DB::table('role_has_permissions')->where('permission_id', 294)->pluck('role_id');
+        $roleIds[] = 1; // admin fallback
+        $permissionUsers = User::query()->whereIn('role_users_id', $roleIds)->get();
 
         $link = route('leaves.index');
         if ($event === 'requested') {
@@ -536,20 +571,35 @@ class LeaveController extends Controller
             $message = 'WFH request status is pending.';
         }
 
-        $alreadyNotified = collect();
+        $requestorName = optional($leave->employee)->full_name ?? 'Employee';
+        $eventMessage = $message . ' (' . $requestorName . ')';
 
-        foreach ($hrUsers as $user) {
-            $user->notify(new WfhEventNotification($subject, $message, $link));
-            $alreadyNotified->push($user->id);
+        $recipients = collect()
+            ->merge($permissionUsers);
+
+        if ($departmentHeadUser) {
+            $recipients->push($departmentHeadUser);
+        }
+        if ($employee) {
+            $recipients->push($employee);
         }
 
-        if ($departmentHeadUser && ! $alreadyNotified->contains($departmentHeadUser->id)) {
-            $departmentHeadUser->notify(new WfhEventNotification($subject, $message, $link));
-            $alreadyNotified->push($departmentHeadUser->id);
-        }
+        $recipients = $recipients->filter()->unique('id');
 
-        if ($employee && ! $alreadyNotified->contains($employee->id)) {
-            $employee->notify(new WfhEventNotification($subject, $message, route('profile') . '#WFH'));
+        foreach ($recipients as $recipient) {
+            $recipientLink = (int) $recipient->id === (int) $leave->employee_id
+                ? route('profile') . '#WFH'
+                : $link;
+
+            // Always store in-app notification first.
+            $recipient->notify(new WfhRequestNotificationToApprover($eventMessage, $recipientLink));
+
+            // Try email separately so DB notification is not blocked by mail issues.
+            try {
+                $recipient->notify(new WfhEventNotification($subject, $eventMessage, $recipientLink));
+            } catch (\Throwable $e) {
+                // Fail-safe: keep in-app notification even if mail transport fails.
+            }
         }
     }
 

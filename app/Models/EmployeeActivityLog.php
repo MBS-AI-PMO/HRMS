@@ -28,4 +28,22 @@ class EmployeeActivityLog extends Model
     {
         return $this->belongsTo(User::class, 'performed_by');
     }
+
+    public static function write(
+        int $employeeId,
+        ?int $performedBy,
+        string $action,
+        string $description,
+        ?array $meta = null,
+        ?string $ipAddress = null
+    ): self {
+        return self::create([
+            'employee_id' => $employeeId,
+            'performed_by' => $performedBy,
+            'action' => $action,
+            'description' => $description,
+            'meta' => $meta,
+            'ip_address' => $ipAddress,
+        ]);
+    }
 }

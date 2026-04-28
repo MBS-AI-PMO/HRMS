@@ -245,7 +245,14 @@
                     $pendingWfhCount = 0;
 
                     if ($showLeaveManagementTabs) {
-                        $pendingLeaveQuery = \App\Models\leave::query()->where('status', 'pending');
+                        $pendingLeaveQuery = \App\Models\leave::query()
+                            ->where('status', 'pending')
+                            ->where(function ($query) {
+                                $query->whereDoesntHave('LeaveType', function ($wfhQuery) {
+                                    $wfhQuery->where('leave_type', 'like', '%wfh%')
+                                        ->orWhere('leave_type', 'like', '%work from home%');
+                                })->orWhereNull('leave_type_id');
+                            });
                         $pendingWfhQuery = \App\Models\leave::query()
                             ->where('status', 'pending')
                             ->whereHas('LeaveType', function ($query) {

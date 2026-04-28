@@ -85,7 +85,7 @@
     }));
     new $.fn.dataTable.FixedHeader(tableWfh);
 
-    var openLeaveModal = function () {
+    var openLeaveModal = function (infoTitle) {
         var id = $(this).attr('id');
         var target = '{{ route('employee_leave.details') }}/' + id;
 
@@ -117,16 +117,16 @@
                 }
 
                 $('#leave_model').modal('show');
-                $('#leave_model .modal-title').text("{{ __('Leave Info') }}");
+                $('#leave_model .modal-title').text(infoTitle || "{{ __('Leave Info') }}");
             }
         });
     };
 
     $(document).off('click', '.show_leave').on('click', '.show_leave', function () {
-        openLeaveModal.call(this);
+        openLeaveModal.call(this, "{{ __('Leave Info') }}");
     });
 
     $(document).off('click', '.show_wfh_leave').on('click', '.show_wfh_leave', function () {
-        openLeaveModal.call(this);
+        openLeaveModal.call(this, "{{ __('WFH Info') }}");
     });
 })();

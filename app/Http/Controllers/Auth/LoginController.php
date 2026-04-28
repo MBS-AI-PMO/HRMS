@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\EmployeeActivityLog;
 use App\Models\IpSetting;
 use App\Providers\RouteServiceProvider;
 use App\Models\User;
@@ -39,13 +40,25 @@ class LoginController extends Controller
         $user->last_login_ip = $request->ip();
         $user->save();
 
+        EmployeeActivityLog::write(
+            (int) $user->id,
+            (int) $user->id,
+            'auth.login',
+            'User logged in successfully.',
+            [
+                'username' => $user->username,
+                'role_users_id' => $user->role_users_id,
+            ],
+            $request->ip()
+        );
+
         if ($user->role_users_id == 1)
         {
             return redirect('/admin/dashboard');
         } // if client
         elseif ($user->role_users_id == 3)
         {
-            return redirect('/client/dashboard');
+            return redirect('/employee/dashboard');
         } //if employee
         else
         {

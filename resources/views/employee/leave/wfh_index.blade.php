@@ -3,7 +3,7 @@
         <table id="employee_wfh_leave-table" class="table ">
             <thead>
             <tr>
-                <th>{{ __('Leave Type') }}</th>
+                <th>{{ __('WFH Type') }}</th>
                 <th>{{ trans('file.Department') }}</th>
                 <th>{{ trans('file.Duration') }}</th>
                 <th>{{ __('Applied Date') }}</th>

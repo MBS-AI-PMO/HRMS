@@ -9,6 +9,15 @@ class WfhRequestNotificationToApprover extends Notification
 {
     use Queueable;
 
+    private $bodyText;
+    private $link;
+
+    public function __construct(string $bodyText, string $link)
+    {
+        $this->bodyText = $bodyText;
+        $this->link = $link;
+    }
+
     /**
      * Get the notification's delivery channels.
      *
@@ -29,8 +38,8 @@ class WfhRequestNotificationToApprover extends Notification
     public function toArray($notifiable)
     {
         return [
-            'data' => 'A new WFH request-notification',
-            'link' => route('leaves.index'),
+            'data' => $this->bodyText,
+            'link' => $this->link,
         ];
     }
 }
