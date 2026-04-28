@@ -10,7 +10,7 @@
         <div class="container-fluid mb-3">
             @can('store-ticket')
                 <button type="button" class="btn btn-info" name="create_record" id="create_record"><i
-                            class="fa fa-plus"></i> {{__('Add Ticket')}}</button>
+                            class="fa fa-plus"></i> {{__('Add Complain')}}</button>
             @endcan
             @can('delete-ticket')
                 <button type="button" class="btn btn-danger" name="bulk_delete" id="bulk_delete"><i

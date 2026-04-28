@@ -39,27 +39,52 @@
                         </a>
                     </div>
                 </div>
+                 <div class="col-sm-2">
+                    <div class="wrapper count-title text-center">
+                        
+                        <a href="{{route('announcements.index')}}">
+                            <div class="name"><strong class="orange-text text-center" >{{trans('file.Announcement')}}</strong></div>
+                            <h3 class="mt-3">{{ count($announcements) }} </h3>
+                        </a>
+                    </div>
+                </div>
+                 <div class="col-sm-2">
+                    <div class="wrapper count-title text-center">
+                        <a href="{{route('tickets.index')}}">
+                            <div class="name"><strong class="green-text text-center">{{__('Open Complain')}}</strong></div>
+                            <h3 class="mt-3">{{$ticket_count}} </h3>
+                        </a>
+                    </div>
+                </div>
+                 <div class="col-sm-2">
+                    <div class="wrapper count-title text-center">
+                        <a href="{{route('projects.index')}}">
+                            <div class="name"><strong class="blue-text text-center">{{__('Completed Projects')}}</strong></div>
+                            <h3 class="mt-3">{{$completed_projects}} </h3>
+                        </a>
+                    </div>
+                </div>
                 <!-- Count item widget-->
-                <div class="col-sm-2">
+                {{-- <div class="col-sm-2">
                     <div class="wrapper count-title text-center">
                         <a href="{{route('expense.index')}}">
                             <div class="name"><strong class="blue-text">{{__('Total Expense')}}</strong></div>
                             <div class="count-number total_expense"> {{$total_expense}}</div>
-                            {{-- <div class="count-number total_expense"> {{number_format((float)$total_expense, 2, '.', '') }}</div> --}}
+                            <div class="count-number total_expense"> {{number_format((float)$total_expense, 2, '.', '') }}</div>
                         </a>
                     </div>
-                </div>
+                </div> --}}
 
-                <div class="col-sm-2">
+                {{-- <div class="col-sm-2">
                     <div class="wrapper count-title text-center">
                         <a href="{{route('deposit.index')}}">
                             <div class="name"><strong class="green-text">{{__('Total Deposit')}}</strong></div>
                             <div class="count-number total_deposit">{{$total_deposit}}</div>
                         </a>
                     </div>
-                </div>
+                </div> --}}
                 <!-- Count item widget-->
-                <div class="col-sm-2">
+                {{-- <div class="col-sm-2">
                     <div class="wrapper count-title text-center">
                         <a href="{{route('payment_history.index')}}">
                             <div class="name"><strong class="blue-text">{{__('Total Salaries Paid')}}</strong>
@@ -68,32 +93,22 @@
                         </a>
                     </div>
                 </div>
-            </div>
+            </div> --}}
 
             <div class="row">
                 <div class="col-md-8 mt-4">
-                    <div class="card mb-0">
+                    {{-- <div class="card mb-0">
                         <div class="card-header d-flex align-items-center">
                             <h4>{{trans('file.Payment')}} --- {{__('Last 6 Months ')}}</h4>
                         </div>
                         <div class="card-body">
                             <canvas id="payment_last_six" data-last_six_month_payment = "{{json_encode($per_month_payment) ?? ''}}" data-months="{{json_encode($per_month) ?? ''}}"  data-label1="{{trans('file.Payment')}}" ></canvas>
                         </div>
-                    </div>
+                    </div> --}}
                 </div>
 
                 <div class="col-md-4 mt-4">
-                    <div class="card mb-0">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h4>{{__('Employee Department')}}</h4>
-                        </div>
-                        <div class="pie-chart mb-2">
-                            <canvas id="department_chart" data-dept_bgcolor='@json($dept_bgcolor_array)'
-                                    data-hover_dept_bgcolor='@json($dept_hover_bgcolor_array)'
-                                    data-dept_emp_count='@json($dept_count_array)'
-                                    data-dept_label='@json($dept_name_array)' width="100" height="95"></canvas>
-                        </div>
-                    </div>
+                    
                 </div>
 
                 <div class="col-md-4 mt-4">
@@ -110,7 +125,7 @@
                     </div>
                 </div>
 
-                <div class="col-md-4 mt-4">
+                {{-- <div class="col-md-4 mt-4">
                     <div class="card mb-0">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h4>{{__('Expense Vs Deposit')}}</h4>
@@ -122,7 +137,7 @@
                                     data-deposit_level="{{trans('Deposit')}}" width="100" height="95"></canvas>
                         </div>
                     </div>
-                </div>
+                </div> --}}
 
                 <div class="col-md-4 mt-4">
                     <div class="card mb-0">
@@ -134,35 +149,23 @@
                                     data-project_label='@json($project_name_array)' width="100" height="95"></canvas>
                         </div>
                     </div>
+                    
                 </div>
+                <div class="col-md-4 mt-4">
+                <div class="card mb-0">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h4>{{__('Employee Department')}}</h4>
+                        </div>
+                        <div class="pie-chart mb-2">
+                            <canvas id="department_chart" data-dept_bgcolor='@json($dept_bgcolor_array)'
+                                    data-hover_dept_bgcolor='@json($dept_hover_bgcolor_array)'
+                                    data-dept_emp_count='@json($dept_count_array)'
+                                    data-dept_label='@json($dept_name_array)' width="100" height="95"></canvas>
+                        </div>
+                    </div>
             </div>
-
-            <div class="row">
-                <div class="col-4 mt-4">
-                    <div class="wrapper count-title d-flex">
-                        <div class="icon blue-text ml-2 mr-3"><i class="dripicons-volume-medium"></i></div>
-                        <a href="{{route('announcements.index')}}">
-                            <h3 class="mt-3">{{ count($announcements) }} {{trans('file.Announcement')}}</h3>
-                        </a>
-                    </div>
-                </div>
-                <div class="col-4 mt-4">
-                    <div class="wrapper count-title d-flex">
-                        <div class="icon green-text ml-2 mr-3"><i class="dripicons-ticket"></i></div>
-                        <a href="{{route('tickets.index')}}">
-                            <h3 class="mt-3">{{$ticket_count}} {{__('Open Ticket')}}</h3>
-                        </a>
-                    </div>
-                </div>
-                <div class="col-4 mt-4">
-                    <div class="wrapper count-title d-flex">
-                        <div class="icon orange-text ml-2 mr-3"><i class="dripicons-briefcase"></i></div>
-                        <a href="{{route('projects.index')}}">
-                            <h3 class="mt-3">{{$completed_projects}} {{__('Completed Projects')}}</h3>
-                        </a>
-                    </div>
-                </div>
             </div>
+         
 
             <div class="row">
                 @include('calendarable.calendar')
