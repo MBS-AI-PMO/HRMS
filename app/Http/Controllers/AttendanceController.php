@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Attendance;
 use App\Models\company;
 use App\Models\Employee;
+use App\Models\EmployeeActivityLog;
+use App\Models\GeneralSetting;
 use App\Models\Holiday;
 use App\Imports\AttendancesImport;
 use App\Imports\AttendancesImportDevice;
@@ -28,6 +30,37 @@ class AttendanceController extends Controller {
 	public $date_attendance = [];
 	public $date_range = [];
 	public $work_days = 0;
+
+    protected function getLateGraceMinutes(): int
+    {
+        $lateGraceMinutes = GeneralSetting::value('late_grace_minutes');
+
+        return is_numeric($lateGraceMinutes) ? max(0, (int) $lateGraceMinutes) : 0;
+    }
+
+    protected function getLateCutoffTime(DateTime $shiftIn): DateTime
+    {
+        $lateCutoffTime = clone $shiftIn;
+        $lateGraceMinutes = $this->getLateGraceMinutes();
+
+        if ($lateGraceMinutes > 0) {
+            $lateCutoffTime->modify("+{$lateGraceMinutes} minutes");
+        }
+
+        return $lateCutoffTime;
+    }
+
+    protected function logEmployeeActivity(int $employeeId, string $action, string $description, array $meta = []): void
+    {
+        EmployeeActivityLog::create([
+            'employee_id' => $employeeId,
+            'performed_by' => optional(auth()->user())->id,
+            'action' => $action,
+            'description' => $description,
+            'meta' => empty($meta) ? null : $meta,
+            'ip_address' => request()->ip(),
+        ]);
+    }
 
 	public function index(Request $request)
 	{
@@ -313,11 +346,12 @@ class AttendanceController extends Controller {
 		// FOR CLOCK IN
 		if (!$employee_attendance_last)
 		{
+            $late_cutoff_time = $this->getLateCutoffTime($shift_in);
 			// if employee is late
-			if ($current_time > $shift_in)
+			if ($current_time > $late_cutoff_time)
 			{
 				$data['clock_in'] = $current_time->format('H:i');
-                $timeDifference = $shift_in->diff(new DateTime($data['clock_in']))->format('%H:%I');
+                $timeDifference = $late_cutoff_time->diff(new DateTime($data['clock_in']))->format('%H:%I');
 				$data['time_late'] = $timeDifference;
 			} // if employee is early or on time
 			else
@@ -335,7 +369,13 @@ class AttendanceController extends Controller {
 			$data['clock_in_ip'] = $request->ip();
 
 			//creating new attendance record
-			Attendance::create($data);
+            $attendance = Attendance::create($data);
+            $this->logEmployeeActivity($id, 'attendance.clock_in', 'Employee clocked in.', [
+                'attendance_id' => $attendance->id,
+                'attendance_date' => $data['attendance_date'] ?? null,
+                'clock_in' => $data['clock_in'] ?? null,
+                'time_late' => $data['time_late'] ?? '00:00',
+            ]);
 			$this->setSuccessMessage(__('Clocked In Successfully'));
 			return redirect()->back();
 		}
@@ -368,6 +408,12 @@ class AttendanceController extends Controller {
                     //updating record
                     $attendance = Attendance::findOrFail($employee_attendance_last->id);
                     $attendance->update($data);
+                    $this->logEmployeeActivity($id, 'attendance.clock_out', 'Employee clocked out.', [
+                        'attendance_id' => $attendance->id,
+                        'attendance_date' => $attendance->attendance_date,
+                        'clock_out' => $data['clock_out'] ?? null,
+                        'total_work' => $data['total_work'] ?? null,
+                    ]);
                 }
                 else {
                     Attendance::whereId($employee_attendance_last->id)->delete();
@@ -390,7 +436,13 @@ class AttendanceController extends Controller {
 
 				Attendance::whereId($employee_attendance_last->id)->update(['total_work'=> '00:00', 'overtime'=> '00:00']);
 				// creating new attendance
-				Attendance::create($data);
+                $attendance = Attendance::create($data);
+                $this->logEmployeeActivity($id, 'attendance.re_clock_in', 'Employee clocked in again after break.', [
+                    'attendance_id' => $attendance->id,
+                    'attendance_date' => $data['attendance_date'] ?? null,
+                    'clock_in' => $data['clock_in'] ?? null,
+                    'total_rest' => $data['total_rest'] ?? null,
+                ]);
 				$this->setSuccessMessage(__('Clocked In Successfully'));
 				return redirect()->back();
 			}
@@ -1208,7 +1260,7 @@ class AttendanceController extends Controller {
 					{
 						$query->whereBetween('attendance_date', [$first_date, $last_date]);
 					},
-						'employeeLeave',
+						'employeeLeave.leaveType',
 						'company:id,company_name',
 						'company.companyHolidays'
 					])
@@ -1228,7 +1280,7 @@ class AttendanceController extends Controller {
 						{
 							$query->whereBetween('attendance_date', [$first_date, $last_date]);
 						},
-							'employeeLeave',
+							'employeeLeave.leaveType',
 							'company:id,company_name',
 							'company.companyHolidays'
 						])
@@ -1241,7 +1293,7 @@ class AttendanceController extends Controller {
 						{
 							$query->whereBetween('attendance_date', [$first_date, $last_date]);
 						},
-							'employeeLeave',
+							'employeeLeave.leaveType',
 							'company:id,company_name',
 							'company.companyHolidays'
 						])
@@ -1255,7 +1307,7 @@ class AttendanceController extends Controller {
 						{
 							$query->whereBetween('attendance_date', [$first_date, $last_date]);
 						},
-							'employeeLeave',
+							'employeeLeave.leaveType',
 							'company:id,company_name',
 							'company.companyHolidays'
 						])
@@ -1456,12 +1508,27 @@ class AttendanceController extends Controller {
 			{
 				$this->work_days++;
 
-				return 'P';
+                $firstAttendance = $present->sortBy('clock_in')->first();
+                $isLateArrival = $firstAttendance && ($firstAttendance->time_late ?? '00:00') !== '00:00';
+
+				return $isLateArrival ? 'LA' : 'P';
 			} elseif (!$emp->officeShift->$day)
 			{
 				return 'O';
 			} elseif ($leave->isNotEmpty())
 			{
+                $hasWfhLeave = $leave->contains(function ($leaveItem) {
+                    $leaveType = strtolower(optional($leaveItem->leaveType)->leave_type ?? '');
+
+                    return str_contains($leaveType, 'wfh') || str_contains($leaveType, 'work from home');
+                });
+
+                if ($hasWfhLeave) {
+                    $this->work_days++;
+
+                    return 'WFH';
+                }
+
 				return 'L';
 			} elseif ($holiday->isNotEmpty())
 			{
@@ -1528,6 +1595,67 @@ class AttendanceController extends Controller {
 		return response()->json(['success' => __('You are not authorized')]);
 	}
 
+    public function employeeActivityLogs(Request $request)
+    {
+        $logged_user = auth()->user();
+        $companies = company::select('id', 'company_name')->get();
+
+        if (!$logged_user->can('timesheet')) {
+            return response()->json(['success' => __('You are not authorized')]);
+        }
+
+        if (request()->ajax()) {
+            $logs = EmployeeActivityLog::with([
+                'employee:id,first_name,last_name',
+                'performer:id,username',
+            ])->orderByDesc('id');
+
+            if ($request->company_id) {
+                $companyEmployeeIds = Employee::where('company_id', $request->company_id)->pluck('id');
+                $logs->whereIn('employee_id', $companyEmployeeIds);
+            }
+
+            if ($request->employee_id) {
+                $logs->where('employee_id', $request->employee_id);
+            }
+
+            if ($request->activity_date) {
+                $logs->whereDate('created_at', Carbon::parse($request->activity_date)->format('Y-m-d'));
+            }
+
+            if (!$logged_user->can('daily-attendances')) {
+                $logs->where('employee_id', $logged_user->id);
+            }
+
+            return datatables()->of($logs)
+                ->setRowId(function ($row) {
+                    return $row->id;
+                })
+                ->addColumn('employee_name', function ($row) {
+                    return optional($row->employee)->full_name ?? '---';
+                })
+                ->addColumn('action', function ($row) {
+                    return $row->action ?? '---';
+                })
+                ->addColumn('description', function ($row) {
+                    return $row->description ?? '---';
+                })
+                ->addColumn('performed_by', function ($row) {
+                    return optional($row->performer)->username ?? __('System');
+                })
+                ->addColumn('ip_address', function ($row) {
+                    return $row->ip_address ?? '---';
+                })
+                ->addColumn('created_at', function ($row) {
+                    return Carbon::parse($row->created_at)->format(env('Date_Format') . ' H:i');
+                })
+                ->rawColumns([])
+                ->make(true);
+        }
+
+        return view('timesheet.activityLogs.index', compact('companies'));
+    }
+
 	public function updateAttendanceGet($id)
 	{
 		$attendance = Attendance::select('id', 'clock_in', 'clock_out', 'attendance_date')
@@ -1540,7 +1668,14 @@ class AttendanceController extends Controller {
 	public function updateAttendanceStore(Request $request)
 	{
 		$data = $this->attendanceHandler($request);
-		Attendance::create($data);
+        $attendance = Attendance::create($data);
+        $this->logEmployeeActivity((int) $request->employee_id, 'attendance.manual_create', 'Attendance record created manually.', [
+            'attendance_id' => $attendance->id,
+            'attendance_date' => $data['attendance_date'] ?? null,
+            'clock_in' => $data['clock_in'] ?? null,
+            'clock_out' => $data['clock_out'] ?? null,
+            'time_late' => $data['time_late'] ?? '00:00',
+        ]);
 		return response()->json(['success' => __('Data is successfully updated')]);
 	}
 
@@ -1596,10 +1731,11 @@ class AttendanceController extends Controller {
         //if employee attendance record was not found
         if (!$employee_attendance_last)
         {
+            $late_cutoff_time = $this->getLateCutoffTime($shift_in);
             // if employee is late
-            if ($clock_in > $shift_in)
+            if ($clock_in > $late_cutoff_time)
             {
-                $time_late = $shift_in->diff($clock_in)->format('%H:%I');
+                $time_late = $late_cutoff_time->diff($clock_in)->format('%H:%I');
             } // if employee is early or on time
             else
             {
@@ -1725,14 +1861,15 @@ class AttendanceController extends Controller {
         $total_work = '00:00';
         $total_rest = '00:00';
         $data = [];
+        $late_cutoff_time = $this->getLateCutoffTime($shift_in);
 
         for ($i=0; $i < $no_emp_att; $i++) {
             if ($employee_attendance[$i]['id'] == $id) {
 				// if employee is late
-				if ($clock_in > $shift_in)
+				if ($clock_in > $late_cutoff_time)
 				{
 					if ($i == 0) {
-						$time_late = $shift_in->diff($clock_in)->format('%H:%I');
+						$time_late = $late_cutoff_time->diff($clock_in)->format('%H:%I');
 					}
 				} // if employee is early or on time
 				else
@@ -1805,6 +1942,13 @@ class AttendanceController extends Controller {
 					}
 
 					Attendance::find($employee_attendance[$i]['id'])->update($data);
+                    $this->logEmployeeActivity($employee_id, 'attendance.manual_update', 'Attendance record updated manually.', [
+                        'attendance_id' => $employee_attendance[$i]['id'],
+                        'attendance_date' => $attendance_date,
+                        'clock_in' => $data['clock_in'] ?? null,
+                        'clock_out' => $data['clock_out'] ?? null,
+                        'time_late' => $data['time_late'] ?? '00:00',
+                    ]);
 					return response()->json(['success' => __('Data is successfully updated')]);
 				}
 				else
@@ -1854,9 +1998,10 @@ class AttendanceController extends Controller {
                         if ($i == 0) {
 							$time_late = '00:00';
 							$next_clock_in = (new DateTime($employee_attendance[$i+1]['clock_in']));
+                            $late_cutoff_time = $this->getLateCutoffTime($shift_in);
 							// if employee is late
-							if ($next_clock_in > $shift_in) {
-								$time_late = $shift_in->diff($next_clock_in)->format('%H:%I');
+							if ($next_clock_in > $late_cutoff_time) {
+								$time_late = $late_cutoff_time->diff($next_clock_in)->format('%H:%I');
 							}
                             Attendance::find($employee_attendance[$i+1]['id'])->update(['time_late'=> $time_late, 'total_rest'=> '00:00']);
                         }
@@ -1885,6 +2030,12 @@ class AttendanceController extends Controller {
                         }
                     }
                     Attendance::whereId($id)->delete();
+                    $this->logEmployeeActivity($employee_id, 'attendance.manual_delete', 'Attendance record deleted manually.', [
+                        'attendance_id' => $id,
+                        'attendance_date' => $attendance_date,
+                        'clock_in' => $deleted_att_info->clock_in ?? null,
+                        'clock_out' => $deleted_att_info->clock_out ?? null,
+                    ]);
                     return response()->json(['success' => __('Data is successfully deleted')]);
                     break;
                 }

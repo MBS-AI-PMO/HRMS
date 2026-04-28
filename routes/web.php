@@ -188,6 +188,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
 
     Route::get('/profile', [EmployeeController::class, 'profile'])->name('profile');
      Route::post('/profile-Update/{id}', [EmployeeController::class, 'profileUpdate'])->name('profile.Update');
+    Route::get('/profile/activity-logs', [EmployeeController::class, 'profileActivityLogs'])->name('profile.activity_logs');
 
     Route::put('/profile/{id}', [DashboardController::class, 'profile_update'])->name('profile_update');
     Route::post('/profile/employee/{id}', [DashboardController::class, 'employeeProfileUpdate'])->name('employee_profile_update');
@@ -368,6 +369,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::get('employee_training/details/{id}', [EmployeeTrainingController::class, 'show'])->name('employee_training.show');
 
         Route::get('employee_ticket/{employee}', [EmployeeTicketController::class, 'index'])->name('employee_ticket.index');
+        Route::get('employee_ticket_my_complains', [EmployeeTicketController::class, 'myComplains'])->name('employee_ticket.my');
         Route::get('employee_ticket/details', [EmployeeTicketController::class, 'details'])->name('employee_ticket.details');
         Route::get('employee_ticket/details/{id}', [EmployeeTicketController::class, 'show'])->name('employee_ticket.show');
 
@@ -556,6 +558,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::post('update_attendances/store', [AttendanceController::class, 'updateAttendanceStore'])->name('update_attendances.store');
         Route::post('update_attendances/update', [AttendanceController::class, 'updateAttendanceUpdate'])->name('update_attendances.update');
         Route::get('update_attendances/{id}/delete', [AttendanceController::class, 'updateAttendanceDelete'])->name('update_attendances.delete');
+        Route::get('employee_activity_logs', [AttendanceController::class, 'employeeActivityLogs'])->name('employee_activity_logs.index');
 
         Route::get('attendances/page/import', [AttendanceController::class, 'import'])->name('attendances.import');
         Route::post('attendances/page/import_device', [AttendanceController::class, 'importDeviceCsv'])->name('attendances.importDeviceCsv');
@@ -574,6 +577,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::get('holidays/{id}/calendarable', [HolidayController::class, 'calendarableDetails'])->name('holidays.calendarable');
 
         Route::post('leaves/update', [LeaveController::class, 'update'])->name('leaves.update');
+        Route::post('leaves/{id}/decision', [LeaveController::class, 'decision'])->name('leaves.decision');
         Route::resource('leaves', LeaveController::class)->except(['destroy', 'create', 'update']);
         Route::get('leaves/{id}/delete', [LeaveController::class, 'destroy'])->name('leaves.destroy');
         Route::post('leaves/delete/selected', [LeaveController::class, 'delete_by_selection'])->name('mass_delete_leaves');

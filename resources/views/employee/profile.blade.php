@@ -45,12 +45,12 @@
                                     aria-controls="Employee_project_task" aria-selected="false">{{ trans('file.Project') }} &amp; {{ trans('file.Task') }}</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" id="employee_travel-tab" data-toggle="tab" href="#Employee_travel" role="tab"
-                                    aria-controls="Employee_travel" aria-selected="false">{{ trans('file.Travel') }}</a>
+                                <a class="nav-link" id="employee_travel-tab" data-toggle="tab" href="#Profile_travel" role="tab"
+                                    aria-controls="Profile_travel" aria-selected="false">{{ trans('file.Travel') }}</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" id="employee_ticket-tab" data-toggle="tab" href="#Employee_ticket" role="tab"
-                                    aria-controls="Employee_ticket" aria-selected="false">{{ trans('file.Ticket') }}</a>
+                                <a class="nav-link" id="employee_complain-tab" data-toggle="tab" href="#Employee_complain" role="tab"
+                                    aria-controls="Employee_complain" aria-selected="false">{{ __('Complain') }}</a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" id="employee_payslip-tab" data-toggle="tab" href="#Employee_Payslip" role="tab"
@@ -59,6 +59,10 @@
                             <li class="nav-item">
                                 <a class="nav-link" id="remainingLeaveType-tab" data-toggle="tab" href="#remainingLeaveType" role="tab"
                                     aria-controls="remainingLeaveType" aria-selected="false">{{ trans('file.Remaining Leave') }}</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="activity-log-tab" data-toggle="tab" href="#ActivityLog" role="tab"
+                                    aria-controls="ActivityLog" aria-selected="false">{{ __('Activity Log') }}</a>
                             </li>
                         </ul>
                         <div class="row">
@@ -422,16 +426,16 @@
                                         @include('employee.project_task.index')
                                     </div>
 
-                                    <div class="tab-pane fade" id="Employee_travel" role="tabpanel" aria-labelledby="employee_travel-tab">
+                                    <div class="tab-pane fade" id="Profile_travel" role="tabpanel" aria-labelledby="employee_travel-tab">
                                         {{ trans('file.Travel') }}
                                         <hr>
                                         @include('employee.core_hr.travel.index')
                                     </div>
 
-                                    <div class="tab-pane fade" id="Employee_ticket" role="tabpanel" aria-labelledby="employee_ticket-tab">
-                                        {{ trans('file.Ticket') }}
+                                    <div class="tab-pane fade" id="Employee_complain" role="tabpanel" aria-labelledby="employee_complain-tab">
+                                        {{ __('Complain') }}
                                         <hr>
-                                        @include('employee.core_hr.ticket.index')
+                                        @include('employee.core_hr.ticket.index_profile')
                                     </div>
 
                                     <div class="tab-pane fade" id="Employee_Payslip" role="tabpanel" aria-labelledby="employee_payslip-tab">
@@ -444,6 +448,34 @@
                                         {{ trans('file.Remaining Leave') }}
                                         <hr>
                                         @include('employee.remaining_leave.index')
+                                    </div>
+
+                                    <div class="tab-pane fade" id="ActivityLog" role="tabpanel" aria-labelledby="activity-log-tab">
+                                        {{ __('Activity Log') }}
+                                        <hr>
+                                        <div class="row mb-3">
+                                            <div class="col-md-4">
+                                                <input class="form-control date" placeholder="{{__('Select Date')}}" readonly id="activity_log_date" type="text">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <button type="button" class="btn btn-primary" id="activity_log_filter_btn">
+                                                    <i class="fa fa-search"></i> {{trans('file.Search')}}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="table-responsive">
+                                            <table id="profile-activity-log-table" class="table">
+                                                <thead>
+                                                <tr>
+                                                    <th>{{__('Action')}}</th>
+                                                    <th>{{__('Description')}}</th>
+                                                    <th>{{__('Performed By')}}</th>
+                                                    <th>{{__('IP Address')}}</th>
+                                                    <th>{{__('Date Time')}}</th>
+                                                </tr>
+                                                </thead>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -533,12 +565,84 @@
             @include('employee.project_task.task.index_js')
         });
 
-        $('#employee_travel-tab').one('click', function(e) {
+        let travelTabInitialized = false;
+        let complainTabInitialized = false;
+        let activityLogTabInitialized = false;
+
+        const initTravelTab = function() {
+            if (travelTabInitialized) {
+                return;
+            }
+            travelTabInitialized = true;
             @include('employee.core_hr.travel.index_js')
+        };
+
+        const initComplainTab = function() {
+            if (complainTabInitialized) {
+                return;
+            }
+            complainTabInitialized = true;
+            @include('employee.core_hr.ticket.index_js_profile')
+        };
+
+        const initActivityLogTab = function() {
+            if (activityLogTabInitialized) {
+                return;
+            }
+            activityLogTabInitialized = true;
+
+            const renderActivityLogTable = function(activity_date = '') {
+                if ($.fn.DataTable.isDataTable('#profile-activity-log-table')) {
+                    $('#profile-activity-log-table').DataTable().destroy();
+                }
+
+                $('#profile-activity-log-table').DataTable({
+                    processing: true,
+                    serverSide: true,
+                    ajax: {
+                        url: "{{ route('profile.activity_logs') }}",
+                        data: {
+                            activity_date: activity_date,
+                            "_token": "{{ csrf_token()}}"
+                        }
+                    },
+                    columns: [
+                        { data: 'action', name: 'action' },
+                        { data: 'description', name: 'description' },
+                        { data: 'performed_by', name: 'performed_by' },
+                        { data: 'ip_address', name: 'ip_address' },
+                        { data: 'created_at', name: 'created_at' },
+                    ],
+                    order: [],
+                    language: {
+                        lengthMenu: '_MENU_ {{__("records per page")}}',
+                        info: '{{trans("file.Showing")}} _START_ - _END_ (_TOTAL_)',
+                        search: '{{trans("file.Search")}}',
+                        paginate: {
+                            previous: '{{trans("file.Previous")}}',
+                            next: '{{trans("file.Next")}}'
+                        }
+                    },
+                });
+            };
+
+            renderActivityLogTable();
+
+            $('#activity_log_filter_btn').off('click').on('click', function() {
+                renderActivityLogTable($('#activity_log_date').val());
+            });
+        };
+
+        $('#employee_travel-tab').on('shown.bs.tab', function() {
+            initTravelTab();
         });
 
-        $('#employee_ticket-tab').one('click', function(e) {
-            @include('employee.core_hr.ticket.index_js')
+        $('#employee_complain-tab').on('shown.bs.tab', function() {
+            initComplainTab();
+        });
+
+        $('#activity-log-tab').on('shown.bs.tab', function() {
+            initActivityLogTab();
         });
 
         $('#employee_award-tab').one('click', function(e) {
@@ -670,6 +774,18 @@
             var $top = $('#profileMainTabs a[href="' + h + '"]');
             if ($top.length) {
                 $top.tab('show');
+                // Deep-link par lazy-loaded tab JS (one-click handlers) bhi run karao.
+                $top.trigger('click');
+
+                if (h === '#Profile_travel') {
+                    initTravelTab();
+                }
+                if (h === '#Employee_complain') {
+                    initComplainTab();
+                }
+                if (h === '#ActivityLog') {
+                    initActivityLogTab();
+                }
             }
         })();
     </script>

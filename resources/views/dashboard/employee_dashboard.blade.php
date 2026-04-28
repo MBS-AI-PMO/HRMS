@@ -205,7 +205,7 @@
                         <h3 class="text-center">Travel</h3>
                     </div>
                     <div class="d-flex justify-content-between">
-                        <a class="btn btn-link btn-block" href="{{ route('profile') . '#Employee_travel' }}">
+                        <a class="btn btn-link btn-block" href="{{ route('profile') . '#Profile_travel' }}">
                             {{ __('View Travel Info') }}
                         </a>
                         <button class="btn btn-light btn-block mt-0"
@@ -221,7 +221,7 @@
                         <h3 class="text-center">{{ __('Complain') }}</h3>
                     </div>
                     <div class="d-flex justify-content-between">
-                        <a class="btn btn-link btn-block" href="{{ route('profile') . '#Employee_ticket' }}">
+                        <a class="btn btn-link btn-block" href="{{ route('profile') . '#Employee_complain' }}">
                             {{ __('Complain Info') }}
                         </a>
                         <button class="btn btn-light btn-block mt-0"
@@ -355,15 +355,14 @@
                             <div class="row">
 
                                 <div class="col-md-6 form-group">
-                                    <label>{{ __('Leave Type') }} *</label>
+                                    <label id="request_type_label">{{ __('Leave Type') }} *</label>
                                     <select name="leave_type" id="leave_type" class="form-control selectpicker "
                                         data-live-search="true" data-live-search-style="contains"
                                         title='{{ __('Leave Type') }}'>
                                         @foreach ($leave_types as $leave_type)
                                             <option value="{{ $leave_type->id }}"
-                                                data-day="{{ $leave_type->allocated_day }}">{{ $leave_type->leave_type }}
-                                                ({{ $leave_type->allocated_day }} Days)
-                                            </option>
+                                                data-day="{{ $leave_type->allocated_day }}"
+                                                data-is-wfh="{{ str_contains(strtolower($leave_type->leave_type), 'wfh') || str_contains(strtolower($leave_type->leave_type), 'work from home') ? 1 : 0 }}">{{ $leave_type->leave_type }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -524,7 +523,7 @@
                 <div class="modal-content">
 
                     <div class="modal-header">
-                        <h5 id="exampleModalLabel" class="modal-title">{{ __('Open Ticket') }}</h5>
+                        <h5 id="exampleModalLabel" class="modal-title">{{ __('Open Complain') }}</h5>
                         <button type="button" data-dismiss="modal" id="close" aria-label="Close"
                             class="close"><span aria-hidden="true">×</span></button>
                     </div>
@@ -559,13 +558,13 @@
                                 </div>
 
                                 <div class="col-md-6 form-group">
-                                    <label>{{ __('Ticket Note') }}</label>
+                                    <label>{{ __('Complain Note') }}</label>
                                     <input type="text" name="ticket_note" id="ticket_note" class="form-control"
                                         placeholder="{{ trans('file.Optional') }}">
                                 </div>
 
                                 <div class="col-md-6 form-group hide_edit">
-                                    <label>{{ __('Ticket Attachments') }} </label>
+                                    <label>{{ __('Complain Attachments') }} </label>
                                     <input type="file" name="ticket_attachments" id="ticket_attachments"
                                         class="form-control">
                                 </div>
@@ -677,28 +676,93 @@
                 $('#holidayModal').modal('show');
             });
 
+            const wfhFallbackTypeId = @json(optional(collect($leave_types)->first(function($item){
+                $name = strtolower((string) ($item->leave_type ?? ''));
+                return str_contains($name, 'wfh') || str_contains($name, 'work from home');
+            }))->id);
+            let leaveRequestMode = 'leave';
+            let lockedWfhTypeId = null;
+            const allLeaveTypeOptions = $('#leave_type option').clone();
+
+            const filterRequestTypes = function() {
+                let firstAvailableValue = '';
+                $('#leave_type').empty();
+                let hasWfhOption = false;
+
+                allLeaveTypeOptions.each(function() {
+                    let option = $(this).clone();
+                    let isWfhAttr = String(option.attr('data-is-wfh') || '').trim();
+                    let optionText = String(option.text() || '').toLowerCase();
+                    let isWfh = isWfhAttr === '1' || optionText.includes('wfh') || optionText.includes('work from home');
+                    if (isWfh) {
+                        hasWfhOption = true;
+                    }
+                    let shouldShow = leaveRequestMode === 'wfh' ? isWfh : !isWfh;
+                    if (shouldShow) {
+                        $('#leave_type').append(option);
+                        if (firstAvailableValue === '') {
+                            firstAvailableValue = option.val();
+                        }
+                    }
+                });
+
+                if (leaveRequestMode === 'wfh' && !hasWfhOption) {
+                    const fallbackOptionValue = wfhFallbackTypeId ? String(wfhFallbackTypeId) : '0';
+                    const fallbackWfhOption = $('<option value="' + fallbackOptionValue + '" data-day="365" data-is-wfh="1">WFH</option>');
+                    $('#leave_type').append(fallbackWfhOption);
+                    firstAvailableValue = fallbackOptionValue;
+                }
+
+                // Reinitialize picker after dynamic option rebuild
+                $('#leave_type').selectpicker('destroy');
+                $('#leave_type').selectpicker();
+
+                if (firstAvailableValue) {
+                    $('#leave_type').selectpicker('val', firstAvailableValue);
+                    lockedWfhTypeId = leaveRequestMode === 'wfh' ? String(firstAvailableValue) : null;
+                } else {
+                    $('#leave_type').selectpicker('val', '');
+                    lockedWfhTypeId = null;
+                    let html = leaveRequestMode === 'wfh'
+                        ? '<div class="alert alert-danger"><p>{{ __('WFH leave type is not configured yet. Please contact HR/Admin.') }}</p></div>'
+                        : '<div class="alert alert-danger"><p>{{ __('Leave types are not configured yet. Please contact HR/Admin.') }}</p></div>';
+                    $('#leave_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
+                }
+                // Keep select enabled so value is submitted; lock only UI interaction in WFH mode.
+                $('#leave_type').prop('disabled', false);
+                $('#leave_type').selectpicker('refresh');
+
+                const pickerBtn = $('#leave_type').siblings('.bootstrap-select').find('button.dropdown-toggle');
+                if (leaveRequestMode === 'wfh') {
+                    pickerBtn.prop('disabled', true);
+                    pickerBtn.css('pointer-events', 'none');
+                } else {
+                    pickerBtn.prop('disabled', false);
+                    pickerBtn.css('pointer-events', '');
+                }
+            };
+
+            $('#leave_type').on('changed.bs.select', function() {
+                if (leaveRequestMode === 'wfh' && lockedWfhTypeId) {
+                    $('#leave_type').selectpicker('val', lockedWfhTypeId);
+                    $('#leave_type').selectpicker('refresh');
+                }
+            });
+
             $('#leave_request').on('click', function() {
+                leaveRequestMode = 'leave';
                 $('#leaveModalTitle').text("{{ __('Leave Request') }}");
+                $('#request_type_label').text("{{ __('Leave Type') }} *");
                 $('#leaveModal').modal('show');
+                filterRequestTypes();
             });
 
             $('#wfh_request').on('click', function() {
+                leaveRequestMode = 'wfh';
                 $('#leaveModalTitle').text("{{ __('WFH Request') }}");
+                $('#request_type_label').text("{{ __('WFH Type') }} *");
                 $('#leaveModal').modal('show');
-
-                let wfhOption = $('#leave_type option').filter(function() {
-                    const optionText = ($(this).text() || '').toLowerCase();
-                    return optionText.includes('wfh') || optionText.includes('work from home');
-                }).first();
-
-                if (wfhOption.length) {
-                    $('#leave_type').selectpicker('val', wfhOption.val());
-                    $('#leave_type').selectpicker('refresh');
-                } else {
-                    let html =
-                        '<div class="alert alert-danger"><p>{{ __('WFH leave type is not configured yet. Please contact HR/Admin.') }}</p></div>';
-                    $('#leave_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
-                }
+                filterRequestTypes();
             });
 
             $('#travel_request').on('click', function() {
@@ -755,22 +819,16 @@
                             html += '<div class="alert alert-danger">' + data.error + '</div>';
                         } else if (data.success) {
                             html = '<div class="alert alert-success">' + data.success + '</div>';
+                            $('#leave_form_result').html(html).slideDown(300);
 
-                            // message show karo
-                            $('#leave_form_result')
-                                .html(html)
-                                .fadeIn();
-
-                            // 3 sec baad reset + modal close
                             setTimeout(function() {
                                 $('#leaveSampleForm')[0].reset();
                                 $('select').selectpicker('refresh');
                                 $('.date').datepicker('update');
                                 $('#leaveModal').modal('hide');
-
-                                // message hide
-                                $('#leave_form_result').fadeOut();
-                            }, 3000);
+                                $('#leave_form_result').html('');
+                            }, 1500);
+                            return;
                         }
                         $('#leave_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                     }
@@ -805,9 +863,16 @@
                         }
                         if (data.success) {
                             html = '<div class="alert alert-success">' + data.success + '</div>';
-                            $('#travel_sample_form')[0].reset();
-                            $('select').selectpicker('refresh');
-                            $('.date').datepicker('update');
+                            $('#travel_form_result').html(html).slideDown(300);
+
+                            setTimeout(function() {
+                                $('#travel_sample_form')[0].reset();
+                                $('select').selectpicker('refresh');
+                                $('.date').datepicker('update');
+                                $('#travelModal').modal('hide');
+                                $('#travel_form_result').html('');
+                            }, 1500);
+                            return;
                         }
                         $('#travel_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                     }
@@ -837,8 +902,15 @@
                         }
                         if (data.success) {
                             html = '<div class="alert alert-success">' + data.success + '</div>';
-                            $('#ticket_sample_form')[0].reset();
-                            $('select').selectpicker('refresh');
+                            $('#ticket_form_result').html(html).slideDown(300);
+
+                            setTimeout(function() {
+                                $('#ticket_sample_form')[0].reset();
+                                $('select').selectpicker('refresh');
+                                $('#ticketModal').modal('hide');
+                                $('#ticket_form_result').html('');
+                            }, 1500);
+                            return;
                         }
                         $('#ticket_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                     }

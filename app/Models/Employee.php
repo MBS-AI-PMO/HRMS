@@ -170,6 +170,11 @@ class Employee extends Model
         return $this->hasOne(EmployeeLeaveTypeDetail::class);
     }
 
+    public function activityLogs()
+    {
+        return $this->hasMany(EmployeeActivityLog::class);
+    }
+
     public function setDateOfBirthAttribute($value)
     {
         if (empty($value)) {
