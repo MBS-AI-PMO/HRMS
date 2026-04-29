@@ -109,17 +109,20 @@ class RelationTypeController extends Controller
 
 
 	public function destroy($id)
-	{
-		if(!env('USER_VERIFIED'))
-		{
-			return response()->json(['error' => 'This feature is disabled for demo!']);
-		}
-		$logged_user = auth()->user();
+{
+    if (!env('USER_VERIFIED')) {
+        return response()->json(['error' => 'This feature is disabled for demo!']);
+    }
 
-		if ($logged_user->can('access-variable_type')) {
-			RelationType::whereId($id)->delete();
-			return response()->json(['success' => __('Data is successfully deleted')]);
-		}
-		return abort('403',__('You are not authorized'));
-	}
+    $logged_user = auth()->user();
+
+    if ($logged_user->can('access-variable_type')) {
+
+        RelationType::whereId($id)->forceDelete(); // ✅ permanent delete
+
+        return response()->json(['success' => __('Data is successfully deleted')]);
+    }
+
+    return abort(403, __('You are not authorized'));
+}
 }

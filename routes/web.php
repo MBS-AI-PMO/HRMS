@@ -534,6 +534,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::post('designations/delete/selected', [DesignationController::class, 'delete_by_selection'])->name('mass_delete_designations');
 
         Route::post('announcements/update', [AnnouncementController::class, 'update'])->name('announcements.update');
+        Route::get('announcements/{id}/pdf', [AnnouncementController::class, 'announcementPDF'])->name('announcements.pdf');
         Route::resource('announcements', AnnouncementController::class)->except([
             'destroy', 'create', 'update',
         ]);
@@ -541,6 +542,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::post('announcements/delete/selected', [AnnouncementController::class, 'delete_by_selection'])->name('mass_delete_announcements');
 
         Route::post('policy/update', [PolicyController::class, 'update'])->name('policy.update');
+        Route::get('policy/{id}/pdf', [PolicyController::class, 'policyPDF'])->name('policy.pdf');
         Route::resource('policy', PolicyController::class)->except([
             'destroy', 'create', 'update',
         ]);
