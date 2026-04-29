@@ -116,7 +116,7 @@
                                     {{trans('file.Profile')}}
                                 </a>
                             </li>
-                            @if(auth()->user()->role_users_id == 1)
+                            {{-- @if(auth()->user()->role_users_id == 1)
                                 <li id="empty_database">
                                     <a href="#">
                                         <i class="dripicons-stack"></i>
@@ -131,7 +131,7 @@
                                         {{__('Export Database')}}
                                     </a>
                                 </li>
-                            @endif
+                            @endif --}}
                             <li>
                                 <form id="logout-form" action="{{ route('logout') }}" method="POST">
                                     @csrf

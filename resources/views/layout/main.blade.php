@@ -13,6 +13,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Bootstrap CSS-->
+    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs4.min.css" rel="stylesheet">
     <link rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'"
         href="{{ asset('vendor/bootstrap/css/bootstrap.min.css') }}">
     <noscript>
@@ -306,6 +307,7 @@
         <script type="text/javascript" src="{{ asset('vendor/datatable/datatable.responsive.min.js') }}"></script>
         <script type="text/javascript" src="{{ asset('vendor/datatable/datatable.responsive.boostrap.min.js') }}"></script>
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs4.min.js"></script>
     @endif
     <!-- datatable Script End-->
 

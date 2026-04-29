@@ -112,7 +112,7 @@
                             @endcan
                             @can('access-variable_method')
                                 <li id="variable_method"><a
-                                        href="{{ route('variables_method.index') }}">{{ __('Variable Method') }}</a>
+                                        href="{{ route('variables_method.index') }}">{{ __('Travel Type') }}</a>
                                 </li>
                             @endcan
                             {{-- @can('view-general-setting')
@@ -329,7 +329,7 @@
                 </li>
             @endif
 
-            {{-- @can('payment-module')
+            @can('payment-module')
                     <li class="has-dropdown {{ (request()->is('payroll*')) ? 'active' : '' }}">
 
                         @if (auth()->user()->can('view-payslip') || auth()->user()->can('view-paylist'))
@@ -349,10 +349,10 @@
                             @endcan
                         </ul>
                     </li>
-                @endcan --}}
+                @endcan
 
 
-            {{-- @can('performance')
+            @can('performance')
                         <li class="has-dropdown {{ (request()->is('performance*')) ? 'active' : '' }}">
                             @if (auth()->user()->can('view-goal-type') || auth()->user()->can('view-goal-tracking') || auth()->user()->can('view-indicator') || auth()->user()->can('view-appraisal'))
                                 <a href="#performance" aria-expanded="false" data-toggle="collapse"> <i class="fa fa-bar-chart"></i>
@@ -374,7 +374,7 @@
                                 @endcan
                             </ul>
                         </li>
-                    @endcan --}}
+                    @endcan
 
             @can('view-calendar')
                 <li class="{{ request()->is('calendar*') ? 'active' : '' }}"><a
@@ -397,26 +397,26 @@
                             {{ __('Monthly Attendances') }}</a></li>
                     <!--New added End-->
 
-                    {{-- @can('report-training')
+                    @can('report-training')
                                 <li id="training_report"><a
                                             href="{{route('report.training')}}">{{__('Training Report')}}</a>
                                 </li>
-                            @endcan --}}
+                            @endcan
                     @can('report-project')
                         <li id="project_report"><a
                                 href="{{ route('report.project') }}">{{ __('Project Report') }}</a>
                         </li>
                     @endcan
-                    {{-- @can('report-task')
+                    @can('report-task')
                                 <li id="task_report"><a
                                             href="{{route('report.task')}}">{{__('Task Report')}}</a></li>
-                            @endcan --}}
+                            @endcan
                     @can('report-employee')
                         <li id="employees_report"><a
                                 href="{{ route('report.employees') }}">{{ __('Employees Report') }}</a>
                         </li>
                     @endcan
-                    {{-- @can('report-employee')
+                    @can('report-employee')
                                 <li id="employees_report"><a
                                             href="">{{__('Payrol History')}}</a>
                                 </li>
@@ -435,8 +435,8 @@
                                 <li id="employees_report"><a
                                             href="">{{__('Bank Transfer')}}</a>
                                 </li>
-                            @endcan --}}
-                    {{-- @can('report-employee')
+                            @endcan
+                    @can('report-employee')
                                 <li id="employees_report"><a
                                             href="">{{__('EOBI')}}</a>
                                 </li>
@@ -470,11 +470,11 @@
 
                             @can('report-pension')
                                 <li id="pension_report"><a href="{{route('report.pension')}}">{{__('Pension Report')}}</a></li>
-                            @endcan --}}
+                            @endcan
                 </ul>
             </li>
 
-            {{-- @can('recruitment')
+            @can('recruitment')
                     <li class="has-dropdown {{ (request()->is('recruitment*')) ? 'active' : '' }}">
 
                         @if (auth()->user()->can('view-job_post') || auth()->user()->can('view-job_candidate') || auth()->user()->can('view-job_interview') || auth()->user()->can('view-cms'))
@@ -506,9 +506,9 @@
                             @endcan
                         </ul>
                     </li>
-                @endcan --}}
+                @endcan
 
-            {{-- @can('training_module')
+            @can('training_module')
                     <li class="has-dropdown @if (request()->is('training*')){{ (request()->is('training*')) ? 'active' : '' }}@elseif(request()->is('dynamic_variable/training_type*')){{ (request()->is('dynamic_variable/training_type*')) ? 'active' : '' }}@endif">
                         @if (auth()->user()->can('view-training') || auth()->user()->can('access-variable_type') || auth()->user()->can('access-trainer'))
                             <a href="#Training" aria-expanded="false" data-toggle="collapse"> <i
@@ -533,9 +533,9 @@
                             @endcan
                         </ul>
                     </li>
-                @endcan --}}
+                @endcan
 
-            {{-- @can('event-meeting')
+            @can('event-meeting')
                     <li class="has-dropdown @if (request()->is('events*')){{ (request()->is('events*')) ? 'active' : '' }}@elseif(request()->is('meetings*')){{ (request()->is('meetings*')) ? 'active' : '' }}@endif">
 
                         @if (auth()->user()->can('view-event') || auth()->user()->can('view-meeting'))
@@ -556,7 +556,7 @@
                             @endcan
                         </ul>
                         @endcan
-                    </li> --}}
+                    </li>
 
             @can('project-management')
                 <li class="has-dropdown {{ request()->is('project-management*') ? 'active' : '' }}">
@@ -600,7 +600,7 @@
 
 
 
-        {{-- @can('finance')
+        @can('finance')
                         <li class="has-dropdown {{ (request()->is('accounting*')) ? 'active' : '' }}">
 
                             @if (auth()->user()->can('view-account') || auth()->user()->can('view-payee') || auth()->user()->can('view-payer') || auth()->user()->can('view-deposit') || auth()->user()->can('view-expense') || auth()->user()->can('view-transaction') || auth()->user()->can('view-balance_transfer'))
@@ -652,7 +652,7 @@
                                 @endcan
                             </ul>
                         </li>
-                    @endcan --}}
+                    @endcan
 
         @can('assets-and-category')
             <li

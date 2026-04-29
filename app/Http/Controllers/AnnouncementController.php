@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Validator;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
 class AnnouncementController extends Controller {
 
@@ -64,7 +65,10 @@ class AnnouncementController extends Controller {
 					{
 						$button .= '<button type="button" name="delete" id="' . $data->id . '" class="delete btn btn-danger btn-sm"><i class="dripicons-trash"></i></button>';
 					}
-
+$button .= '&nbsp;';
+$button .= '<a href="'.route('announcements.pdf', $data->id).'" class="btn btn-info btn-sm">
+    <i class="fa fa-download"></i>
+</a>';
 					return $button;
 				})
 				->rawColumns(['action'])
@@ -308,4 +312,13 @@ class AnnouncementController extends Controller {
 
 		return response()->json(['success' => __('You are not authorized')]);
 	}
+
+public function announcementPDF($id)
+{
+    $announcement = Announcement::with('company','department')->findOrFail($id);
+
+    $pdf = PDF::loadView('organization.announcement.pdf', compact('announcement'));
+
+    return $pdf->download('announcement-'.$announcement->id.'.pdf');
+}
 }

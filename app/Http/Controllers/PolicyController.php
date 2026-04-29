@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Validator;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
 
 class PolicyController extends Controller {
 
@@ -48,7 +49,9 @@ class PolicyController extends Controller {
 					{
 						$button .= '<button type="button" name="delete" id="' . $data->id . '" class="delete btn btn-danger btn-sm"><i class="dripicons-trash"></i></button>';
 					}
-
+                    $button .= '&nbsp;';
+                    $button .= '<a href="'.route('policy.pdf', $data->id).'" class="btn btn-info btn-sm" title="Download PDF">
+                                <i class="fa fa-download"></i> </a>';
 					return $button;
 				})
 				->rawColumns(['action'])
@@ -254,4 +257,12 @@ class PolicyController extends Controller {
 
 		return response()->json(['success' => __('You are not authorized')]);
 	}
+	public function policyPDF($id)
+{
+    $policy = Policy::with('company')->findOrFail($id);
+
+    $pdf= PDF::loadView('organization.policy.pdf', compact('policy'));
+
+    return $pdf->download('policy-'.$policy->id.'.pdf');
+}
 }
