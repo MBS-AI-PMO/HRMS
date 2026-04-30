@@ -592,10 +592,13 @@ class EmployeeController extends Controller
                 return response()->json(['error' => $e->getMessage()]);
             }
 
-            return response()->json([
-                'success' => __('Data Updated successfully.'),
-                'profile_picture' => $file_name
-            ]);
+            $updatedEmployee = Employee::find($employee);
+
+return response()->json([
+    'success' => __('Data Updated successfully.'),
+    'employee' => $updatedEmployee,
+    'profile_picture' => $file_name
+]);
         }
     }
 
@@ -663,6 +666,8 @@ class EmployeeController extends Controller
             $data['last_name'] = $request->last_name;
             $data['staff_id'] = $request->staff_id;
             $data['date_of_birth'] = $request->date_of_birth;
+            $data['email'] = strtolower(trim($request->email));     
+            $data['contact_no'] = $request->contact_no;             
             $data['gender'] = $request->gender;
             $data['department_id'] = $request->department_id;
             $data['company_id'] = $request->company_id;

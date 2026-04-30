@@ -680,6 +680,7 @@
                         $('#remaining_leave').val(data.remaining_leave)
                         html = '<div class="alert alert-success">' + data.success + '</div>';
                         html = '<div class="alert alert-success">' + data.success + '</div>';
+                        location.reload();
                     }
                     $('#form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                 }
