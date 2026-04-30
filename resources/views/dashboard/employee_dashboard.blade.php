@@ -23,7 +23,7 @@
                     <div class="text-muted mb-2">{{ $employee->designation->designation_name ?? '' }},
                         {{ $employee->department->department_name ?? '' }}</div>
                     <p class="text-muted">{{ __('Last Login') }}: {{ $user->last_login_date }}</p>
-                    <p class="text-muted">{{ __('My Office Shift') }}:
+                    <p class="text-muted">{{ __('My Office Shifttt') }}:
                         @if (!$shift_in)
                             {{ __('No Shift Today') }}
                         @else
