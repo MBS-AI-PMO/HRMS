@@ -17,7 +17,20 @@
         {
             data: null,
             render: function (data) {
-                return data.leave_type + "<br><td><div class = 'badge badge-success'>" + data.status + "</div></td><br>" + "<b><i>Reason:</i></b>" + data.leave_reason;
+                let status = (data.status || '').toLowerCase();
+                let statusBadge = '';
+
+                if (status === 'pending') {
+                    statusBadge = '<span class="badge badge-warning">Pending</span>';
+                } else if (status === 'approved') {
+                    statusBadge = '<span class="badge badge-success">Approved</span>';
+                } else if (status === 'rejected') {
+                    statusBadge = '<span class="badge badge-danger">Rejected</span>';
+                } else {
+                    statusBadge = '<span class="badge badge-secondary">' + data.status + '</span>';
+                }
+
+                return data.leave_type + "<br>" + statusBadge + "<br><b><i>Reason:</i></b> " + (data.leave_reason || '');
             }
         },
         {
@@ -101,7 +114,21 @@
                 $('#leave_end_date_id').html(result.end_date_name);
                 $('#leave_applied_date_id').html(result.data.created_at);
                 $('#leave_total_days_id').html(result.data.total_days);
-                $('#leave_status_id').html(result.data.status);
+
+                let status = (result.data.status || '').toLowerCase();
+                let statusBadge = '';
+
+                if (status === 'pending') {
+                    statusBadge = '<span class="badge badge-warning">Pending</span>';
+                } else if (status === 'approved') {
+                    statusBadge = '<span class="badge badge-success">Approved</span>';
+                } else if (status === 'rejected') {
+                    statusBadge = '<span class="badge badge-danger">Rejected</span>';
+                } else {
+                    statusBadge = '<span class="badge badge-secondary">' + result.data.status + '</span>';
+                }
+
+                $('#leave_status_id').html(statusBadge);
                 $('#leave_leave_reason_id').html(result.data.leave_reason);
                 $('#leave_remarks_id').html(result.data.remarks);
 

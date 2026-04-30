@@ -491,31 +491,17 @@ class LeaveController extends Controller
         return strpos($name, 'wfh') !== false || strpos($name, 'work from home') !== false;
     }
 
-    private function applyWfhApprovalStatus(leave $leave, array &$data, Request $request): void
-    {
-        $requestStatus = $request->status;
-        if (! in_array($requestStatus, ['approved', 'rejected', 'pending'], true)) {
-            $requestStatus = 'pending';
-        }
+  private function applyWfhApprovalStatus(leave $leave, array &$data, Request $request): void
+{
+    $requestStatus = strtolower((string) $request->status);
 
-        $currentManagerStatus = $leave->manager_approval_status ?: 'pending';
-
-        $isDepartmentManager = (int) $leave->department?->department_head === (int) auth()->id();
-
-        if ($isDepartmentManager) {
-            $data['manager_approval_status'] = $requestStatus;
-            $currentManagerStatus = $requestStatus;
-        }
-
-        if ($currentManagerStatus === 'rejected') {
-            $data['status'] = 'rejected';
-        } elseif ($currentManagerStatus === 'approved') {
-            $data['status'] = 'approved';
-        } else {
-            $data['status'] = 'pending';
-        }
-
+    if (! in_array($requestStatus, ['approved', 'rejected', 'pending'], true)) {
+        $requestStatus = 'pending';
     }
+
+    $data['manager_approval_status'] = $requestStatus;
+    $data['status'] = $requestStatus;
+}
 
     private function isHrUser(): bool
     {
