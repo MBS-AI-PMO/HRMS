@@ -520,13 +520,26 @@ class DashboardController extends Controller {
 	{
 		$general_setting = GeneralSetting::first();
 		$user = auth()->user();
-		$employee = Employee::with('department:id,department_name', 'officeShift')->findOrFail($user->id);
-		$current_day_in = strtolower(Carbon::now()->format('l')) . '_in';
-		$current_day_out = strtolower(Carbon::now()->format('l')) . '_out';
+		$employee = Employee::with(
+			'department:id,department_name',
+			'designation:id,designation_name',
+			'officeShift'
+		)->find($user->id);
 
-		$shift_in = $employee->officeShift->$current_day_in;
-		$shift_out = $employee->officeShift->$current_day_out;
-		$shift_name = $employee->officeShift->shift_name;
+		if (! $employee) {
+			Auth::logout();
+
+			return redirect()->route('login')
+				->with('error', __('Employee record not found. Please contact administrator.'));
+		}
+
+		$current_day_in = strtolower(Carbon::now()->format('l')).'_in';
+		$current_day_out = strtolower(Carbon::now()->format('l')).'_out';
+
+		$officeShift = $employee->officeShift;
+		$shift_in = $officeShift ? ($officeShift->{$current_day_in} ?? null) : null;
+		$shift_out = $officeShift ? ($officeShift->{$current_day_out} ?? null) : null;
+		$shift_name = $officeShift?->shift_name ?? __('N/A');
 
 		$announcements = Announcement::where('start_date', '<=', now()->format('Y-m-d'))
 			->where('end_date', '>=', now()->format('Y-m-d'))->where('is_notify', 1)->select('id', 'title', 'summary')->latest()->take(3)->get();

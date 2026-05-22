@@ -377,24 +377,21 @@ class PublicEmployeeRegistrationController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
 
-        try {
-            $this->sendEmployeeCredentialsEmail($created_user, $plainPassword, $employee->staff_id);
-        } catch (Throwable $e) {
-            Log::warning('Registration email could not be sent', [
-                'user_id' => $created_user->id,
-                'message' => $e->getMessage(),
-            ]);
-        }
+        $emailSent = $this->sendEmployeeCredentialsEmail($created_user, $plainPassword, $employee->staff_id);
 
         $message = $setting->success_message
             ?: ($setting->auto_approve
                 ? __('Registration successful. Login credentials have been sent to your email.')
                 : __('Registration submitted. Admin will review your account. Login credentials will be emailed after approval.'));
 
+        if (! $emailSent) {
+            $message .= ' '.__('We could not send the login email. Please contact your administrator for your password.');
+        }
+
         return response()->json([
             'success' => $message,
             'staff_id' => $employee->staff_id,
-            'email_sent' => true,
+            'email_sent' => $emailSent,
         ]);
     }
 

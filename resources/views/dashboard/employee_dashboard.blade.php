@@ -20,8 +20,8 @@
                     <h4 class="font-weight-bold">{{ $employee->full_name }} <span class="text-muted font-weight-normal">
                             ({{ $user->username }})</span>
                     </h4>
-                    <div class="text-muted mb-2">{{ $employee->designation->designation_name ?? '' }},
-                        {{ $employee->department->department_name ?? '' }}</div>
+                    <div class="text-muted mb-2">{{ $employee->designation?->designation_name ?? '' }},
+                        {{ $employee->department?->department_name ?? '' }}</div>
                     <p class="text-muted">{{ __('Last Login') }}: {{ $user->last_login_date }}</p>
                     <p class="text-muted">{{ __('My Office Shift') }}:
                         @if (!$shift_in)
