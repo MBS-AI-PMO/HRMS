@@ -29,7 +29,7 @@ class RedirectIfAuthenticated
 			}
 			else
 			{
-				return redirect('/client/dashboard');
+				return redirect('/employee/dashboard');
 			}
 		}
 		return $next($request);

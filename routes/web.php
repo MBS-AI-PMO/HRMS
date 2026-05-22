@@ -25,6 +25,8 @@ use App\Http\Controllers\EmployeeBankAccountController;
 use App\Http\Controllers\EmployeeComplaintController;
 use App\Http\Controllers\EmployeeContactController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeRegistrationSettingController;
+use App\Http\Controllers\PublicEmployeeRegistrationController;
 use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\EmployeeImmigrationController;
 use App\Http\Controllers\EmployeeLeaveController;
@@ -175,6 +177,14 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::get('/home', [HomeController::class, 'index'])->name('home.front');
     Route::get('/about', [AboutController::class, 'index'])->name('about.front');
     Route::get('/contact', [ContactController::class, 'index'])->name('contact.front');
+
+    Route::get('register/employee/{companySlug}', [PublicEmployeeRegistrationController::class, 'create'])->where('companySlug', '[a-zA-Z0-9\-]+')->name('employee.register.company');
+    Route::get('register/employee', [PublicEmployeeRegistrationController::class, 'create'])->name('employee.register');
+    Route::post('register/employee', [PublicEmployeeRegistrationController::class, 'store'])->name('employee.register.store');
+    Route::get('register/employee/config/{companyKey}', [PublicEmployeeRegistrationController::class, 'config'])->where('companyKey', '[a-zA-Z0-9\-]+')->name('employee.register.config');
+    Route::post('register/employee/departments', [PublicEmployeeRegistrationController::class, 'departments'])->name('employee.register.departments');
+    Route::post('register/employee/designations', [PublicEmployeeRegistrationController::class, 'designations'])->name('employee.register.designations');
+    Route::post('register/employee/shifts', [PublicEmployeeRegistrationController::class, 'shifts'])->name('employee.register.shifts');
 
     Route::get('/jobs', [JobController::class, 'index'])->name('jobs');
     Route::get('/jobs/details/{job_post}', [JobController::class, 'details'])->name('jobs.details');
@@ -795,6 +805,11 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::post('roles/permission', [PermissionController::class, 'set_permission'])->name('set_permission');
         Route::post('general_settings/update/{id}', [GeneralSettingController::class, 'update'])->name('general_settings.update');
         Route::resource('general_settings', GeneralSettingController::class)->except(['create', 'edit', 'show', 'update']);
+        Route::get('employee-registration', [EmployeeRegistrationSettingController::class, 'index'])->name('employee_registration_settings.index');
+        Route::get('employee-registration/{companyId}/edit', [EmployeeRegistrationSettingController::class, 'edit'])->where('companyId', '[0-9]+')->name('employee_registration_settings.edit');
+        Route::get('employee-registration/{companyId}/data', [EmployeeRegistrationSettingController::class, 'companyData'])->where('companyId', '[0-9]+')->name('employee_registration_settings.data');
+        Route::post('employee-registration/{companyId}', [EmployeeRegistrationSettingController::class, 'update'])->where('companyId', '[0-9]+')->name('employee_registration_settings.update');
+
         Route::get('mail_setting', [GeneralSettingController::class, 'mailSetting'])->name('setting.mail');
         Route::post('setting/mail_setting_store', [GeneralSettingController::class, 'mailSettingStore'])->name('setting.mailStore');
         Route::get('general_settings/change-theme/{theme}', [GeneralSettingController::class, 'change_theme'])->name('change_theme');

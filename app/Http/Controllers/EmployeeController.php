@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\traits\LeaveTypeDataManageTrait;
+use App\Http\traits\SendsEmployeeCredentialsTrait;
 use App\Imports\UsersImport;
 use App\Models\company;
 use App\Models\DeductionType;
@@ -210,12 +211,11 @@ class EmployeeController extends Controller
 
         if ($logged_user->can('store-details-employee')) {
             if (request()->ajax()) {
-                $validator = Validator::make($request->only('first_name', 'last_name', 'staff_id', 'email', 'contact_no', 'date_of_birth', 'gender',
+                $validator = Validator::make($request->only('first_name', 'last_name', 'email', 'contact_no', 'date_of_birth', 'gender',
                     'username', 'role_users_id', 'password', 'password_confirmation', 'company_id', 'department_id', 'designation_id', 'office_shift_id', 'attendance_type', 'joining_date'),
                     [
                         'first_name' => 'required',
                         'last_name' => 'required',
-                        'staff_id' => 'required|numeric|unique:employees',
                         'email' => 'nullable|email|unique:users',
                         'contact_no' => 'required|numeric|unique:users',
                         'date_of_birth' => 'required',
@@ -239,7 +239,6 @@ class EmployeeController extends Controller
                 $data = [];
                 $data['first_name'] = $request->first_name;
                 $data['last_name'] = $request->last_name;
-                $data['staff_id'] = $request->staff_id;
                 $data['date_of_birth'] = $request->date_of_birth;
                 $data['gender'] = $request->gender;
                 $data['department_id'] = $request->department_id;
@@ -276,28 +275,39 @@ class EmployeeController extends Controller
                     }
                 }
 
+                User::prepareRegistrationStorage($user);
+
                 DB::beginTransaction();
                 try {
-                    $created_user = User::create($user);
+                    $data['staff_id'] = Employee::generateStaffId();
+
+                    $created_user = User::createAccount($user);
                     $created_user->syncRoles($request->role_users_id); //new
 
-                    $data['id'] = $created_user->id;
-
-                    $employee = employee::create($data);
+                    $employee = Employee::createForUser($created_user, $data);
                     $this->allLeaveTypeDataNewlyStore($employee);
 
-                    DB::commit();
+                    if (DB::transactionLevel() > 0) {
+                        DB::commit();
+                    }
                 } catch (Exception $e) {
-                    DB::rollback();
+                    if (DB::transactionLevel() > 0) {
+                        DB::rollBack();
+                    }
 
                     return response()->json(['error' => $e->getMessage()]);
                 } catch (Throwable $e) {
-                    DB::rollback();
+                    if (DB::transactionLevel() > 0) {
+                        DB::rollBack();
+                    }
 
                     return response()->json(['error' => $e->getMessage()]);
                 }
 
-                return response()->json(['success' => __('Data Added successfully.')]);
+                return response()->json([
+                    'success' => __('Data Added successfully.'),
+                    'staff_id' => $employee->staff_id,
+                ]);
             }
         }
 
@@ -504,7 +514,7 @@ class EmployeeController extends Controller
                     'first_name'      => 'required',
                     'last_name'       => 'required',
                     'username'        => 'required|unique:users,username,' . $employee,
-                    'staff_id'        => 'required|numeric|unique:employees,staff_id,' . $employee,
+                    'staff_id'        => 'required|unique:employees,staff_id,' . $employee,
                     'email'           => 'nullable|email|unique:users,email,' . $employee,
                     'contact_no'      => 'required|numeric|unique:users,contact_no,' . $employee,
                     'date_of_birth'   => 'required',
