@@ -40,17 +40,22 @@ class LoginController extends Controller
         $user->last_login_ip = $request->ip();
         $user->save();
 
-        EmployeeActivityLog::write(
-            (int) $user->id,
-            (int) $user->id,
-            'auth.login',
-            'User logged in successfully.',
-            [
-                'username' => $user->username,
-                'role_users_id' => $user->role_users_id,
-            ],
-            $request->ip()
-        );
+        try {
+            EmployeeActivityLog::write(
+                (int) $user->id,
+                (int) $user->id,
+                'auth.login',
+                'User logged in successfully.',
+                [
+                    'username' => $user->username,
+                    'role_users_id' => $user->role_users_id,
+                ],
+                $request->ip()
+            );
+        } catch (\Throwable $e) {
+            // Do not block login if activity log fails (e.g. missing employee row).
+            report($e);
+        }
 
         if ($user->role_users_id == 1)
         {
