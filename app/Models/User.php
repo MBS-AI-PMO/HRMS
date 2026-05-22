@@ -3,22 +3,20 @@
 namespace App\Models;
 
 use Carbon\Carbon;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\HasApiTokens;
+use RuntimeException;
 use Spatie\Permission\Traits\HasRoles;
+use Throwable;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, Notifiable, HasRoles;
+    use HasApiTokens, HasRoles, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
     protected $fillable = [
         'first_name',
         'last_name',
@@ -34,53 +32,127 @@ class User extends Authenticatable
         'last_login_date',
     ];
 
-    /**
-     * The attributes that should be hidden for arrays.
-     *
-     * @var array
-     */
     protected $hidden = [
         'password', 'remember_token',
     ];
 
-    /**
-     * The attributes that should be cast to native types.
-     *
-     * @var array
-     */
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
 
+    public function RoleUser()
+    {
+        return $this->hasone('Spatie\Permission\Models\Role', 'id', 'role_users_id');
+    }
 
-	public function RoleUser()
-	{
-		// return $this->hasone('App\Models\Role_User','id',"role_users_id");
-        return $this->hasone('Spatie\Permission\Models\Role','id',"role_users_id");
-	}
+    public function getLastLoginDateAttribute($value)
+    {
+        if ($value) {
+            return Carbon::parse($value)->format(env('Date_Format').'--H:i');
+        }
 
-//	public function scopeActive($query)
-//	{
-//		return $query->where('is_active',1);
-//	}
-//	public function scopeMonthly($query)
-//	{
-//		return $query->whereMonth('created_at','4');
-//	}
+        return null;
+    }
 
+    /**
+     * Run before DB::beginTransaction() — cleanup only (no ALTER TABLE).
+     */
+    public static function prepareRegistrationStorage(array $attributes): void
+    {
+        static::removeInvalidUserRows($attributes);
+    }
 
+    /**
+     * Create user with a valid id (no migration required).
+     */
+    public static function createAccount(array $attributes): self
+    {
+        unset($attributes['id']);
 
-	public function getLastLoginDateAttribute($value)
-	{
-		if ($value)
-		{
-			return Carbon::parse($value)->format(env('Date_Format').'--H:i');
-		}
-		else {
-			return null;
-		}
-	}
+        $row = static::buildInsertRow($attributes);
+        $userId = static::insertUserRow($row);
+
+        if ($userId < 1) {
+            throw new RuntimeException(__('Could not create user account. Please contact administrator.'));
+        }
+
+        return static::query()->findOrFail($userId);
+    }
+
+    protected static function buildInsertRow(array $attributes): array
+    {
+        $now = now();
+        $allowed = array_flip((new static)->getFillable());
+        $row = array_intersect_key($attributes, $allowed);
+        $row['created_at'] = $now;
+        $row['updated_at'] = $now;
+
+        if (isset($row['email'])) {
+            $row['email'] = strtolower(trim((string) $row['email']));
+        }
+        if (isset($row['username'])) {
+            $row['username'] = strtolower(trim((string) $row['username']));
+        }
+
+        return $row;
+    }
+
+    protected static function insertUserRow(array $row): int
+    {
+        try {
+            $userId = (int) DB::table('users')->insertGetId($row);
+            if ($userId > 0) {
+                return $userId;
+            }
+        } catch (Throwable $e) {
+            Log::debug('users insertGetId failed, using manual id', ['message' => $e->getMessage()]);
+        }
+
+        return static::insertUserRowWithManualId($row);
+    }
+
+    /**
+     * Insert user with explicit id when AUTO_INCREMENT / PRIMARY KEY is broken.
+     */
+    protected static function insertUserRowWithManualId(array $row): int
+    {
+        $nextId = static::nextAvailableUserId();
+        $row['id'] = $nextId;
+        DB::table('users')->insert($row);
+
+        return $nextId;
+    }
+
+    protected static function nextAvailableUserId(): int
+    {
+        $nextId = max(1, (int) DB::table('users')->max('id') + 1);
+
+        while (DB::table('users')->where('id', $nextId)->exists()) {
+            $nextId++;
+        }
+
+        return $nextId;
+    }
+
+    protected static function removeInvalidUserRows(array $attributes): void
+    {
+        DB::table('users')->where('id', 0)->delete();
+
+        if (! empty($attributes['email'])) {
+            $email = strtolower(trim((string) $attributes['email']));
+            DB::table('users')->where('id', 0)->where('email', $email)->delete();
+
+            if (Schema::hasTable('employees')) {
+                DB::table('employees')->where('id', 0)->where('email', $email)->delete();
+            }
+        }
+
+        if (Schema::hasTable('model_has_roles')) {
+            DB::table('model_has_roles')
+                ->where('model_id', 0)
+                ->where('model_type', 'App\Models\User')
+                ->delete();
+        }
+    }
 
 }
-
-

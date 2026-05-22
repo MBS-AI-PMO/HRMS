@@ -138,11 +138,6 @@
                                        required class="form-control">
                             </div>
                             <div class="col-md-6 form-group">
-                                <label class="text-bold">{{__('Staff Id')}} <span class="text-danger">*</span></label>
-                                <input type="text" name="staff_id" id="staff_id" placeholder="{{__('Staff Id')}}"
-                                       required class="form-control">
-                            </div>
-                            <div class="col-md-6 form-group">
                                 <label class="text-bold">{{trans('file.Email')}}</label>
                                 <input type="email" name="email" id="email" placeholder="example@example.com"
                                        class="form-control">
@@ -547,7 +542,11 @@
                     html = '<div class="alert alert-danger">' + data.error + '</div>';
                 }
                 if (data.success) {
-                    html = '<div class="alert alert-success">' + data.success + '</div>';
+                    html = '<div class="alert alert-success">' + data.success;
+                    if (data.staff_id) {
+                        html += '<br><strong>{{ __('Staff Id') }}:</strong> ' + data.staff_id;
+                    }
+                    html += '</div>';
                     $('#sample_form')[0].reset();
                     $('select').selectpicker('refresh');
                     $('.date').datepicker('update');

@@ -20,15 +20,14 @@ class EmployeeImport implements ToCollection,WithHeadingRow, ShouldQueue,WithChu
 
 		foreach ($rows as $row)
 		{
-			$user = User::create([
+			$user = User::createAccount([
 				'username' => $row['username'],
 				'email' => $row['email'],
 				'password' => Hash::make($row['password']),
 				'contact_no' => $row['contact_no'],
 				'role_users_id'=> 2
 			]);
-			Employee::create([
-				'id'=> $user->id,
+			Employee::createForUser($user, [
 				'first_name' => $row['first_name'],
 				'last_name' => $row['last_name'],
 				'email' => $row['email'],
@@ -39,7 +38,7 @@ class EmployeeImport implements ToCollection,WithHeadingRow, ShouldQueue,WithChu
 				'address' => $row['address'],
 				'city' => $row['city'],
 				'zip_code' => $row['zip'],
-				'role_users_id'=> 2
+				'role_users_id' => 2,
 			]);
 		}
 

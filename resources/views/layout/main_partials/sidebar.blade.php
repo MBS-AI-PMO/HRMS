@@ -94,6 +94,11 @@
                                         href="{{ route('general_settings.index') }}">{{ __('General Settings') }}</a>
                                 </li>
                             @endcan
+                            @can('customize-setting')
+                                <li id="employee_registration_settings"><a
+                                        href="{{ route('employee_registration_settings.index') }}">{{ __('Employee Registration') }}</a>
+                                </li>
+                            @endcan
 
                             @can('view-mail-setting')
                                 <li id="mail_setting"><a href="{{ route('setting.mail') }}">{{ __('Mail Setting') }}</a>

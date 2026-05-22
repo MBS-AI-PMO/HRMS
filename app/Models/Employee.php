@@ -5,18 +5,19 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
 class Employee extends Model
 {
     use Notifiable;
 
     protected $fillable = [
-        'id',
         'first_name',
         'last_name',
         'staff_id',
         'email',
         'contact_no',
+        'cnic',
         'date_of_birth',
         'gender',
         'status_id',
@@ -230,5 +231,62 @@ class Employee extends Model
         }
 
         return Carbon::parse($value)->format(env('Date_Format'));
+    }
+
+    /**
+     * Create employee row using the same primary key as the user account.
+     */
+    public static function createForUser(User $user, array $attributes): self
+    {
+        $user->refresh();
+        $userId = (int) $user->getKey();
+
+        if ($userId < 1) {
+            throw new \InvalidArgumentException('Cannot create employee: user id was not generated.');
+        }
+
+        unset($attributes['id']);
+
+        $employee = new static($attributes);
+        $employee->id = $userId;
+
+        if (empty($employee->role_users_id)) {
+            $employee->role_users_id = $user->role_users_id;
+        }
+
+        $employee->save();
+
+        return $employee;
+    }
+
+    /**
+     * Generate next staff id in sequence: EMP001, EMP002, ...
+     */
+    public static function generateStaffId(): string
+    {
+        $prefix = 'EMP';
+        $padLength = 3;
+        $maxNumber = 0;
+
+        static::query()
+            ->where('staff_id', 'like', $prefix.'%')
+            ->pluck('staff_id')
+            ->each(function ($staffId) use (&$maxNumber, $prefix) {
+                if (preg_match('/^'.preg_quote($prefix, '/').'(\d+)$/i', (string) $staffId, $matches)) {
+                    $maxNumber = max($maxNumber, (int) $matches[1]);
+                }
+            });
+
+        do {
+            $maxNumber++;
+            $candidate = $prefix.str_pad((string) $maxNumber, $padLength, '0', STR_PAD_LEFT);
+        } while (static::where('staff_id', $candidate)->exists());
+
+        return $candidate;
+    }
+
+    public static function generatePassword(): string
+    {
+        return Str::password(12, true, true, false, false);
     }
 }

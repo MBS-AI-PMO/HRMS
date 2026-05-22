@@ -32,6 +32,7 @@
                 <div class="logo"><span>{{$general_setting->site_title}}</span></div>
                 @include('shared.errors')
                 @include('shared.flash_message')
+                <div id="registration_success_alert" class="alert alert-success" style="display:none;"></div>
                 <form method="POST" action="{{ route('login') }}" id="login-form">
                     @csrf
                     <div class="form-group-material">
@@ -73,6 +74,9 @@
                         <button type="submit" class="btn btn-primary btn-block">
                             {{ __('Login') }}
                         </button>
+                    </div>
+                    <div class="form-group mt-3 mb-0 text-center">
+                        <a href="{{ route('employee.register') }}">{{ __('New employee? Register here') }}</a>
                     </div>
                 </form>
                 <!-- This three buttons for demo only-->
@@ -149,5 +153,13 @@
                 $(this).siblings('.label-material').removeClass('active');
             }
         });
+
+        try {
+            var regMsg = sessionStorage.getItem('registration_success');
+            if (regMsg) {
+                sessionStorage.removeItem('registration_success');
+                $('#registration_success_alert').text(regMsg).show();
+            }
+        } catch (e) {}
     })(jQuery);
 </script>

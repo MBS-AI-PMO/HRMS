@@ -88,6 +88,7 @@ class CompanyController extends Controller {
 			$data['website'] = $request->website;
 			$data['tax_no'] = $request->tax_no;
 			$data['location_id'] = $request->location_id;
+			$data['registration_slug'] = company::makeUniqueRegistrationSlug((string) $request->company_name);
 
 			$company_logo = $request->company_logo;
 
