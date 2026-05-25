@@ -6,7 +6,6 @@
     <title>{{ $general_setting->site_title ?? 'HRMS' }} — {{ $selectedCompany->company_name ?? __('Employee Registration') }}</title>
     <link rel="stylesheet" href="{{ asset('vendor/bootstrap/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ asset('vendor/bootstrap/css/bootstrap-datepicker.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('vendor/bootstrap/css/bootstrap-select.min.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -233,7 +232,7 @@
                 <div class="login-link"><a href="{{ route('login') }}">{{ __('Back to Login') }}</a></div>
             @else
                 @if (empty($selectedCompany))
-                    <div id="config_loading" class="alert alert-info mb-3">{{ __('Loading form...') }}</div>
+                    <div id="config_hint" class="alert alert-info mb-3">{{ __('Select your company above to load the registration form.') }}</div>
                 @endif
                 <div id="form_result"></div>
 
@@ -241,15 +240,23 @@
                     @csrf
                     @if (empty($selectedCompany))
                         <div class="form-section">
-                            <div class="form-section-title">{{ trans('file.Company') }}</div>
+                            <div class="form-section-title">{{ __('Select Company') }}</div>
                             <div class="form-group">
-                                <label class="reg-label">{{ trans('file.Company') }} <span class="req">*</span></label>
-                                <select name="company_id" id="company_id" class="form-control selectpicker" required data-live-search="true">
+                                <label class="reg-label">{{ __('Company') }} <span class="req">*</span></label>
+                                <select name="company_id" id="company_id" class="form-control" required>
                                     <option value="">{{ __('Select Company') }}</option>
                                     @foreach ($companies as $company)
-                                        <option value="{{ $company->id }}">{{ $company->company_name }}</option>
+                                        @php
+                                            $regOpen = in_array((int) $company->id, $registrationEnabledCompanyIds ?? [], true);
+                                        @endphp
+                                        <option value="{{ $company->id }}"
+                                            data-slug="{{ $company->registration_slug ?: $company->id }}"
+                                            data-registration-enabled="{{ $regOpen ? '1' : '0' }}">
+                                            {{ $company->company_name }}{{ $regOpen ? '' : ' ('.__('registration not open').')' }}
+                                        </option>
                                     @endforeach
                                 </select>
+                                <span class="hint-text">{{ __('Choose your company, then the form will load below.') }}</span>
                             </div>
                         </div>
                     @else
@@ -387,13 +394,13 @@
 <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
 <script src="{{ asset('vendor/bootstrap/js/bootstrap.min.js') }}"></script>
 <script src="{{ asset('vendor/jquery/bootstrap-datepicker.min.js') }}"></script>
-<script src="{{ asset('vendor/bootstrap/js/bootstrap-select.min.js') }}"></script>
 <script>
 (function () {
     const preselectedCompanyId = @json($selectedCompany->id ?? null);
     const preselectedCompanySlug = @json($selectedCompany->registration_slug ?? null);
     const preselectedCompanyName = @json($selectedCompany->company_name ?? null);
     const orgSettings = @json($orgSettings ?? ['show_department' => true, 'show_designation' => true, 'show_shift' => false]);
+    const registrationEnabledCompanyIds = @json($registrationEnabledCompanyIds ?? []);
     const configUrlBase = @json(url('register/employee/config'));
     const loaderMessages = {
         default: @json(__('Please wait...')),
@@ -408,11 +415,11 @@
             $('#reg_loader_text').text(message || loaderMessages.default);
             $overlay.addClass('active');
             $btn.addClass('is-loading').prop('disabled', true);
-            $('#public_registration_form :input').prop('disabled', true);
+            $('#public_registration_form :input').not('#company_id').prop('disabled', true);
         } else {
             $overlay.removeClass('active');
             $btn.removeClass('is-loading');
-            $('#public_registration_form :input').prop('disabled', false);
+            $('#public_registration_form :input').not('#company_id').prop('disabled', false);
             if (!preselectedCompanyId && !$('#company_id').val()) {
                 $btn.prop('disabled', true);
             } else if ($('#public_registration_form').is(':visible')) {
@@ -560,7 +567,12 @@
             $('#office_shift_id').prop('required', false);
         }
 
-        return loadDepartments(companyId, setting.default_department_id || null).then(function () {
+        const deptPromise = loadDepartments(companyId, setting.default_department_id || null);
+        const shiftPromise = (orgSettings.show_shift || setting.allow_shift_selection)
+            ? loadShifts(companyId, setting.default_office_shift_id || null)
+            : $.Deferred().resolve().promise();
+
+        return $.when(deptPromise, shiftPromise).then(function () {
             const deptId = $('#department_id').val() || setting.default_department_id;
             if (deptId) {
                 return loadDesignations(deptId, setting.default_designation_id || null);
@@ -572,17 +584,50 @@
         loadDesignations($(this).val(), null);
     });
 
+    function getSelectedCompanyKey() {
+        const $co = $('#company_id');
+        if (!$co.length) {
+            return preselectedCompanySlug || preselectedCompanyId || null;
+        }
+        const id = $co.val();
+        if (!id) {
+            return null;
+        }
+        const slug = $co.find('option[value="' + id + '"]').attr('data-slug');
+
+        return slug || id;
+    }
+
+    function loadShifts(companyId, selectedId) {
+        const $shift = $('#office_shift_id');
+        if (!$shift.length) {
+            return $.Deferred().resolve().promise();
+        }
+        $shift.prop('disabled', true);
+
+        return $.post('{{ route('employee.register.shifts') }}', {
+            _token: '{{ csrf_token() }}',
+            company_id: companyId
+        }).done(function (html) {
+            $shift.html(html);
+            if (selectedId) {
+                $shift.val(selectedId);
+            }
+        }).always(function () {
+            $shift.prop('disabled', false);
+        });
+    }
+
     function loadCompanyConfig(companyKey) {
         if (!companyKey) {
             $('#submit_btn').prop('disabled', true);
             return;
         }
-        if ($('#config_loading').length) {
-            $('#config_loading').hide();
-        }
+        $('#config_hint').hide();
+        $('#form_result').empty();
         setRegLoading(true, loaderMessages.config);
 
-        $.get(configUrlBase + '/' + companyKey, function (res) {
+        $.get(configUrlBase + '/' + encodeURIComponent(companyKey), function (res) {
             updateHeading(res);
             applyFieldConfig(res.form_fields);
             $.when(syncOrgFields(res.setting)).always(function () {
@@ -599,21 +644,37 @@
         });
     }
 
-    $('#company_id').on('change', function () {
-        const id = $(this).val();
-        if (!id) return;
-        loadCompanyConfig(id);
-    });
+    function onCompanySelected() {
+        setRegLoading(false);
+        const key = getSelectedCompanyKey();
+        if (!key) {
+            $('#config_hint').show();
+            $('#submit_btn').prop('disabled', true);
+            $('.field-block').removeClass('visible');
+            $('.org-field').removeClass('visible-org').hide();
+            return;
+        }
+        const companyId = parseInt($('#company_id').val(), 10);
+        if (!registrationEnabledCompanyIds.map(Number).includes(companyId)) {
+            $('#config_hint').hide();
+            $('#form_result').html('<div class="alert alert-warning">{{ __('Public registration is not enabled for this company. Please choose another company or contact administrator.') }}</div>');
+            $('#submit_btn').prop('disabled', true);
+            $('.field-block').removeClass('visible');
+            $('.org-field').removeClass('visible-org').hide();
+            setRegLoading(false);
+            return;
+        }
+        loadCompanyConfig(key);
+    }
+
+    $(document).on('change', '#company_id', onCompanySelected);
 
     if (preselectedCompanySlug) {
+        $('#config_hint').hide();
         loadCompanyConfig(preselectedCompanySlug);
     } else if (preselectedCompanyId) {
+        $('#config_hint').hide();
         loadCompanyConfig(preselectedCompanyId);
-        syncOrgFields({
-            company_id: preselectedCompanyId,
-            default_department_id: null,
-            default_designation_id: null
-        });
     }
 
     $('#public_registration_form').on('submit', function (e) {
