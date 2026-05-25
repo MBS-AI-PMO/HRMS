@@ -30,6 +30,10 @@ class PublicEmployeeRegistrationController extends Controller
     {
         $general_setting = DB::table('general_settings')->latest()->first();
         $selectedCompany = null;
+        $registrationEnabledCompanyIds = EmployeeRegistrationSetting::where('is_enabled', true)
+            ->pluck('company_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
 
         if ($companySlug !== null) {
             $selectedCompany = $this->resolveCompanyFromKey($companySlug);
@@ -59,7 +63,6 @@ class PublicEmployeeRegistrationController extends Controller
             $departments = collect();
             $officeShifts = collect();
             $companies = company::query()
-                ->whereIn('id', EmployeeRegistrationSetting::where('is_enabled', true)->pluck('company_id'))
                 ->select('id', 'company_name', 'registration_slug')
                 ->orderBy('company_name')
                 ->get()
@@ -85,7 +88,8 @@ class PublicEmployeeRegistrationController extends Controller
             'formFields',
             'departments',
             'officeShifts',
-            'orgSettings'
+            'orgSettings',
+            'registrationEnabledCompanyIds'
         ));
     }
 
