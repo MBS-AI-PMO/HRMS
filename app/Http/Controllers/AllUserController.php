@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\traits\SendsEmployeeCredentialsTrait;
 use App\Models\Employee;
 use App\Models\Client;
 use App\Models\Role_User;
@@ -12,6 +13,8 @@ use Spatie\Permission\Models\Role;
 
 
 class AllUserController extends Controller {
+
+    use SendsEmployeeCredentialsTrait;
 
     public function index()
     {
@@ -184,8 +187,23 @@ class AllUserController extends Controller {
 
 			$user->syncRoles(1);
 
+			$plainPassword = (string) $request->password;
+			$emailSent = $this->sendEmployeeCredentialsEmail($user, $plainPassword, '—', [
+				'registered_email' => $data['email'],
+				'company_name' => config('app.name', 'HRMS'),
+				'department_name' => __('Administrator account'),
+				'designation_name' => __('System user'),
+				'office_shift_name' => '—',
+			]);
 
-			return response()->json(['success' => __('Data Added successfully.')]);
+			$message = __('Data Added successfully.');
+			if (! $emailSent && $user->email) {
+				$message .= ' '.__('User created but login email could not be sent. Please share credentials manually.');
+			} elseif ($emailSent) {
+				$message .= ' '.__('Login credentials were sent to the user email.');
+			}
+
+			return response()->json(['success' => $message, 'email_sent' => $emailSent]);
 		}
 
 
