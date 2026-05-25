@@ -377,7 +377,12 @@ class PublicEmployeeRegistrationController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
 
-        $emailSent = $this->sendEmployeeCredentialsEmail($created_user, $plainPassword, $employee->staff_id);
+        $emailSent = $this->sendEmployeeCredentialsEmail(
+            $created_user,
+            $plainPassword,
+            $employee->staff_id,
+            $this->credentialsDetailsFromEmployee($employee)
+        );
 
         $message = $setting->success_message
             ?: ($setting->auto_approve
