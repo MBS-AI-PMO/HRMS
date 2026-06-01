@@ -23,6 +23,35 @@
     <link rel="stylesheet" href="<?php echo asset('css/custom-' . $general_setting->theme) ?>" type="text/css">
     <!-- Favicon-->
     <link rel="shortcut icon" href="img/favicon.ico">
+    <link rel="stylesheet" href="{{ asset('vendor/font-awesome/css/font-awesome.min.css') }}" type="text/css">
+    <style>
+        .password-field-wrap {
+            position: relative;
+        }
+
+        .password-field-wrap .input-material {
+            padding-right: 2.25rem;
+        }
+
+        .password-toggle-btn {
+            position: absolute;
+            right: 0;
+            bottom: 0.35rem;
+            background: transparent;
+            border: none;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            line-height: 1;
+            z-index: 2;
+        }
+
+        .password-toggle-btn:hover,
+        .password-toggle-btn:focus {
+            color: #333;
+            outline: none;
+        }
+    </style>
 </head>
 <body>
 <div class="page login-page">
@@ -49,13 +78,15 @@
                         @enderror
                     </div>
 
-                    <div class="form-group-material">
-
-
+                    <div class="form-group-material password-field-wrap">
                         <input id="password" type="password"
                                class="input-material @error('password') is-invalid @enderror" name="password" required
                                autocomplete="current-password">
                         <label for="password" class="label-material">{{ __('Password') }}</label>
+                        <button type="button" class="password-toggle-btn" id="password-toggle"
+                                aria-label="{{ __('Show password') }}" title="{{ __('Show password') }}">
+                            <i class="fa fa-eye" aria-hidden="true"></i>
+                        </button>
 
                         @error('password')
                         <span class="invalid-feedback" role="alert">
@@ -125,6 +156,19 @@
         $('.client-btn').on('click', function () {
             $("input[name='username']").focus().val('client');
             $("input[name='password']").focus().val('client');
+        });
+
+        $('#password-toggle').on('click', function () {
+            var $password = $('#password');
+            var $icon = $(this).find('i');
+            var isHidden = $password.attr('type') === 'password';
+
+            $password.attr('type', isHidden ? 'text' : 'password');
+            $icon.toggleClass('fa-eye', !isHidden).toggleClass('fa-eye-slash', isHidden);
+            $(this).attr({
+                'aria-label': isHidden ? '{{ __('Hide password') }}' : '{{ __('Show password') }}',
+                'title': isHidden ? '{{ __('Hide password') }}' : '{{ __('Show password') }}'
+            });
         });
 
         // ------------------------------------------------------- //
