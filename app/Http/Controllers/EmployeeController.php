@@ -371,12 +371,22 @@ class EmployeeController extends Controller
 
      public function profile()
     {
-     
-             $user = Auth::user();
+        $user = Auth::user();
+        $employee = Employee::find($user->id);
 
-    // employee record (kyunki employee.id = user.id)
-    $employee = Employee::where('id', $user->id)->firstOrFail();
-            $companies = Company::select('id', 'company_name')->get();
+        if (! $employee) {
+            $companies = company::select('id', 'company_name')->get();
+            $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
+            $currentDate = date('Y-m-d');
+
+            if ($user->role_users_id == 3) {
+                return view('profile.client_profile', compact('user'));
+            }
+
+            return view('profile.user_profile', compact('user', 'companies', 'roles', 'currentDate'));
+        }
+
+            $companies = company::select('id', 'company_name')->get();
             $departments = department::select('id', 'department_name')
                 ->where('company_id', $employee->company_id)
                 ->get();
@@ -412,7 +422,11 @@ class EmployeeController extends Controller
     public function profileActivityLogs(Request $request)
     {
         $user = Auth::user();
-        $employee = Employee::where('id', $user->id)->firstOrFail();
+        $employee = Employee::find($user->id);
+
+        if (! $employee) {
+            return datatables()->of(collect())->make(true);
+        }
 
         $logs = EmployeeActivityLog::with([
             'performer:id,username',
