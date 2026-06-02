@@ -595,7 +595,7 @@
                 return;
             }
             travelTabInitialized = true;
-            @include('employee.core_hr.travel.index_js')
+            @include('employee.core_hr.travel.index_js_profile')
         };
 
         const initComplainTab = function() {
@@ -654,7 +654,7 @@
             });
         };
 
-        $('#employee_travel-tab').on('shown.bs.tab', function() {
+        $('#employee_travel-tab').on('shown.bs.tab click', function() {
             initTravelTab();
         });
 

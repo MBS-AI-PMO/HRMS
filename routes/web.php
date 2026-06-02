@@ -199,6 +199,8 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::get('/profile', [EmployeeController::class, 'profile'])->name('profile');
      Route::post('/profile-Update/{id}', [EmployeeController::class, 'profileUpdate'])->name('profile.Update');
     Route::get('/profile/activity-logs', [EmployeeController::class, 'profileActivityLogs'])->name('profile.activity_logs');
+    Route::get('/profile/travels', [EmployeeTravelController::class, 'profileIndex'])->name('profile.travels.index');
+    Route::get('/profile/travels/{id}', [EmployeeTravelController::class, 'show'])->name('profile.travels.show');
 
     Route::put('/profile/{id}', [DashboardController::class, 'profile_update'])->name('profile_update');
     Route::post('/profile/employee/{id}', [DashboardController::class, 'employeeProfileUpdate'])->name('employee_profile_update');
