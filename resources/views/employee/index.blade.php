@@ -233,10 +233,10 @@
                             </div>
 
                             <div class="col-md-6 form-group">
-                                <label class="text-bold">{{ trans('file.Location') }}</label>
+                                <label class="text-bold">{{ __('Work Location') }}</label>
                                 <select name="location_id" id="location_id" class="selectpicker form-control"
                                         data-live-search="true" data-live-search-style="contains"
-                                        title="{{__('Selecting',['key'=>trans('file.Location')])}}...">
+                                        title="{{ __('Selecting', ['key' => __('Work Location')]) }}...">
                                     @foreach($locations as $location)
                                         <option value="{{ $location->id }}"
                                                 data-company-ids="{{ $location->companies->pluck('id')->implode(',') }}">

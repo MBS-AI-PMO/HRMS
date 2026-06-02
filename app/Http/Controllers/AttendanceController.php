@@ -105,10 +105,7 @@ class AttendanceController extends Controller {
         );
 
         if ($distance > (float) $location->max_radius) {
-            return __('You are outside allowed office radius (distance: :distance m, allowed: :allowed m).', [
-                'distance' => number_format($distance, 2),
-                'allowed' => number_format((float) $location->max_radius, 2),
-            ]);
+            return __('You are currently outside the allowed office area. Please move closer to the office and try again.');
         }
 
         return null;

@@ -2,29 +2,36 @@
         $('#employee_travel-table').DataTable().clear().destroy();
     }
 
-    let table_table = $('#employee_travel-table').DataTable({
-        responsive: true,
-        fixedHeader: {
-            header: true,
-            footer: true
-        },
+    window.profileTravelTable = $('#employee_travel-table').DataTable({
+        responsive: false,
         processing: true,
-        serverSide: true,
+        serverSide: false,
         ajax: {
             url: "{{ route('profile.travels.index') }}",
-            data: {
-                employee_id: "{{ $employee->id }}"
+            data: function (d) {
+                d.employee_id = "{{ $employee->id }}";
             },
+            dataSrc: 'data',
             error: function (xhr) {
                 console.error('Travel list failed', xhr.status, xhr.responseText);
             }
         },
         columns: [
             {
-                data: 'summary',
-                name: 'summary',
+                data: null,
                 orderable: false,
-                searchable: false
+                searchable: false,
+                render: function (data) {
+                    var expected = data.expected_budget || '0';
+                    var actual = data.actual_budget || '0';
+                    var purpose = data.purpose_of_visit || '';
+                    var status = data.status || '';
+
+                    return purpose
+                        + '<br><br><b><i>{{__('Expected Budget :')}}</i></b> ' + expected
+                        + '<br><b><i>{{__('Actual Budget :')}}</i></b> ' + actual
+                        + '<br><div class="badge badge-success">' + status + '</div>';
+                }
             },
             {
                 data: 'place_of_visit',
@@ -39,9 +46,13 @@
                 name: 'end_date',
             },
             {
-                data: 'action',
-                name: 'action',
-                orderable: false
+                data: 'id',
+                name: 'id',
+                orderable: false,
+                searchable: false,
+                render: function (data) {
+                    return '<button type="button" name="show_travel" id="' + data + '" class="show_travel btn btn-success btn-sm"><i class="dripicons-preview"></i></button>';
+                }
             }
         ],
         order: [],
@@ -60,11 +71,17 @@
                 targets: [0, 4],
             },
         ],
-        select: {style: 'multi', selector: 'td:first-child'},
-        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
+        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
+        initComplete: function () {
+            this.api().columns.adjust().draw(false);
+        }
     });
-    window.profileTravelTable = table_table;
-    new $.fn.DataTable.FixedHeader(table_table);
+
+    $('#employee_travel-tab').off('shown.bs.tab.travel').on('shown.bs.tab.travel', function () {
+        if (window.profileTravelTable) {
+            window.profileTravelTable.columns.adjust().draw(false);
+        }
+    });
 
     $(document).off('click', '.show_travel').on('click', '.show_travel', function () {
         let id = $(this).attr('id');
