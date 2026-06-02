@@ -30,6 +30,10 @@ class PublicEmployeeRegistrationController extends Controller
     {
         $general_setting = DB::table('general_settings')->latest()->first();
         $selectedCompany = null;
+        $registrationEnabledCompanyIds = EmployeeRegistrationSetting::where('is_enabled', true)
+            ->pluck('company_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
 
         if ($companySlug !== null) {
             $selectedCompany = $this->resolveCompanyFromKey($companySlug);
@@ -59,7 +63,6 @@ class PublicEmployeeRegistrationController extends Controller
             $departments = collect();
             $officeShifts = collect();
             $companies = company::query()
-                ->whereIn('id', EmployeeRegistrationSetting::where('is_enabled', true)->pluck('company_id'))
                 ->select('id', 'company_name', 'registration_slug')
                 ->orderBy('company_name')
                 ->get()
@@ -85,7 +88,8 @@ class PublicEmployeeRegistrationController extends Controller
             'formFields',
             'departments',
             'officeShifts',
-            'orgSettings'
+            'orgSettings',
+            'registrationEnabledCompanyIds'
         ));
     }
 
@@ -377,7 +381,12 @@ class PublicEmployeeRegistrationController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
 
-        $emailSent = $this->sendEmployeeCredentialsEmail($created_user, $plainPassword, $employee->staff_id);
+        $emailSent = $this->sendEmployeeCredentialsEmail(
+            $created_user,
+            $plainPassword,
+            $employee->staff_id,
+            $this->credentialsDetailsFromEmployee($employee)
+        );
 
         $message = $setting->success_message
             ?: ($setting->auto_approve

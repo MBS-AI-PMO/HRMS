@@ -36,7 +36,7 @@ use Throwable;
 
 class EmployeeController extends Controller
 {
-    use LeaveTypeDataManageTrait;
+    use LeaveTypeDataManageTrait, SendsEmployeeCredentialsTrait;
 
 
     protected function getEmployees($request, $currentDate)
@@ -320,9 +320,25 @@ class EmployeeController extends Controller
                     return response()->json(['error' => $e->getMessage()]);
                 }
 
+                $plainPassword = (string) $request->password;
+                $emailSent = $this->sendEmployeeCredentialsEmail(
+                    $created_user,
+                    $plainPassword,
+                    $employee->staff_id,
+                    $this->credentialsDetailsFromEmployee($employee)
+                );
+
+                $message = __('Data Added successfully.');
+                if (! $emailSent && $created_user->email) {
+                    $message .= ' '.__('Employee created but login email could not be sent. Please share credentials manually.');
+                } elseif ($emailSent) {
+                    $message .= ' '.__('Login credentials were sent to the mail server. Ask the employee to check inbox and spam/junk folder.');
+                }
+
                 return response()->json([
-                    'success' => __('Data Added successfully.'),
+                    'success' => $message,
                     'staff_id' => $employee->staff_id,
+                    'email_sent' => $emailSent,
                 ]);
             }
         }
