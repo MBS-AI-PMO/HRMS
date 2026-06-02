@@ -279,7 +279,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::get('contacts/{id}/delete', [EmployeeContactController::class, 'destroy'])->name('contacts.destroy');
 
         // EmployeeSocialProfileController missing — use employee social profile view route when controller is added
-        // Route::get('social_profile/{employee}', [EmployeeSocialProfileController::class, 'show'])->name('social_profile.show');
+        Route::get('social_profile/{employee}', [EmployeeController::class, 'socialProfileShow'])->name('social_profile.show');
         Route::post('social_profile/{employee}/store', [EmployeeController::class, 'storeSocialInfo'])->name('social_profile.store');
 
         Route::post('profile_picture/{employee}/store', [EmployeeController::class, 'storeProfilePicture'])->name('profile_picture.store');
