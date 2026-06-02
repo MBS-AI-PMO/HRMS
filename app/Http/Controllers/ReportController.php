@@ -88,7 +88,7 @@ class ReportController extends Controller {
 	{
 		$logged_user = auth()->user();
 
-		$companies = Company::all('id', 'company_name');
+		$companies = company::all('id', 'company_name');
 
 		$start_date = Carbon::parse($request->filter_start_date)->format('Y-m-d') ?? '';
 		$end_date = Carbon::parse($request->filter_end_date)->format('Y-m-d') ?? '';
@@ -262,7 +262,7 @@ class ReportController extends Controller {
 	{
 		$logged_user = auth()->user();
 
-		$companies = Company::all('id', 'company_name');
+		$companies = company::all('id', 'company_name');
 
 		$start_date = Carbon::parse($request->filter_start_date)->format('Y-m-d') ?? '';
 		$end_date = Carbon::parse($request->filter_end_date)->format('Y-m-d') ?? '';

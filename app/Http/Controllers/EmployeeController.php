@@ -27,6 +27,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Validators\ValidationException;
@@ -211,25 +212,36 @@ class EmployeeController extends Controller
 
         if ($logged_user->can('store-details-employee')) {
             if (request()->ajax()) {
-                $validator = Validator::make($request->only('first_name', 'last_name', 'email', 'contact_no', 'date_of_birth', 'gender',
-                    'username', 'role_users_id', 'password', 'password_confirmation', 'company_id', 'department_id', 'designation_id', 'office_shift_id', 'attendance_type', 'joining_date'),
-                    [
-                        'first_name' => 'required',
-                        'last_name' => 'required',
-                        'email' => 'nullable|email|unique:users',
-                        'contact_no' => 'required|numeric|unique:users',
-                        'date_of_birth' => 'required',
-                        'company_id' => 'required',
-                        'department_id' => 'required',
-                        'designation_id' => 'required',
-                        'office_shift_id' => 'required',
-                        'username' => 'required|unique:users',
-                        'role_users_id' => 'required',
-                        'password' => 'required|min:4|confirmed',
-                        'attendance_type' => 'required',
-                        'joining_date' => 'required',
-                        'profile_photo' => 'nullable|image|max:10240|mimes:jpeg,png,jpg,gif',
-                    ]
+                $rules = [
+                    'first_name' => 'required',
+                    'last_name' => 'required',
+                    'email' => 'nullable|email|unique:users',
+                    'contact_no' => 'required|numeric|unique:users',
+                    'date_of_birth' => 'required',
+                    'company_id' => 'required',
+                    'department_id' => 'required',
+                    'designation_id' => 'required',
+                    'office_shift_id' => 'required',
+                    'username' => 'required|unique:users',
+                    'role_users_id' => 'required',
+                    'password' => 'required|min:4|confirmed',
+                    'attendance_type' => 'required',
+                    'joining_date' => 'required',
+                    'profile_photo' => 'nullable|image|max:10240|mimes:jpeg,png,jpg,gif',
+                    'address' => 'nullable|string|max:1000',
+                ];
+
+                if (Schema::hasColumn('employees', 'cnic')) {
+                    $rules['cnic'] = ['required', 'regex:/^[0-9]{5}-?[0-9]{7}-?[0-9]{1}$/', 'unique:employees,cnic'];
+                }
+
+                $validator = Validator::make(
+                    $request->only(
+                        'first_name', 'last_name', 'email', 'contact_no', 'cnic', 'address', 'date_of_birth', 'gender',
+                        'username', 'role_users_id', 'password', 'password_confirmation', 'company_id', 'department_id',
+                        'designation_id', 'office_shift_id', 'attendance_type', 'joining_date'
+                    ),
+                    $rules
                 );
 
                 if ($validator->fails()) {
@@ -249,6 +261,10 @@ class EmployeeController extends Controller
                 $data['email'] = strtolower(trim($request->email));
                 $data['role_users_id'] = $request->role_users_id;
                 $data['contact_no'] = $request->contact_no;
+                if (Schema::hasColumn('employees', 'cnic')) {
+                    $data['cnic'] = $this->normalizeCnic($request->cnic);
+                }
+                $data['address'] = $request->address ?: null;
                 $data['attendance_type'] = $request->attendance_type; //new
                 $data['joining_date'] = $request->joining_date; //new
                 $data['is_active'] = 1;
@@ -318,7 +334,7 @@ class EmployeeController extends Controller
     {
      
         if (auth()->user()->can('view-details-employee')) {
-            $companies = Company::select('id', 'company_name')->get();
+            $companies = company::select('id', 'company_name')->get();
             $departments = department::select('id', 'department_name')
                 ->where('company_id', $employee->company_id)
                 ->get();
@@ -489,6 +505,20 @@ class EmployeeController extends Controller
                 unlink($file_path);
             }
         }
+    }
+
+    private function normalizeCnic(?string $cnic): ?string
+    {
+        if ($cnic === null || $cnic === '') {
+            return null;
+        }
+
+        $digits = preg_replace('/\D/', '', $cnic);
+        if (strlen($digits) !== 13) {
+            return trim($cnic);
+        }
+
+        return substr($digits, 0, 5).'-'.substr($digits, 5, 7).'-'.substr($digits, 12, 1);
     }
 
     public function delete_by_selection(Request $request)
