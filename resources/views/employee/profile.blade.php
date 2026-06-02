@@ -456,7 +456,7 @@
                                     <div class="tab-pane fade" id="Profile_travel" role="tabpanel" aria-labelledby="employee_travel-tab">
                                         {{ trans('file.Travel') }}
                                         <hr>
-                                        @include('employee.core_hr.travel.index')
+                                        @include('employee.core_hr.travel.index_profile')
                                     </div>
 
                                     <div class="tab-pane fade" id="Employee_complain" role="tabpanel" aria-labelledby="employee_complain-tab">
@@ -610,8 +610,16 @@
 
         const initTravelTab = function() {
             if (travelTabInitialized) {
+                if (window.profileTravelTable) {
+                    window.profileTravelTable.columns.adjust().draw(false);
+                }
                 return;
             }
+
+            if (!$('#Profile_travel').hasClass('active')) {
+                return;
+            }
+
             travelTabInitialized = true;
             @include('employee.core_hr.travel.index_js_profile')
         };
@@ -814,18 +822,6 @@
             var $top = $('#profileMainTabs a[href="' + h + '"]');
             if ($top.length) {
                 $top.tab('show');
-                // Deep-link par lazy-loaded tab JS (one-click handlers) bhi run karao.
-                $top.trigger('click');
-
-                if (h === '#Profile_travel') {
-                    initTravelTab();
-                }
-                if (h === '#Employee_complain') {
-                    initComplainTab();
-                }
-                if (h === '#ActivityLog') {
-                    initActivityLogTab();
-                }
             }
         })();
     </script>

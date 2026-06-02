@@ -58,6 +58,25 @@ class EmployeeTravelController extends Controller
             ->setRowId(function ($travel) {
                 return $travel->id;
             })
+            ->addColumn('summary', function ($travel) {
+                $expected = $travel->expected_budget ?? '0';
+                $actual = $travel->actual_budget ?? '0';
+                $status = e($travel->status ?? '');
+                $purpose = e($travel->purpose_of_visit ?? '');
+
+                return $purpose
+                    . '<br><br><b><i>'.__('Expected Budget :').'</i></b> '.$expected
+                    . '<br><b><i>'.__('Actual Budget :').'</i></b> '.$actual
+                    . '<br><div class="badge badge-success">'.$status.'</div>';
+            })
+            ->addColumn('action', function ($travel) use ($logged_user, $employeeId, $currentEmployeeId) {
+                if (! $logged_user->can('view-details-employee') && $currentEmployeeId !== $employeeId) {
+                    return '';
+                }
+
+                return '<button type="button" name="show_travel" id="'.$travel->id.'" class="show_travel btn btn-success btn-sm"><i class="dripicons-preview"></i></button>';
+            })
+            ->rawColumns(['summary', 'action'])
             ->make(true);
     }
 
