@@ -21,7 +21,7 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="text-center">
-                            <h2>{{ $employee->user->username }}</h2>
+                            <h2>{{ $employee->user?->username ?? __('N/A') }}</h2>
                         </div>
                         <ul class="nav nav-tabs d-flex justify-content-between" id="myTab" role="tablist">
                             <li class="nav-item">
@@ -141,12 +141,12 @@
                                                             <label>{{ __('Image') }} *</label>
 
                                                             <input type="hidden" name="employee_username"
-                                                                value="{{ $employee->user->username }}">
+                                                                value="{{ $employee->user?->username }}">
 
                                                             {{-- Preview + text --}}
                                                             <div class="d-flex align-items-center mb-2">
 
-                                                                <img src="{{ url('uploads/profile_photos', $employee->user->profile_photo) }}"
+                                                                <img src="{{ $employee->user?->profile_photo ? url('uploads/profile_photos', $employee->user->profile_photo) : url('logo/avatar.jpg') }}"
                                                                     height="100" width="100">
 
                                                                 <div style="font-size: 13px; color: #777;">
@@ -189,7 +189,7 @@
                                                                     class="text-danger">*</span></label>
                                                             <input type="text" name="username" id="username"
                                                                 placeholder="{{ trans('file.Username') }}" required
-                                                                class="form-control" value="{{ $employee->user->username }}">
+                                                                class="form-control" value="{{ $employee->user?->username }}">
                                                         </div>
 
                                                         <div class="col-md-4 form-group">
@@ -205,6 +205,16 @@
                                                             <input type="text" name="contact_no" id="contact_no"
                                                                 placeholder="{{ trans('file.Phone') }}" required
                                                                 class="form-control" value="{{ $employee->contact_no }}">
+                                                        </div>
+
+                                                        <div class="col-md-4 form-group">
+                                                            <label>{{ __('CNIC') }} <span class="text-danger">*</span></label>
+                                                            <input type="text" name="cnic" id="cnic"
+                                                                class="form-control cnic-input"
+                                                                placeholder="35201-1234567-1" maxlength="15"
+                                                                autocomplete="off" inputmode="numeric" required
+                                                                value="{{ $employee->cnic }}">
+                                                            <small class="text-muted">{{ __('Format: 12345-1234567-1') }}</small>
                                                         </div>
 
                                                         <div class="col-md-4 form-group">
@@ -477,6 +487,10 @@
                                                                 <td>{{ $employee->contact_no }}</td>
                                                             </tr>
                                                             <tr>
+                                                                <th>{{ __('CNIC') }}</th>
+                                                                <td>{{ $employee->cnic ?: '—' }}</td>
+                                                            </tr>
+                                                            <tr>
                                                                 <th>{{ __('Department') }}</th>
                                                                 <td>{{ $employee->department->department_name ?? '' }}</td>
                                                             </tr>
@@ -626,6 +640,17 @@
 
 @push('scripts')
     <script type="text/javascript">
+        function formatCnicValue(value) {
+            const digits = (value || '').replace(/\D/g, '').slice(0, 13);
+            if (digits.length <= 5) return digits;
+            if (digits.length <= 12) return digits.slice(0, 5) + '-' + digits.slice(5);
+            return digits.slice(0, 5) + '-' + digits.slice(5, 12) + '-' + digits.slice(12);
+        }
+
+        $(document).on('input', '.cnic-input', function () {
+            this.value = formatCnicValue(this.value);
+        });
+
         $('select[name="gender"]').val($('input[name="gender_hidden"]').val());
         $('#role_users_id').selectpicker('val', $('input[name="role_user_hidden"]').val());
         $('#marital_status').selectpicker('val', $('input[name="marital_status_hidden"]').val());

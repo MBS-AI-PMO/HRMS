@@ -150,6 +150,16 @@
                                                         </div>
 
                                                         <div class="col-md-4 form-group">
+                                                            <label>{{ __('CNIC') }} <span class="text-danger">*</span></label>
+                                                            <input type="text" name="cnic" id="cnic"
+                                                                class="form-control cnic-input"
+                                                                placeholder="35201-1234567-1" maxlength="15"
+                                                                autocomplete="off" inputmode="numeric" required
+                                                                value="{{ $employee->cnic }}">
+                                                            <small class="text-muted">{{ __('Format: 12345-1234567-1') }}</small>
+                                                        </div>
+
+                                                        <div class="col-md-4 form-group">
                                                             <label>{{ trans('file.Address') }} </label>
                                                             <input type="text" name="address" id="address"
                                                                 placeholder="Address" value="{{ $employee->address }}"
@@ -491,6 +501,17 @@
 
 @push('scripts')
     <script type="text/javascript">
+        function formatCnicValue(value) {
+            const digits = (value || '').replace(/\D/g, '').slice(0, 13);
+            if (digits.length <= 5) return digits;
+            if (digits.length <= 12) return digits.slice(0, 5) + '-' + digits.slice(5);
+            return digits.slice(0, 5) + '-' + digits.slice(5, 12) + '-' + digits.slice(12);
+        }
+
+        $(document).on('input', '.cnic-input', function () {
+            this.value = formatCnicValue(this.value);
+        });
+
         $('select[name="gender"]').val($('input[name="gender_hidden"]').val());
         $('#role_users_id').selectpicker('val', $('input[name="role_user_hidden"]').val());
         $('#marital_status').selectpicker('val', $('input[name="marital_status_hidden"]').val());

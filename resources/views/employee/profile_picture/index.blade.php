@@ -1,6 +1,6 @@
 <span id="profile_form_result"></span>
 <div id="employee_profile_photo">
-    @if($employee->user->profile_photo)
+    @if($employee->user?->profile_photo)
         <div><img src="{{url('uploads/profile_photos',$employee->user->profile_photo)}}" height="100"
                   width="100">
         </div>
@@ -17,7 +17,7 @@
     <div class="col-md-4 form-group">
         <label>{{__('Image')}} *</label>
         <div>({{trans('file.gif,jpg,png,jpeg')}})</div>
-        <input type="hidden" name="employee_username" value="{{$employee->user->username}}">
+        <input type="hidden" name="employee_username" value="{{ $employee->user?->username }}">
         <input type="file"
                required class="form-control @error('photo') is-invalid @enderror"
                name="profile_photo" placeholder="{{__('Upload',['key'=>trans('file.Photo')])}}">
