@@ -951,7 +951,7 @@ class AttendanceController extends Controller {
 	{
 		$logged_user = auth()->user();
 
-        $companies = Company::all('id', 'company_name');
+        $companies = company::all('id', 'company_name');
         $start_date = Carbon::parse($request->filter_start_date)->format('Y-m-d') ?? '';
         $end_date = Carbon::parse($request->filter_end_date)->format('Y-m-d') ?? '';
         // $start_date = Carbon::parse('2023-02-18')->format('Y-m-d') ?? '';
@@ -1225,7 +1225,7 @@ class AttendanceController extends Controller {
 	public function monthlyAttendance(Request $request)
 	{
 		$logged_user = auth()->user();
-		$companies = Company::all('id', 'company_name');
+		$companies = company::all('id', 'company_name');
 
 
 		$month_year = $request->filter_month_year;
