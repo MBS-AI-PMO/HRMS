@@ -36,6 +36,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('office-info', [ApiController::class, 'officeInfo']);
 
     Route::get('attendances', [ApiController::class, 'myAttendances']);
+
+    Route::get('leave-types', [ApiController::class, 'leaveTypes']);
+    Route::get('leave-balances', [ApiController::class, 'leaveBalances']);
+
+    Route::get('leaves', [ApiController::class, 'myLeaves']);
+    Route::post('leaves', [ApiController::class, 'storeLeave']);
+    Route::get('leaves/{id}', [ApiController::class, 'showLeave'])->whereNumber('id');
+
+    Route::get('wfh-requests', [ApiController::class, 'myWfhRequests']);
+    Route::post('wfh-requests', [ApiController::class, 'storeWfhRequest']);
+    Route::get('wfh-requests/{id}', [ApiController::class, 'showWfhRequest'])->whereNumber('id');
+
+    Route::get('notifications/unread-count', [ApiController::class, 'notificationsUnreadCount']);
+    Route::get('notifications', [ApiController::class, 'myNotifications']);
+    Route::post('notifications/mark-read', [ApiController::class, 'markNotificationsRead']);
+    Route::delete('notifications', [ApiController::class, 'clearNotifications']);
 });
 
 
