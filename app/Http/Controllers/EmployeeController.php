@@ -231,9 +231,7 @@ class EmployeeController extends Controller
                     'address' => 'nullable|string|max:1000',
                 ];
 
-                if (Schema::hasColumn('employees', 'cnic')) {
-                    $rules['cnic'] = ['required', 'regex:/^[0-9]{5}-?[0-9]{7}-?[0-9]{1}$/', 'unique:employees,cnic'];
-                }
+                $rules = array_merge($rules, $this->cnicRulesForEmployee());
 
                 $validator = Validator::make(
                     $request->only(
@@ -261,9 +259,7 @@ class EmployeeController extends Controller
                 $data['email'] = strtolower(trim($request->email));
                 $data['role_users_id'] = $request->role_users_id;
                 $data['contact_no'] = $request->contact_no;
-                if (Schema::hasColumn('employees', 'cnic')) {
-                    $data['cnic'] = $this->normalizeCnic($request->cnic);
-                }
+                $this->assignCnicFromRequest($data, $request);
                 $data['address'] = $request->address ?: null;
                 $data['attendance_type'] = $request->attendance_type; //new
                 $data['joining_date'] = $request->joining_date; //new
@@ -348,7 +344,14 @@ class EmployeeController extends Controller
 
     public function show(Employee $employee)
     {
-     
+        $employee->loadMissing(['user', 'company', 'department', 'designation', 'officeShift']);
+
+        if (! $employee->user) {
+            return redirect()
+                ->route('employees.index')
+                ->with('error', __('This employee has no linked user account (ID :id). Please contact administrator.', ['id' => $employee->id]));
+        }
+
         if (auth()->user()->can('view-details-employee')) {
             $companies = company::select('id', 'company_name')->get();
             $departments = department::select('id', 'department_name')
@@ -537,6 +540,28 @@ class EmployeeController extends Controller
         return substr($digits, 0, 5).'-'.substr($digits, 5, 7).'-'.substr($digits, 12, 1);
     }
 
+    private function cnicRulesForEmployee(?int $employeeId = null): array
+    {
+        if (! Schema::hasColumn('employees', 'cnic')) {
+            return [];
+        }
+
+        $uniqueRule = $employeeId
+            ? 'unique:employees,cnic,'.$employeeId
+            : 'unique:employees,cnic';
+
+        return [
+            'cnic' => ['required', 'regex:/^[0-9]{5}-?[0-9]{7}-?[0-9]{1}$/', $uniqueRule],
+        ];
+    }
+
+    private function assignCnicFromRequest(array &$data, Request $request): void
+    {
+        if (Schema::hasColumn('employees', 'cnic')) {
+            $data['cnic'] = $this->normalizeCnic($request->cnic);
+        }
+    }
+
     public function delete_by_selection(Request $request)
     {
         if (! env('USER_VERIFIED')) {
@@ -565,12 +590,12 @@ class EmployeeController extends Controller
         if (request()->ajax()) {
             $validator = Validator::make(
                 $request->only(
-                    'first_name', 'last_name', 'staff_id', 'email', 'contact_no', 'date_of_birth', 'gender',
+                    'first_name', 'last_name', 'staff_id', 'email', 'contact_no', 'cnic', 'date_of_birth', 'gender',
                     'username', 'role_users_id', 'company_id', 'department_id', 'designation_id', 'office_shift_id',
                     'location_id', 'status_id', 'marital_status', 'joining_date', 'permission_role_id', 'address',
                     'city', 'state', 'country', 'zip_code', 'attendance_type', 'total_leave'
                 ),
-                [
+                array_merge([
                     'first_name'      => 'required',
                     'last_name'       => 'required',
                     'username'        => 'required|unique:users,username,' . $employee,
@@ -587,7 +612,7 @@ class EmployeeController extends Controller
                     'total_leave'     => 'numeric|min:0',
                     'joining_date'    => 'required',
                     'exit_date'       => 'nullable',
-                ]
+                ], $this->cnicRulesForEmployee((int) $employee))
             );
 
             if ($validator->fails()) {
@@ -617,6 +642,7 @@ class EmployeeController extends Controller
             $data['date_of_birth'] = $request->date_of_birth;
             $data['email'] = strtolower(trim($request->email));
             $data['contact_no'] = $request->contact_no;
+            $this->assignCnicFromRequest($data, $request);
             $data['gender'] = $request->gender;
             $data['department_id'] = $request->department_id;
             $data['company_id'] = $request->company_id;
@@ -686,12 +712,12 @@ return response()->json([
         if (request()->ajax()) {
             $validator = Validator::make(
                 $request->only(
-                    'first_name', 'last_name', 'staff_id', 'email', 'contact_no', 'date_of_birth', 'gender',
+                    'first_name', 'last_name', 'staff_id', 'email', 'contact_no', 'cnic', 'date_of_birth', 'gender',
                     'username', 'role_users_id', 'company_id', 'department_id', 'designation_id', 'office_shift_id',
                     'location_id', 'status_id', 'marital_status', 'joining_date', 'permission_role_id', 'address',
                     'city', 'state', 'country', 'zip_code', 'attendance_type', 'total_leave'
                 ),
-                [
+                array_merge([
                     'first_name'      => 'required',
                     'last_name'       => 'required',
                     'username'        => 'required|unique:users,username,' . $employee,
@@ -708,7 +734,7 @@ return response()->json([
                     'total_leave'     => 'numeric|min:0',
                     'joining_date'    => 'required',
                     'exit_date'       => 'nullable',
-                ]
+                ], $this->cnicRulesForEmployee((int) $employee))
             );
 
             if ($validator->fails()) {
@@ -739,7 +765,8 @@ return response()->json([
             $data['staff_id'] = $request->staff_id;
             $data['date_of_birth'] = $request->date_of_birth;
             $data['email'] = strtolower(trim($request->email));     
-            $data['contact_no'] = $request->contact_no;             
+            $data['contact_no'] = $request->contact_no;
+            $this->assignCnicFromRequest($data, $request);
             $data['gender'] = $request->gender;
             $data['department_id'] = $request->department_id;
             $data['company_id'] = $request->company_id;

@@ -3,50 +3,74 @@
 namespace App\Http\Controllers;
 
 use App\Models\Travel;
+use Illuminate\Http\Request;
 
-class EmployeeTravelController extends Controller {
+class EmployeeTravelController extends Controller
+{
+    public function profileIndex(Request $request)
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return response()->json(['error' => __('Unauthorized')], 401);
+        }
 
-	//
-	public function index($employee)
-	{
-		$logged_user = auth()->user();
+        return $this->index((int) $user->id);
+    }
 
-		if ($logged_user->can('view-details-employee') || $logged_user->id == $employee)
-		{
-			if (request()->ajax())
-			{
-				return datatables()->of(Travel::where('employee_id', $employee)->get())
-					->setRowId(function ($travel)
-					{
-						return $travel->id;
-					})
-					->addColumn('action', function ($data) use ($employee,$logged_user)
-					{
-						$button = '';
-						if (auth()->user()->can('view-details-employee') || $logged_user->id == $employee)
-						{
-							$button = '<button type="button" name="show_travel" id="' . $data->id . '" class="show_travel btn btn-success btn-sm"><i class="dripicons-preview"></i></button>';
-						}
+    public function index($employee)
+    {
+        $logged_user = auth()->user();
+        $employeeId = (int) $employee;
 
-						return $button;
+        if (! $logged_user) {
+            return response()->json(['error' => __('Unauthorized')], 401);
+        }
 
-					})
-					->rawColumns(['action'])
-					->make(true);
-			}
-		}
-	}
+        if (! $logged_user->can('view-details-employee') && (int) $logged_user->id !== $employeeId) {
+            return datatables()->of(collect())->make(true);
+        }
 
-	public function show($id)
-	{
-		if (request()->ajax())
-		{
-			$data = Travel::findOrFail($id);
-			$company_name = $data->company->company_name ?? '';
-			$employee_name = $data->employee->full_name;
-			$arrangement_name = $data->TravelType->arrangement_type ?? '';
+        if (request()->ajax()) {
+            return datatables()->of(Travel::query()->where('employee_id', $employeeId))
+                ->setRowId(function ($travel) {
+                    return $travel->id;
+                })
+                ->addColumn('action', function ($data) use ($employeeId, $logged_user) {
+                    if (! $logged_user->can('view-details-employee') && (int) $logged_user->id !== $employeeId) {
+                        return '';
+                    }
 
-			return response()->json(['data' => $data, 'employee_name' => $employee_name, 'company_name' => $company_name, 'arrangement_name' => $arrangement_name]);
-		}
-	}
+                    return '<button type="button" name="show_travel" id="'.$data->id.'" class="show_travel btn btn-success btn-sm"><i class="dripicons-preview"></i></button>';
+                })
+                ->rawColumns(['action'])
+                ->make(true);
+        }
+
+        return datatables()->of(collect())->make(true);
+    }
+
+    public function show($id)
+    {
+        if (! request()->ajax()) {
+            return abort(404);
+        }
+
+        $data = Travel::findOrFail($id);
+        $logged_user = auth()->user();
+
+        if (! $logged_user->can('view-details-employee') && (int) $logged_user->id !== (int) $data->employee_id) {
+            return response()->json(['error' => __('You are not authorized')], 403);
+        }
+
+        $company_name = $data->company->company_name ?? '';
+        $employee_name = $data->employee->full_name ?? '';
+        $arrangement_name = $data->TravelType->arrangement_type ?? '';
+
+        return response()->json([
+            'data' => $data,
+            'employee_name' => $employee_name,
+            'company_name' => $company_name,
+            'arrangement_name' => $arrangement_name,
+        ]);
+    }
 }

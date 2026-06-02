@@ -1,10 +1,6 @@
-    $('#employee_travel-table').DataTable().clear().destroy();
-    var date = $('.date');
-    date.datepicker({
-        format: '{{ env('Date_Format_JS')}}',
-        autoclose: true,
-        todayHighlight: true
-    });
+    if ($.fn.DataTable.isDataTable('#employee_travel-table')) {
+        $('#employee_travel-table').DataTable().clear().destroy();
+    }
 
     let table_table = $('#employee_travel-table').DataTable({
         initComplete: function () {
@@ -37,6 +33,9 @@
         serverSide: true,
         ajax: {
             url: "{{ route('employee_travel.index',$employee->id) }}",
+            error: function (xhr) {
+                console.error('Travel list failed', xhr.status, xhr.responseText);
+            }
         },
 
 
@@ -99,7 +98,7 @@
 
         let id = $(this).attr('id');
 
-        let target = '{{route('employee_travel.details')}}/' + id;
+        let target = "{{ url('/staff/employee_travel/details') }}/" + id;
 
         $.ajax({
             url: target,
