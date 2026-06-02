@@ -411,6 +411,23 @@
                                                         </div>
 
                                                         <div class="col-md-4 form-group">
+                                                            <label>{{ trans('file.Location') }}</label>
+                                                            <input type="hidden" name="location_id_hidden"
+                                                                   value="{{ $employee->location_id }}" />
+                                                            <select name="location_id" id="location_id"
+                                                                    class="selectpicker form-control" data-live-search="true"
+                                                                    data-live-search-style="contains"
+                                                                    title="{{ __('Selecting', ['key' => trans('file.Location')]) }}...">
+                                                                @foreach ($locations as $location)
+                                                                    <option value="{{ $location->id }}">
+                                                                        {{ $location->location_name }}
+                                                                        @if($location->max_radius) ({{ $location->max_radius }}m) @endif
+                                                                    </option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+
+                                                        <div class="col-md-4 form-group">
                                                             <label>{{ __('Date Of Joining') }} <span
                                                                     class="text-danger">*</span> </label>
                                                             <input type="text" name="joining_date" id="joining_date"
@@ -661,6 +678,7 @@
 
         $('#status_id').selectpicker('val', $('input[name="status_id_hidden"]').val());
         $('#office_shift_id').selectpicker('val', $('input[name="office_shift_id_hidden"]').val());
+        $('#location_id').selectpicker('val', $('input[name="location_id_hidden"]').val());
 
 
         $(document).ready(function() {
