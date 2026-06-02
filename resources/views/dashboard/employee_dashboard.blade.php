@@ -940,10 +940,9 @@
                     document.getElementById('user_lat').value = userLat;
                     document.getElementById('user_lng').value = userLng;
 
-                    let officeLat = parseFloat("{{ $general_setting->latitude ?? 0 }}");
-                    let officeLng = parseFloat("{{ $general_setting->longitude ?? 0 }}");
-                    let minRadius = parseFloat("{{ $general_setting->min_radius ?? 0 }}");
-                    let maxRadius = parseFloat("{{ $general_setting->max_radius ?? 0 }}");
+                    let officeLat = parseFloat("{{ $employee->location?->latitude ?? $general_setting->latitude ?? 'NaN' }}");
+                    let officeLng = parseFloat("{{ $employee->location?->longitude ?? $general_setting->longitude ?? 'NaN' }}");
+                    let maxRadius = parseFloat("{{ $employee->location?->max_radius ?? $general_setting->max_radius ?? 'NaN' }}");
 
                     if (isNaN(officeLat) || isNaN(officeLng)) {
                         Swal.fire({
@@ -954,7 +953,7 @@
                         return;
                     }
 
-                    if (isNaN(minRadius) || isNaN(maxRadius) || maxRadius <= 0) {
+                    if (isNaN(maxRadius) || maxRadius <= 0) {
                         Swal.fire({
                             icon: 'error',
                             title: 'Radius Not Configured',
@@ -971,7 +970,6 @@
                     console.log('User Lng:', userLng);
                     console.log('Distance:', distance);
                     console.log('Accuracy:', accuracy);
-                    console.log('Min Radius:', minRadius);
                     console.log('Max Radius:', maxRadius);
 
                     if (accuracy > maxRadius && distance > maxRadius) {
@@ -979,15 +977,6 @@
                             icon: 'warning',
                             title: 'Low Location Accuracy',
                             text: 'Your GPS accuracy is too low. Please turn on precise location and try again.'
-                        });
-                        return;
-                    }
-
-                    if (distance < minRadius) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Too Close to Office Point',
-                            text: 'You are not in the allowed attendance zone yet.'
                         });
                         return;
                     }

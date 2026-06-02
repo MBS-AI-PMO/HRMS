@@ -233,6 +233,21 @@
                             </div>
 
                             <div class="col-md-6 form-group">
+                                <label class="text-bold">{{ trans('file.Location') }}</label>
+                                <select name="location_id" id="location_id" class="selectpicker form-control"
+                                        data-live-search="true" data-live-search-style="contains"
+                                        title="{{__('Selecting',['key'=>trans('file.Location')])}}...">
+                                    @foreach($locations as $location)
+                                        <option value="{{ $location->id }}"
+                                                data-company-ids="{{ $location->companies->pluck('id')->implode(',') }}">
+                                            {{ $location->location_name }}
+                                            @if($location->max_radius) ({{ $location->max_radius }}m) @endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 form-group">
                                 <label class="text-bold">{{trans('file.Username')}} <span class="text-danger">*</span></label>
                                 <input type="text" name="username" id="username"
                                        placeholder="{{__('Unique Value',['key'=>trans('file.Username')])}}"
@@ -695,6 +710,22 @@
             });
         }
     });
+
+    function filterLocationOptionsByCompany() {
+        const selectedCompany = String($('#company_id').val() || '');
+        $('#location_id option').each(function () {
+            const raw = String($(this).data('company-ids') || '');
+            const companyIds = raw ? raw.split(',') : [];
+            const visible = !selectedCompany || companyIds.length === 0 || companyIds.includes(selectedCompany);
+            $(this).toggle(visible);
+        });
+        $('#location_id').selectpicker('refresh');
+    }
+
+    $('#company_id').on('changed.bs.select', function () {
+        filterLocationOptionsByCompany();
+    });
+    filterLocationOptionsByCompany();
 
 
     $('.dynamic').change(function () {

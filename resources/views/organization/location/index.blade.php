@@ -26,6 +26,7 @@
                 <tr>
                     <th class="not-exported"></th>
                     <th>{{trans('file.Location')}}</th>
+                    <th>{{ trans('file.Company') }}</th>
                     <th>{{__('Location Head')}}</th>
                     <th>{{__('Address Line 1')}}</th>
                     <th>{{__('Address Line 2')}}</th>
@@ -33,6 +34,9 @@
                     <th>{{trans('file.State')}}</th>
                     <th>{{trans('file.Country')}}</th>
                     <th>{{trans('file.ZIP')}}</th>
+                    <th>{{ __('Latitude') }}</th>
+                    <th>{{ __('Longitude') }}</th>
+                    <th>{{ __('Max Radius (meters)') }}</th>
                     <th class="not-exported">{{trans('file.action')}}</th>
                 </tr>
                 </thead>
@@ -62,6 +66,17 @@
                                 <label>{{trans('file.Location')}} *</label>
                                 <input type="text" name="location_name" id="location_name" required class="form-control"
                                        placeholder="{{__('Unique Value',['key'=>trans('file.Location')])}}">
+                            </div>
+
+                            <div class="col-md-6 form-group">
+                                <label>{{ trans('file.Company') }} *</label>
+                                <select name="company_ids[]" id="company_ids" class="form-control selectpicker"
+                                        data-live-search="true" data-live-search-style="contains" multiple
+                                        title='{{__('Selecting',['key'=>trans('file.Company')])}}...'>
+                                    @foreach($companies as $company)
+                                        <option value="{{$company->id}}">{{$company->company_name}}</option>
+                                    @endforeach
+                                </select>
                             </div>
 
 
@@ -117,6 +132,45 @@
                                 <label>{{trans('file.ZIP')}} </label>
                                 <input type="text" name="zip" id="zip" class="form-control"
                                        placeholder={{trans("file.Optional")}}>
+                            </div>
+
+                            <div class="col-md-4 form-group">
+                                <label>{{ __('Latitude') }}</label>
+                                <input type="number" step="0.0000001" name="latitude" id="latitude" class="form-control"
+                                       placeholder="{{ trans('file.Optional') }}">
+                            </div>
+
+                            <div class="col-md-4 form-group">
+                                <label>{{ __('Longitude') }}</label>
+                                <input type="number" step="0.0000001" name="longitude" id="longitude" class="form-control"
+                                       placeholder="{{ trans('file.Optional') }}">
+                            </div>
+
+                            <div class="col-md-4 form-group">
+                                <label>{{ __('Max Radius (meters)') }}</label>
+                                <input type="number" step="0.01" min="0" name="max_radius" id="max_radius" class="form-control"
+                                       placeholder="{{ trans('file.Optional') }}">
+                            </div>
+
+                            <div class="col-md-12 form-group">
+                                <label class="d-block">{{ __('Assign Employees') }}</label>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="assign_scope" id="assign_scope_specific" value="specific" checked>
+                                    <label class="form-check-label" for="assign_scope_specific">{{ __('Specific Employees') }}</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="assign_scope" id="assign_scope_all" value="all">
+                                    <label class="form-check-label" for="assign_scope_all">{{ __('All Employees of Selected Companies') }}</label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12 form-group" id="employee_selection_wrap">
+                                <label>{{ trans('file.Employee') }}</label>
+                                <select name="employee_ids[]" id="employee_ids" class="form-control selectpicker"
+                                        data-live-search="true" data-live-search-style="contains" multiple
+                                        title='{{__('Selecting',['key'=>trans('file.Employee')])}}...'>
+                                </select>
+                                <small class="text-muted">{{ __('Choose company first, then employees will load.') }}</small>
                             </div>
 
 
@@ -218,6 +272,10 @@
 
                     },
                     {
+                        data: 'companies',
+                        name: 'companies'
+                    },
+                    {
                         data: 'location_head',
                         name: 'location_head'
                     },
@@ -246,6 +304,18 @@
                         name: 'zip'
                     },
                     {
+                        data: 'latitude',
+                        name: 'latitude'
+                    },
+                    {
+                        data: 'longitude',
+                        name: 'longitude'
+                    },
+                    {
+                        data: 'max_radius',
+                        name: 'max_radius'
+                    },
+                    {
                         data: 'action',
                         name: 'action',
                         orderable: false
@@ -266,7 +336,7 @@
                 'columnDefs': [
                     {
                         "orderable": false,
-                        'targets': [0, 9]
+                        'targets': [0, 13]
                     },
                     {
                         'render': function (data, type, row, meta) {
@@ -328,6 +398,11 @@
             $('.modal-title').text("{{__('Add Location')}}");
             $('#action_button').val('{{trans("file.Add")}}');
             $('#action').val('{{trans("file.Add")}}');
+            $('#sample_form')[0].reset();
+            $('#company_ids').selectpicker('val', []);
+            $('#employee_ids').empty().selectpicker('refresh');
+            $('input[name="assign_scope"][value="specific"]').prop('checked', true);
+            $('#employee_selection_wrap').show();
             $('#formModal').modal('show');
         });
 
@@ -411,21 +486,65 @@
 
                     $('#location_name').val(html.data.location_name);
                     $('#location_head').selectpicker('val', html.data.location_head);
+                    $('#company_ids').selectpicker('val', html.company_ids || []);
                     $('#address1').val(html.data.address1);
                     $('#address2').val(html.data.address2);
                     $('#city').val(html.data.city);
                     $('#state').val(html.data.state);
                     $('#country').selectpicker('val', html.data.country);
                     $('#zip').val(html.data.zip);
+                    $('#latitude').val(html.data.latitude);
+                    $('#longitude').val(html.data.longitude);
+                    $('#max_radius').val(html.data.max_radius);
 
                     $('#hidden_id').val(html.data.id);
                     $('.modal-title').text('{{trans('file.Edit')}}');
                     $('#action_button').val('{{trans('file.Edit')}}');
                     $('#action').val('{{trans('file.Edit')}}');
                     $('#formModal').modal('show');
+                    loadEmployeesByCompanies(html.company_ids || [], true);
                 }
             })
         });
+
+        function toggleEmployeeSelection() {
+            if ($('#assign_scope_all').is(':checked')) {
+                $('#employee_selection_wrap').hide();
+            } else {
+                $('#employee_selection_wrap').show();
+            }
+        }
+
+        function loadEmployeesByCompanies(companyIds, keepSelected) {
+            if (!companyIds || !companyIds.length) {
+                $('#employee_ids').empty().selectpicker('refresh');
+                return;
+            }
+
+            let prev = keepSelected ? ($('#employee_ids').val() || []) : [];
+            $.ajax({
+                url: "{{ route('locations.employees_by_companies') }}",
+                method: "GET",
+                data: {company_ids: companyIds},
+                dataType: "json",
+                success: function (res) {
+                    let opts = '';
+                    (res.employees || []).forEach(function (emp) {
+                        let selected = prev.includes(String(emp.id)) ? 'selected' : '';
+                        opts += '<option value="' + emp.id + '" ' + selected + '>' + emp.full_name + '</option>';
+                    });
+                    $('#employee_ids').html(opts);
+                    $('#employee_ids').selectpicker('refresh');
+                }
+            });
+        }
+
+        $('#company_ids').on('changed.bs.select', function () {
+            loadEmployeesByCompanies($(this).val() || [], false);
+        });
+
+        $('input[name="assign_scope"]').on('change', toggleEmployeeSelection);
+        toggleEmployeeSelection();
 
 
         var delete_id;

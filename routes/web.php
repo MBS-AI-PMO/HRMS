@@ -515,6 +515,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
 
     Route::prefix('organization')->group(function () {
 
+        Route::get('locations/employees/by-companies', [LocationController::class, 'employeesByCompanies'])->name('locations.employees_by_companies');
         Route::resource('locations', LocationController::class)->except([
             'create', 'show',
         ]);

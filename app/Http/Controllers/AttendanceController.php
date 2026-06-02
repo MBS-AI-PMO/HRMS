@@ -62,6 +62,58 @@ class AttendanceController extends Controller {
         ]);
     }
 
+    protected function distanceInMeters(float $lat1, float $lng1, float $lat2, float $lng2): float
+    {
+        $earthRadius = 6371000; // meters
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2)
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2))
+            * sin($dLng / 2) * sin($dLng / 2);
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadius * $c;
+    }
+
+    protected function validateLocationBasedAttendance(Request $request, Employee $employee): ?string
+    {
+        if (($employee->attendance_type ?? '') !== 'location_based') {
+            return null;
+        }
+
+        $location = $employee->location;
+        if (! $location) {
+            return __('No location is assigned to your profile.');
+        }
+
+        if ($location->latitude === null || $location->longitude === null || $location->max_radius === null) {
+            return __('Assigned location geofence is not configured.');
+        }
+
+        $userLat = is_numeric($request->latitude) ? (float) $request->latitude : null;
+        $userLng = is_numeric($request->longitude) ? (float) $request->longitude : null;
+        if ($userLat === null || $userLng === null) {
+            return __('Current GPS location is required for location based attendance.');
+        }
+
+        $distance = $this->distanceInMeters(
+            (float) $location->latitude,
+            (float) $location->longitude,
+            $userLat,
+            $userLng
+        );
+
+        if ($distance > (float) $location->max_radius) {
+            return __('You are outside allowed office radius (distance: :distance m, allowed: :allowed m).', [
+                'distance' => number_format($distance, 2),
+                'allowed' => number_format((float) $location->max_radius, 2),
+            ]);
+        }
+
+        return null;
+    }
+
 	public function index(Request $request)
 	{
 		$logged_user = auth()->user();
@@ -317,6 +369,15 @@ class AttendanceController extends Controller {
 	{
 
 		$data = [];
+        $employee = Employee::with('location')->findOrFail($id);
+        if ((int) optional(auth()->user())->id !== (int) $id && ! auth()->user()->can('view-attendance')) {
+            return redirect()->back()->withErrors([__('You are not authorized')]);
+        }
+
+        $locationError = $this->validateLocationBasedAttendance($request, $employee);
+        if ($locationError) {
+            return redirect()->back()->withErrors([$locationError]);
+        }
 
 		//current day
 		$current_day = now()->format(env('Date_Format'));

@@ -84,6 +84,11 @@ class Employee extends Model
         return $this->hasOne('App\Models\office_shift', 'id', 'office_shift_id');
     }
 
+    public function location()
+    {
+        return $this->hasOne('App\Models\location', 'id', 'location_id');
+    }
+
     public function company()
     {
         return $this->hasOne('App\Models\company', 'id', 'company_id');

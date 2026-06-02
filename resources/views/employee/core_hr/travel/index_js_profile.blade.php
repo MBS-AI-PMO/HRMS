@@ -12,18 +12,19 @@
         serverSide: true,
         ajax: {
             url: "{{ route('profile.travels.index') }}",
+            data: {
+                employee_id: "{{ $employee->id }}"
+            },
             error: function (xhr) {
                 console.error('Travel list failed', xhr.status, xhr.responseText);
             }
         },
         columns: [
             {
-                data: null,
-                render: function (data) {
-                    return data.purpose_of_visit + "<br><br><td><b><i>{{__('Expected Budget :')}}</i></b>"+ data.expected_budget + "</td><br>" +
-                    "<td><b><i>{{__('Actual Budget :')}}</i></b>" + data.actual_budget + "</td>"
-                    + "<br><td><div class = 'badge badge-success'>" + data.status + "</div></td><br>";
-                }
+                data: 'summary',
+                name: 'summary',
+                orderable: false,
+                searchable: false
             },
             {
                 data: 'place_of_visit',
@@ -62,6 +63,7 @@
         select: {style: 'multi', selector: 'td:first-child'},
         lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
     });
+    window.profileTravelTable = table_table;
     new $.fn.DataTable.FixedHeader(table_table);
 
     $(document).off('click', '.show_travel').on('click', '.show_travel', function () {

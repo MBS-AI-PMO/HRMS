@@ -21,6 +21,7 @@ use App\Models\QualificationSkill;
 use App\Models\RelationType;
 use App\Models\status;
 use App\Models\User;
+use App\Models\location;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Exception;
 use Carbon\Carbon;
@@ -119,6 +120,7 @@ class EmployeeController extends Controller
         if ($logged_user->can('view-details-employee')) {
             $companies = company::select('id', 'company_name')->get();
             $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
+            $locations = location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
             $currentDate = date('Y-m-d');
 
             if (request()->ajax()) {
@@ -200,7 +202,7 @@ class EmployeeController extends Controller
                     ->rawColumns(['name', 'company', 'contacts', 'action'])
                     ->make(true);
             }
-            return view('employee.index', compact('companies', 'roles'));
+            return view('employee.index', compact('companies', 'roles', 'locations'));
         } else {
             return response()->json(['success' => __('You are not authorized')]);
         }
@@ -229,6 +231,7 @@ class EmployeeController extends Controller
                     'joining_date' => 'required',
                     'profile_photo' => 'nullable|image|max:10240|mimes:jpeg,png,jpg,gif',
                     'address' => 'nullable|string|max:1000',
+                    'location_id' => 'nullable|exists:locations,id|required_if:attendance_type,location_based',
                 ];
 
                 $rules = array_merge($rules, $this->cnicRulesForEmployee());
@@ -237,7 +240,7 @@ class EmployeeController extends Controller
                     $request->only(
                         'first_name', 'last_name', 'email', 'contact_no', 'cnic', 'address', 'date_of_birth', 'gender',
                         'username', 'role_users_id', 'password', 'password_confirmation', 'company_id', 'department_id',
-                        'designation_id', 'office_shift_id', 'attendance_type', 'joining_date'
+                        'designation_id', 'office_shift_id', 'attendance_type', 'joining_date', 'location_id'
                     ),
                     $rules
                 );
@@ -263,6 +266,7 @@ class EmployeeController extends Controller
                 $data['address'] = $request->address ?: null;
                 $data['attendance_type'] = $request->attendance_type; //new
                 $data['joining_date'] = $request->joining_date; //new
+                $data['location_id'] = $request->location_id ?: null;
                 $data['is_active'] = 1;
 
                 $user = [];
@@ -378,11 +382,12 @@ class EmployeeController extends Controller
             $loanTypes = LoanType::select('id','type_name')->get();
             $deductionTypes = DeductionType::select('id','type_name')->get();
             $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
+            $locations = location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
          
 
             return view('employee.dashboard', compact('employee', 'countries', 'companies',
                 'departments', 'designations', 'statuses', 'office_shifts', 'document_types',
-                'education_levels', 'language_skills', 'general_skills', 'roles','relationTypes','loanTypes','deductionTypes'));
+                'education_levels', 'language_skills', 'general_skills', 'roles','relationTypes','loanTypes','deductionTypes', 'locations'));
         } else {
             return response()->json(['success' => __('You are not authorized')]);
         }
@@ -430,11 +435,12 @@ class EmployeeController extends Controller
             $loanTypes = LoanType::select('id','type_name')->get();
             $deductionTypes = DeductionType::select('id','type_name')->get();
             $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
+            $locations = location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
          
 
             return view('employee.profile', compact('employee', 'countries', 'companies',
                 'departments', 'designations', 'statuses', 'office_shifts', 'document_types',
-                'education_levels', 'language_skills', 'general_skills', 'roles','relationTypes','loanTypes','deductionTypes'));
+                'education_levels', 'language_skills', 'general_skills', 'roles','relationTypes','loanTypes','deductionTypes', 'locations'));
        
     }
 
@@ -612,6 +618,7 @@ class EmployeeController extends Controller
                     'total_leave'     => 'numeric|min:0',
                     'joining_date'    => 'required',
                     'exit_date'       => 'nullable',
+                    'location_id'     => 'nullable|exists:locations,id|required_if:attendance_type,location_based',
                 ], $this->cnicRulesForEmployee((int) $employee))
             );
 
@@ -648,6 +655,7 @@ class EmployeeController extends Controller
             $data['company_id'] = $request->company_id;
             $data['designation_id'] = $request->designation_id;
             $data['office_shift_id'] = $request->office_shift_id;
+            $data['location_id'] = $request->location_id ?: null;
             $data['status_id'] = $request->status_id;
             $data['marital_status'] = $request->marital_status;
 
@@ -734,6 +742,7 @@ return response()->json([
                     'total_leave'     => 'numeric|min:0',
                     'joining_date'    => 'required',
                     'exit_date'       => 'nullable',
+                    'location_id'     => 'nullable|exists:locations,id|required_if:attendance_type,location_based',
                 ], $this->cnicRulesForEmployee((int) $employee))
             );
 
@@ -772,6 +781,7 @@ return response()->json([
             $data['company_id'] = $request->company_id;
             $data['designation_id'] = $request->designation_id;
             $data['office_shift_id'] = $request->office_shift_id;
+            $data['location_id'] = $request->location_id ?: null;
             $data['status_id'] = $request->status_id;
             $data['marital_status'] = $request->marital_status;
 
