@@ -672,11 +672,8 @@
             });
         };
 
-        $('#employee_travel-tab').on('shown.bs.tab click', function() {
+        $('#employee_travel-tab').on('shown.bs.tab', function() {
             initTravelTab();
-            if (travelTabInitialized && window.profileTravelTable) {
-                window.profileTravelTable.ajax.reload(null, false);
-            }
         });
 
         $('#employee_complain-tab').on('shown.bs.tab', function() {

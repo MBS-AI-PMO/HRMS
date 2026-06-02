@@ -935,7 +935,6 @@
                 function(position) {
                     let userLat = position.coords.latitude;
                     let userLng = position.coords.longitude;
-                    let accuracy = position.coords.accuracy;
 
                     document.getElementById('user_lat').value = userLat;
                     document.getElementById('user_lng').value = userLng;
@@ -969,23 +968,13 @@
                     console.log('User Lat:', userLat);
                     console.log('User Lng:', userLng);
                     console.log('Distance:', distance);
-                    console.log('Accuracy:', accuracy);
                     console.log('Max Radius:', maxRadius);
-
-                    if (accuracy > maxRadius && distance > maxRadius) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Low Location Accuracy',
-                            text: 'Your GPS accuracy is too low. Please turn on precise location and try again.'
-                        });
-                        return;
-                    }
 
                     if (distance > maxRadius) {
                         Swal.fire({
                             icon: 'warning',
-                            title: 'Outside Office Location',
-                            text: 'You appear to be outside the permitted office location. Please move closer to the office and try again.',
+                            title: 'Outside Office Area',
+                            text: 'You are currently outside the allowed office area. Please move closer to the office and try again.',
                             confirmButtonText: 'OK'
                         });
                         return;
