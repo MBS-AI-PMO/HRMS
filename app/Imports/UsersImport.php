@@ -102,7 +102,7 @@ class UsersImport implements ToModel, WithHeadingRow, ShouldQueue, WithChunkRead
         return [
             '*.first_name'       => 'required|string',
             '*.last_name'        => 'required|string',
-            '*.staff_id'         => 'required|numeric|unique:employees,staff_id',
+            '*.staff_id'         => 'required|string|max:191|unique:employees,staff_id',
             '*.email'            => 'required|email|unique:users,email',
             '*.contact_no'       => 'nullable|unique:users,contact_no',
             '*.joining_date'     => 'nullable|date_format:' . env('Date_Format'),
