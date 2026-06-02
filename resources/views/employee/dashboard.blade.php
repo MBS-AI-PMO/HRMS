@@ -492,11 +492,11 @@
                                                             </tr>
                                                             <tr>
                                                                 <th>{{ __('Department') }}</th>
-                                                                <td>{{ $employee->department->department_name ?? '' }}</td>
+                                                                <td>{{ $employee->department?->department_name ?? '' }}</td>
                                                             </tr>
                                                             <tr>
                                                                 <th>{{ __('Designation') }}</th>
-                                                                <td>{{ $employee->designation->designation_name ?? '' }}</td>
+                                                                <td>{{ $employee->designation?->designation_name ?? '' }}</td>
                                                             </tr>
                                                             <tr>
                                                                 <th>{{ __('Attendance Type') }}</th>
