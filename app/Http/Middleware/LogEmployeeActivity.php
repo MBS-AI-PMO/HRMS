@@ -22,6 +22,20 @@ class LogEmployeeActivity
 
         $user = auth()->user();
         $routeName = optional($request->route())->getName() ?? 'unknown.route';
+        $statusCode = method_exists($response, 'getStatusCode') ? (int) $response->getStatusCode() : null;
+        $responseBody = method_exists($response, 'getContent') ? (string) $response->getContent() : '';
+        $responseJson = json_decode($responseBody, true);
+        $isJson = json_last_error() === JSON_ERROR_NONE && is_array($responseJson);
+
+        $isFailed = ($statusCode !== null && $statusCode >= 400);
+        if ($isJson) {
+            if (!empty($responseJson['errors']) || !empty($responseJson['error'])) {
+                $isFailed = true;
+            }
+        }
+
+        $action = 'request.' . strtolower($request->method()) . ($isFailed ? '.failed' : '.success');
+        $description = ($isFailed ? 'Request failed: ' : 'Request successful: ') . $routeName;
 
         // Avoid noisy entries for explicit activity-log endpoints.
         if (str_contains($routeName, 'activity_logs')) {
@@ -39,14 +53,15 @@ class LogEmployeeActivity
         EmployeeActivityLog::write(
             (int) $user->id,
             (int) $user->id,
-            'request.' . strtolower($request->method()),
-            'Request performed: ' . $routeName,
+            $action,
+            $description,
             [
                 'route' => $routeName,
                 'method' => strtoupper($request->method()),
                 'path' => $request->path(),
                 'payload' => $payload,
-                'response_status' => method_exists($response, 'getStatusCode') ? $response->getStatusCode() : null,
+                'response_status' => $statusCode,
+                'failed' => $isFailed,
             ],
             $request->ip()
         );
