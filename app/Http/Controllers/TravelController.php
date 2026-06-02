@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
+use Throwable;
 
 class TravelController extends Controller {
 
@@ -110,31 +111,34 @@ class TravelController extends Controller {
 			}
 
 
-			$data = [];
+			try {
+				$data = [];
 
-			$data['employee_id'] = $request->employee_id;
-			$data['company_id'] = $request->company_id;
-			$data['travel_type'] = $request->travel_type_id;
-			$data ['description'] = $request->description;
-			$data['travel_mode'] = $request->travel_mode;
-			$data['purpose_of_visit'] = $request->purpose_of_visit;
-			$data['place_of_visit'] = $request->place_of_visit;
-			$data['expected_budget'] = $request->expected_budget;
-			$data ['actual_budget'] = $request->actual_budget;
-			$data ['status'] = $request->status;
-			$data ['start_date'] = $request->start_date;
-			$data ['end_date'] = $request->end_date;
+				$data['employee_id'] = $request->employee_id;
+				$data['company_id'] = $request->company_id;
+				$data['travel_type'] = $request->travel_type_id;
+				$data ['description'] = $request->description;
+				$data['travel_mode'] = $request->travel_mode;
+				$data['purpose_of_visit'] = $request->purpose_of_visit;
+				$data['place_of_visit'] = $request->place_of_visit;
+				$data['expected_budget'] = $request->expected_budget;
+				$data ['actual_budget'] = $request->actual_budget;
+				$data ['status'] = $request->status;
+				$data ['start_date'] = $request->start_date;
+				$data ['end_date'] = $request->end_date;
 
+				$travel = Travel::create($data);
 
-			$travel = Travel::create($data);
+				if ($travel->status != 'pending')
+				{
+					$notifiable = User::findOrFail($data['employee_id']);
+					$notifiable->notify(new EmployeeTravelStatus($travel->status));
+				}
 
-			if($travel->status != 'pending')
-			{
-				$notifiable = User::findOrFail($data['employee_id']);
-
-				$notifiable->notify(new EmployeeTravelStatus($travel->status));
+				return response()->json(['success' => __('Data Added successfully.')]);
+			} catch (Throwable $e) {
+				return response()->json(['error' => __('Travel request failed: ') . $e->getMessage()], 500);
 			}
-			return response()->json(['success' => __('Data Added successfully.')]);
 		}
 
 		return response()->json(['success' => __('You are not authorized')]);
