@@ -62,6 +62,34 @@ class AttendanceController extends Controller {
         ]);
     }
 
+    /**
+     * Portal date filters use env Date_Format (e.g. d-m-Y); DB stores Y-m-d.
+     */
+    protected function parseAttendanceFilterDate($value): ?string
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return null;
+        }
+
+        $value = trim((string) $value);
+        $fmt = env('Date_Format', 'd-m-Y');
+
+        try {
+            return Carbon::createFromFormat($fmt, $value)->format('Y-m-d');
+        } catch (Exception $e) {
+            try {
+                return Carbon::parse($value)->format('Y-m-d');
+            } catch (Exception $e2) {
+                return null;
+            }
+        }
+    }
+
+    protected function resolveAttendanceListDate(?string $filter): string
+    {
+        return $this->parseAttendanceFilterDate($filter) ?? now()->format('Y-m-d');
+    }
+
     protected function distanceInMeters(float $lat1, float $lng1, float $lat2, float $lng2): float
     {
         $earthRadius = 6371000; // meters
@@ -117,9 +145,9 @@ class AttendanceController extends Controller {
 		//checking if date is selected else date is current
 		// if ($logged_user->can('view-attendance'))
 		// {
-			$selected_date = Carbon::parse($request->filter_month_year)->format('Y-m-d') ?? now()->format('Y-m-d');
+			$selected_date = $this->resolveAttendanceListDate($request->filter_month_year);
 
-			$day = strtolower(Carbon::parse($request->filter_month_year)->format('l')) . '_in' ?? strtolower(now()->format('l')) . '_in';
+			$day = strtolower(Carbon::parse($selected_date)->format('l')).'_in';
 
 
 			if (request()->ajax())
@@ -130,7 +158,7 @@ class AttendanceController extends Controller {
 				if(!($logged_user->can('daily-attendances'))){ //Correction
 					$employee = Employee::with(['officeShift', 'employeeAttendance' => function ($query) use ($selected_date)
 					{
-						$query->where('attendance_date', $selected_date);
+						$query->whereDate('attendance_date', $selected_date);
 					},
 						'officeShift',
 						'company:id,company_name',
@@ -150,7 +178,7 @@ class AttendanceController extends Controller {
 				else{
 					$employee = Employee::with(['officeShift', 'employeeAttendance' => function ($query) use ($selected_date)
 					{
-						$query->where('attendance_date', $selected_date);
+						$query->whereDate('attendance_date', $selected_date);
 					},
 						'officeShift',
 						'company:id,company_name',
@@ -1606,10 +1634,21 @@ class AttendanceController extends Controller {
 		{
 			if (request()->ajax())
 			{
+				$employeeId = (int) $request->employee_id;
+				if ($employeeId <= 0) {
+					return datatables()->of(collect())->make(true);
+				}
 
-				$employee_attendance = Attendance::where('employee_id', $request->employee_id)
-                    ->whereDate('attendance_date','>=', Carbon::parse($request->attendance_date1)->format('Y-m-d'))
-                    ->whereDate('attendance_date','<=', Carbon::parse($request->attendance_date2)->format('Y-m-d'))
+				$dateFrom = $this->parseAttendanceFilterDate($request->attendance_date1) ?? now()->format('Y-m-d');
+				$dateTo = $this->parseAttendanceFilterDate($request->attendance_date2) ?? $dateFrom;
+				if ($dateFrom > $dateTo) {
+					[$dateFrom, $dateTo] = [$dateTo, $dateFrom];
+				}
+
+				$employee_attendance = Attendance::where('employee_id', $employeeId)
+					->whereBetween('attendance_date', [$dateFrom, $dateTo])
+					->orderByDesc('attendance_date')
+					->orderByDesc('id')
 					->get();
 
 
@@ -1726,6 +1765,13 @@ class AttendanceController extends Controller {
 	public function updateAttendanceStore(Request $request)
 	{
 		$data = $this->attendanceHandler($request);
+
+		if (! is_array($data) || empty($data['employee_id'])) {
+			return response()->json([
+				'errors' => [__('Could not save attendance. Check clock in/out times and the employee office shift for that day.')],
+			], 422);
+		}
+
         $attendance = Attendance::create($data);
         $this->logEmployeeActivity((int) $request->employee_id, 'attendance.manual_create', 'Attendance record created manually.', [
             'attendance_id' => $attendance->id,
@@ -1825,6 +1871,18 @@ class AttendanceController extends Controller {
                 $data['early_leaving'] = $early_leaving;
                 $data['overtime'] = $overtime;
                 $data['total_work'] = $total_work;
+                $data['attendance_status'] = trans('file.present');
+            } else {
+                $data['employee_id'] = $employee_id;
+                $data['attendance_date'] = $attendance_date;
+                $data['clock_in'] = $clock_in->format('H:i');
+                $data['clock_out'] = $clock_out->format('H:i');
+                $data['clock_in_out'] = 0;
+                $data['time_late'] = $time_late;
+                $data['early_leaving'] = $early_leaving;
+                $data['overtime'] = $overtime;
+                $data['total_work'] = $total_work;
+                $data['attendance_status'] = trans('file.present');
             }
         }
         // if there is a record of employee attendance
@@ -1857,6 +1915,7 @@ class AttendanceController extends Controller {
             $data['overtime'] = $overtime;
             $data['total_work'] = $total_work;
             $data['total_rest'] = $total_rest;
+            $data['attendance_status'] = trans('file.present');
         }
 		return $data;
 	}

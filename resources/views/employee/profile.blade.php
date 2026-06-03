@@ -15,6 +15,17 @@
             padding: 15px 0
         }
     </style>
+    @php
+        $profileWorkFieldsReadonly = isset($workFieldsReadonly)
+            ? (bool) $workFieldsReadonly
+            : (
+                auth()->id() === (int) $employee->id
+                && ! (
+                    (int) auth()->user()->role_users_id === 1
+                    && auth()->user()->can('modify-details-employee')
+                )
+            );
+    @endphp
     <section>
         
            <div class="container-fluid">
@@ -78,6 +89,17 @@
                                                     enctype="multipart/form-data" autocomplete="off">
 
                                                     @csrf
+                                                    @php
+                                                        $workRo = $profileWorkFieldsReadonly;
+                                                        $companyLabel = optional($companies->firstWhere('id', $employee->company_id))->company_name ?? '—';
+                                                        $departmentLabel = optional($departments->firstWhere('id', $employee->department_id))->department_name ?? '—';
+                                                        $designationLabel = optional($designations->firstWhere('id', $employee->designation_id))->designation_name ?? '—';
+                                                        $roleLabel = optional($roles->firstWhere('id', $employee->role_users_id))->name ?? '—';
+                                                        $statusLabel = optional($statuses->firstWhere('id', $employee->status_id))->status_title ?? '—';
+                                                        $shiftLabel = optional($office_shifts->firstWhere('id', $employee->office_shift_id))->shift_name ?? '—';
+                                                        $locationLabel = optional($locations->firstWhere('id', $employee->location_id))->location_name ?? '—';
+                                                        $attendanceLabel = $employee->attendance_type === 'location_based' ? __('Location Based') : __('General');
+                                                    @endphp
                                                     <div class="row">
                                                         <div class="col-md-4 form-group">
                                                             <label>{{ __('Image') }} *</label>
@@ -119,11 +141,15 @@
                                                                 class="form-control" value="{{ $employee->last_name }}">
                                                         </div>
                                                         <div class="col-md-4 form-group">
-                                                            <label>{{ __('Staff Id') }} <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="staff_id" id="staff_id"
-                                                                placeholder="{{ __('Staff Id') }}" required
-                                                                class="form-control" value="{{ $employee->staff_id }}">
+                                                            <label>{{ __('Staff Id') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
+                                                            @if($workRo)
+                                                                <input type="hidden" name="staff_id" value="{{ $employee->staff_id }}">
+                                                                <input type="text" readonly class="form-control bg-light" value="{{ $employee->staff_id }}">
+                                                            @else
+                                                                <input type="text" name="staff_id" id="staff_id"
+                                                                    placeholder="{{ __('Staff Id') }}" required
+                                                                    class="form-control" value="{{ $employee->staff_id }}">
+                                                            @endif
                                                         </div>
 
                                                         <div class="col-md-4 form-group">
@@ -243,161 +269,204 @@
                                                             </select>
                                                         </div>
 
+                                                        @if($workRo)
+                                                            <div class="col-md-12">
+                                                                <hr>
+                                                                <p class="text-muted mb-2"><i>{{ __('Work information') }}</i> — {{ __('Managed by HR (read only)') }}</p>
+                                                            </div>
+                                                        @endif
+
                                                         <div class="col-md-4">
                                                             <div class="form-group">
-                                                                <label>{{ trans('file.Company') }} <span
-                                                                        class="text-danger">*</span></label>
-                                                                <input type="hidden" name="company_id_hidden"
-                                                                    value="{{ $employee->company_id }}" />
-                                                                <select name="company_id" id="company_id"
-                                                                    class="form-control selectpicker dynamic"
-                                                                    data-live-search="true" data-live-search-style="contains"
-                                                                    data-dependent="department_name"
-                                                                    data-shift_name="shift_name"
-                                                                    title="{{ __('Selecting', ['key' => trans('file.Company')]) }}...">
-                                                                    @foreach ($companies as $company)
-                                                                        <option value="{{ $company->id }}">
-                                                                            {{ $company->company_name }}</option>
-                                                                    @endforeach
-
-                                                                </select>
+                                                                <label>{{ trans('file.Company') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
+                                                                @if($workRo)
+                                                                    <input type="hidden" name="company_id" value="{{ $employee->company_id }}">
+                                                                    <input type="text" readonly class="form-control bg-light" value="{{ $companyLabel }}">
+                                                                @else
+                                                                    <input type="hidden" name="company_id_hidden"
+                                                                        value="{{ $employee->company_id }}" />
+                                                                    <select name="company_id" id="company_id"
+                                                                        class="form-control selectpicker dynamic"
+                                                                        data-live-search="true" data-live-search-style="contains"
+                                                                        data-dependent="department_name"
+                                                                        data-shift_name="shift_name"
+                                                                        title="{{ __('Selecting', ['key' => trans('file.Company')]) }}...">
+                                                                        @foreach ($companies as $company)
+                                                                            <option value="{{ $company->id }}">
+                                                                                {{ $company->company_name }}</option>
+                                                                        @endforeach
+                                                                    </select>
+                                                                @endif
                                                             </div>
                                                         </div>
 
                                                         <div class="col-md-4">
                                                             <div class="form-group">
-                                                                <label>{{ trans('file.Department') }} <span
-                                                                        class="text-danger">*</span> </label>
-                                                                <input type="hidden" name="department_id_hidden"
-                                                                    value="{{ $employee->department_id }}" />
-                                                                <select name="department_id" id="department_id"
-                                                                    class="selectpicker form-control designation"
-                                                                    data-live-search="true" data-live-search-style="contains"
-                                                                    data-designation_name="designation_name"
-                                                                    title="{{ __('Selecting', ['key' => trans('file.Department')]) }}...">
-                                                                    @foreach ($departments as $department)
-                                                                        <option value="{{ $department->id }}">
-                                                                            {{ $department->department_name }}</option>
-                                                                    @endforeach
-                                                                </select>
+                                                                <label>{{ trans('file.Department') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
+                                                                @if($workRo)
+                                                                    <input type="hidden" name="department_id" value="{{ $employee->department_id }}">
+                                                                    <input type="text" readonly class="form-control bg-light" value="{{ $departmentLabel }}">
+                                                                @else
+                                                                    <input type="hidden" name="department_id_hidden"
+                                                                        value="{{ $employee->department_id }}" />
+                                                                    <select name="department_id" id="department_id"
+                                                                        class="selectpicker form-control designation"
+                                                                        data-live-search="true" data-live-search-style="contains"
+                                                                        data-designation_name="designation_name"
+                                                                        title="{{ __('Selecting', ['key' => trans('file.Department')]) }}...">
+                                                                        @foreach ($departments as $department)
+                                                                            <option value="{{ $department->id }}">
+                                                                                {{ $department->department_name }}</option>
+                                                                        @endforeach
+                                                                    </select>
+                                                                @endif
                                                             </div>
                                                         </div>
 
                                                         <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.Designation') }} <span
-                                                                    class="text-danger">*</span> </label>
-                                                            <input type="hidden" name="designation_id_hidden"
-                                                                value="{{ $employee->designation_id }}" />
-                                                            <select name="designation_id" id="designation_id"
-                                                                class="selectpicker form-control" data-live-search="true"
-                                                                data-live-search-style="contains"
-                                                                title="{{ __('Selecting', ['key' => trans('file.Designation')]) }}...">
-                                                                @foreach ($designations as $designation)
-                                                                    <option value="{{ $designation->id }}">
-                                                                        {{ $designation->designation_name }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                        </div>
-
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.Role') }} <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="hidden" name="role_user_hidden"
-                                                                value="{{ $employee->role_users_id }}" />
-                                                            <select name="role_users_id" id="role_users_id" required
-                                                                @if ($employee->role_users_id == 1)  @endif
-                                                                class="selectpicker form-control" data-live-search="true"
-                                                                data-live-search-style="contains"
-                                                                title="{{ __('Selecting', ['key' => trans('file.Role')]) }}..."readonly>
-                                                                {{-- <option value="1">Admin</option>
-                                                            <option value="2">Employee</option> --}}
-                                                                @foreach ($roles as $item)
-                                                                    <option value="{{ $item->id }}">{{ $item->name }}
-                                                                    </option>
-                                                                @endforeach
-                                                            </select>
-                                                        </div>
-
-                                                        <div class="col-md-4">
-                                                            <div class="form-group">
-                                                                <label>{{ trans('file.Status') }} <span
-                                                                        class="text-danger">*</span></label>
-                                                                <input type="hidden" name="status_id_hidden"
-                                                                    value="{{ $employee->status_id }}" />
-                                                                <select name="status_id" id="status_id" required
-                                                                    class="form-control selectpicker" data-live-search="true"
+                                                            <label>{{ trans('file.Designation') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
+                                                            @if($workRo)
+                                                                <input type="hidden" name="designation_id" value="{{ $employee->designation_id }}">
+                                                                <input type="text" readonly class="form-control bg-light" value="{{ $designationLabel }}">
+                                                            @else
+                                                                <input type="hidden" name="designation_id_hidden"
+                                                                    value="{{ $employee->designation_id }}" />
+                                                                <select name="designation_id" id="designation_id"
+                                                                    class="selectpicker form-control" data-live-search="true"
                                                                     data-live-search-style="contains"
-                                                                    title="{{ __('Selecting', ['key' => trans('file.Status')]) }}...">
-                                                                    @foreach ($statuses as $status)
-                                                                        <option value="{{ $status->id }}">
-                                                                            {{ $status->status_title }}</option>
+                                                                    title="{{ __('Selecting', ['key' => trans('file.Designation')]) }}...">
+                                                                    @foreach ($designations as $designation)
+                                                                        <option value="{{ $designation->id }}">
+                                                                            {{ $designation->designation_name }}</option>
                                                                     @endforeach
                                                                 </select>
+                                                            @endif
+                                                        </div>
+
+                                                        <div class="col-md-4 form-group">
+                                                            <label>{{ trans('file.Role') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
+                                                            @if($workRo)
+                                                                <input type="text" readonly class="form-control bg-light" value="{{ $roleLabel }}">
+                                                            @else
+                                                                <input type="hidden" name="role_user_hidden"
+                                                                    value="{{ $employee->role_users_id }}" />
+                                                                <select name="role_users_id" id="role_users_id" required
+                                                                    class="selectpicker form-control" data-live-search="true"
+                                                                    data-live-search-style="contains"
+                                                                    title="{{ __('Selecting', ['key' => trans('file.Role')]) }}...">
+                                                                    @foreach ($roles as $item)
+                                                                        <option value="{{ $item->id }}">{{ $item->name }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                            @endif
+                                                        </div>
+
+                                                        <div class="col-md-4">
+                                                            <div class="form-group">
+                                                                <label>{{ trans('file.Status') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
+                                                                @if($workRo)
+                                                                    <input type="hidden" name="status_id" value="{{ $employee->status_id }}">
+                                                                    <input type="text" readonly class="form-control bg-light" value="{{ $statusLabel }}">
+                                                                @else
+                                                                    <input type="hidden" name="status_id_hidden"
+                                                                        value="{{ $employee->status_id }}" />
+                                                                    <select name="status_id" id="status_id" required
+                                                                        class="form-control selectpicker" data-live-search="true"
+                                                                        data-live-search-style="contains"
+                                                                        title="{{ __('Selecting', ['key' => trans('file.Status')]) }}...">
+                                                                        @foreach ($statuses as $status)
+                                                                            <option value="{{ $status->id }}">
+                                                                                {{ $status->status_title }}</option>
+                                                                        @endforeach
+                                                                    </select>
+                                                                @endif
                                                             </div>
                                                         </div>
 
                                                         <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.Office_Shift') }} <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="hidden" name="office_shift_id_hidden"
-                                                                value="{{ $employee->office_shift_id }}" />
-                                                            <select name="office_shift_id" id="office_shift_id"
-                                                                class="selectpicker form-control" data-live-search="true"
-                                                                data-live-search-style="contains"
-                                                                title="{{ __('Selecting', ['key' => trans('file.Office Shift')]) }}...">
-                                                                @foreach ($office_shifts as $office_shift)
-                                                                    <option value="{{ $office_shift->id }}">
-                                                                        {{ $office_shift->shift_name }}</option>
-                                                                @endforeach
-                                                            </select>
+                                                            <label>{{ trans('file.Office_Shift') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
+                                                            @if($workRo)
+                                                                <input type="hidden" name="office_shift_id" value="{{ $employee->office_shift_id }}">
+                                                                <input type="text" readonly class="form-control bg-light" value="{{ $shiftLabel }}">
+                                                            @else
+                                                                <input type="hidden" name="office_shift_id_hidden"
+                                                                    value="{{ $employee->office_shift_id }}" />
+                                                                <select name="office_shift_id" id="office_shift_id"
+                                                                    class="selectpicker form-control" data-live-search="true"
+                                                                    data-live-search-style="contains"
+                                                                    title="{{ __('Selecting', ['key' => trans('file.Office Shift')]) }}...">
+                                                                    @foreach ($office_shifts as $office_shift)
+                                                                        <option value="{{ $office_shift->id }}">
+                                                                            {{ $office_shift->shift_name }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                            @endif
                                                         </div>
 
                                                         <div class="col-md-4 form-group">
                                                             <label>{{ trans('file.Location') }}</label>
-                                                            <input type="hidden" name="location_id_hidden"
-                                                                   value="{{ $employee->location_id }}" />
-                                                            <select name="location_id" id="location_id"
-                                                                    class="selectpicker form-control" data-live-search="true"
-                                                                    data-live-search-style="contains"
-                                                                    title="{{ __('Selecting', ['key' => trans('file.Location')]) }}...">
-                                                                @foreach ($locations as $location)
-                                                                    <option value="{{ $location->id }}">
-                                                                        {{ $location->location_name }}
-                                                                        @if($location->max_radius) ({{ $location->max_radius }}m) @endif
-                                                                    </option>
-                                                                @endforeach
-                                                            </select>
+                                                            @if($workRo)
+                                                                <input type="hidden" name="location_id" value="{{ $employee->location_id }}">
+                                                                <input type="text" readonly class="form-control bg-light" value="{{ $locationLabel }}">
+                                                            @else
+                                                                <input type="hidden" name="location_id_hidden"
+                                                                       value="{{ $employee->location_id }}" />
+                                                                <select name="location_id" id="location_id"
+                                                                        class="selectpicker form-control" data-live-search="true"
+                                                                        data-live-search-style="contains"
+                                                                        title="{{ __('Selecting', ['key' => trans('file.Location')]) }}...">
+                                                                    @foreach ($locations as $location)
+                                                                        <option value="{{ $location->id }}">
+                                                                            {{ $location->location_name }}
+                                                                            @if($location->max_radius) ({{ $location->max_radius }}m) @endif
+                                                                        </option>
+                                                                    @endforeach
+                                                                </select>
+                                                            @endif
                                                         </div>
 
                                                         <div class="col-md-4 form-group">
-                                                            <label>{{ __('Date Of Joining') }} <span
-                                                                    class="text-danger">*</span> </label>
-                                                            <input type="text" name="joining_date" id="joining_date"
-                                                                autocomplete="off" class="form-control date"
-                                                                value="{{ $employee->joining_date }}">
+                                                            <label>{{ __('Date Of Joining') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
+                                                            @if($workRo)
+                                                                <input type="hidden" name="joining_date" value="{{ $employee->joining_date }}">
+                                                                <input type="text" readonly class="form-control bg-light" value="{{ $employee->joining_date }}">
+                                                            @else
+                                                                <input type="text" name="joining_date" id="joining_date"
+                                                                    autocomplete="off" class="form-control date"
+                                                                    value="{{ $employee->joining_date }}">
+                                                            @endif
                                                         </div>
 
                                                         <div class="col-md-4 form-group">
                                                             <label>{{ __('Date Of Leaving') }}</label>
-                                                            <input type="text" name="exit_date" id="exit_date"
-                                                                class="form-control date"
-                                                                value="{{ $employee->exit_date }}">
+                                                            @if($workRo)
+                                                                <input type="hidden" name="exit_date" value="{{ $employee->exit_date }}">
+                                                                <input type="text" readonly class="form-control bg-light" value="{{ $employee->exit_date ?: '—' }}">
+                                                            @else
+                                                                <input type="text" name="exit_date" id="exit_date"
+                                                                    class="form-control date"
+                                                                    value="{{ $employee->exit_date }}">
+                                                            @endif
                                                         </div>
 
-                                                        <div class="col-md-4">
-                                                            <label class="text-bold">{{ __('Attendance Type') }} <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select name="attendance_type" id="attendance_type" readonly
-                                                                class="selectpicker form-control" data-live-search="true"
-                                                                data-live-search-style="contains"
-                                                                title="{{ __('Select Login Type...') }}">
-                                                                <option value="general"
-                                                                    @if ($employee->attendance_type == 'general') selected @endif>
-                                                                    {{ __('General') }}</option>
-                                                                <option value="location_based"
-                                                                    @if ($employee->attendance_type == 'location_based') selected @endif>
-                                                                    {{ __('Location Based') }}</option>
-                                                            </select>
+                                                        <div class="col-md-4 form-group">
+                                                            <label class="text-bold">{{ __('Attendance Type') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
+                                                            @if($workRo)
+                                                                <input type="hidden" name="attendance_type" value="{{ $employee->attendance_type }}">
+                                                                <input type="text" readonly class="form-control bg-light" value="{{ $attendanceLabel }}">
+                                                            @else
+                                                                <select name="attendance_type" id="attendance_type"
+                                                                    class="selectpicker form-control" data-live-search="true"
+                                                                    data-live-search-style="contains"
+                                                                    title="{{ __('Select Login Type...') }}">
+                                                                    <option value="general"
+                                                                        @if ($employee->attendance_type == 'general') selected @endif>
+                                                                        {{ __('General') }}</option>
+                                                                    <option value="location_based"
+                                                                        @if ($employee->attendance_type == 'location_based') selected @endif>
+                                                                        {{ __('Location Based') }}</option>
+                                                                </select>
+                                                            @endif
                                                         </div>
 
                                                         {{-- <div class="col-md-4 form-group">
@@ -529,17 +598,20 @@
             this.value = formatCnicValue(this.value);
         });
 
+        var profileWorkReadonly = @json($profileWorkFieldsReadonly);
+
         $('select[name="gender"]').val($('input[name="gender_hidden"]').val());
-        $('#role_users_id').selectpicker('val', $('input[name="role_user_hidden"]').val());
         $('#marital_status').selectpicker('val', $('input[name="marital_status_hidden"]').val());
 
-        $('#company_id').selectpicker('val', $('input[name="company_id_hidden"]').val());
-        $('#department_id').selectpicker('val', $('input[name="department_id_hidden"]').val());
-        $('#designation_id').selectpicker('val', $('input[name="designation_id_hidden"]').val());
-
-        $('#status_id').selectpicker('val', $('input[name="status_id_hidden"]').val());
-        $('#office_shift_id').selectpicker('val', $('input[name="office_shift_id_hidden"]').val());
-        $('#location_id').selectpicker('val', $('input[name="location_id_hidden"]').val());
+        if (!profileWorkReadonly) {
+            $('#role_users_id').selectpicker('val', $('input[name="role_user_hidden"]').val());
+            $('#company_id').selectpicker('val', $('input[name="company_id_hidden"]').val());
+            $('#department_id').selectpicker('val', $('input[name="department_id_hidden"]').val());
+            $('#designation_id').selectpicker('val', $('input[name="designation_id_hidden"]').val());
+            $('#status_id').selectpicker('val', $('input[name="status_id_hidden"]').val());
+            $('#office_shift_id').selectpicker('val', $('input[name="office_shift_id_hidden"]').val());
+            $('#location_id').selectpicker('val', $('input[name="location_id_hidden"]').val());
+        }
 
 
         $(document).ready(function() {
