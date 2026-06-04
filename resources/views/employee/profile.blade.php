@@ -18,458 +18,561 @@
     @php
         $profileWorkFieldsReadonly = isset($workFieldsReadonly)
             ? (bool) $workFieldsReadonly
-            : (
-                auth()->id() === (int) $employee->id
-                && ! (
-                    (int) auth()->user()->role_users_id === 1
-                    && auth()->user()->can('modify-details-employee')
-                )
-            );
+            : auth()->id() === (int) $employee->id &&
+                !((int) auth()->user()->role_users_id === 1 && auth()->user()->can('modify-details-employee'));
     @endphp
     <section>
-        
-           <div class="container-fluid">
-                <div class="card">
-                    <div class="card-body">
-                        <div class="text-center">
-                            <h2>{{ $employee->user->username }}</h2>
-                        </div>
-                        <ul class="nav nav-tabs d-flex flex-wrap" id="profileMainTabs" role="tablist">
-                            <li class="nav-item">
-                                <a class="nav-link active" id="general-tab" data-toggle="tab" href="#General" role="tab"
-                                    aria-controls="General" aria-selected="true">{{ trans('file.General') }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="leave-tab" data-toggle="tab" href="#Leave" role="tab"
-                                    aria-controls="Leave" aria-selected="false">{{ trans('file.Leave') }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="wfh-tab" data-toggle="tab" href="#WFH" role="tab"
-                                    aria-controls="WFH" aria-selected="false">WFH</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="employee_award-tab" data-toggle="tab" href="#Employee_award" role="tab"
-                                    aria-controls="Employee_award" aria-selected="false">{{ trans('file.Award') }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="employee_project_task-tab" data-toggle="tab" href="#Employee_project_task" role="tab"
-                                    aria-controls="Employee_project_task" aria-selected="false">{{ trans('file.Project') }} &amp; {{ trans('file.Task') }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="employee_travel-tab" data-toggle="tab" href="#Profile_travel" role="tab"
-                                    aria-controls="Profile_travel" aria-selected="false">{{ trans('file.Travel') }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="employee_complain-tab" data-toggle="tab" href="#Employee_complain" role="tab"
-                                    aria-controls="Employee_complain" aria-selected="false">{{ __('Complain') }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="employee_payslip-tab" data-toggle="tab" href="#Employee_Payslip" role="tab"
-                                    aria-controls="Employee_Payslip" aria-selected="false">{{ trans('file.Payslip') }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="remainingLeaveType-tab" data-toggle="tab" href="#remainingLeaveType" role="tab"
-                                    aria-controls="remainingLeaveType" aria-selected="false">{{ trans('file.Remaining Leave') }}</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" id="activity-log-tab" data-toggle="tab" href="#ActivityLog" role="tab"
-                                    aria-controls="ActivityLog" aria-selected="false">{{ __('Activity Log') }}</a>
-                            </li>
-                        </ul>
-                        <div class="row">
-                            <div class="col-md-12">
-                                <div class="tab-content" id="myTabContent">
-                                    <div class="tab-pane fade show active" id="General" role="tabpanel"
-                                        aria-labelledby="general-tab">
-                                                <!--Contents for General / Basic starts here-->
-                                                {{ __('Basic Information') }}
-                                                <hr>
-                                                <span id="form_result"></span>
-                                                <form method="post" id="basic_sample_form" class="form-horizontal"
-                                                    enctype="multipart/form-data" autocomplete="off">
 
-                                                    @csrf
-                                                    @php
-                                                        $workRo = $profileWorkFieldsReadonly;
-                                                        $companyLabel = optional($companies->firstWhere('id', $employee->company_id))->company_name ?? '—';
-                                                        $departmentLabel = optional($departments->firstWhere('id', $employee->department_id))->department_name ?? '—';
-                                                        $designationLabel = optional($designations->firstWhere('id', $employee->designation_id))->designation_name ?? '—';
-                                                        $roleLabel = optional($roles->firstWhere('id', $employee->role_users_id))->name ?? '—';
-                                                        $statusLabel = optional($statuses->firstWhere('id', $employee->status_id))->status_title ?? '—';
-                                                        $shiftLabel = optional($office_shifts->firstWhere('id', $employee->office_shift_id))->shift_name ?? '—';
-                                                        $locationLabel = optional($locations->firstWhere('id', $employee->location_id))->location_name ?? '—';
-                                                        $attendanceLabel = $employee->attendance_type === 'location_based' ? __('Location Based') : __('General');
-                                                    @endphp
-                                                    <div class="row">
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ __('Image') }} *</label>
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-body">
+                    <div class="text-center">
+                        <h2>{{ $employee->user->username }}</h2>
+                    </div>
+                    <ul class="nav nav-tabs d-flex flex-wrap" id="profileMainTabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" id="general-tab" data-toggle="tab" href="#General" role="tab"
+                                aria-controls="General" aria-selected="true">{{ trans('file.General') }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="leave-tab" data-toggle="tab" href="#Leave" role="tab"
+                                aria-controls="Leave" aria-selected="false">{{ trans('file.Leave') }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="wfh-tab" data-toggle="tab" href="#WFH" role="tab"
+                                aria-controls="WFH" aria-selected="false">WFH</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="employee_award-tab" data-toggle="tab" href="#Employee_award"
+                                role="tab" aria-controls="Employee_award"
+                                aria-selected="false">{{ trans('file.Award') }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="employee_project_task-tab" data-toggle="tab"
+                                href="#Employee_project_task" role="tab" aria-controls="Employee_project_task"
+                                aria-selected="false">{{ trans('file.Project') }} &amp; {{ trans('file.Task') }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="employee_travel-tab" data-toggle="tab" href="#Profile_travel"
+                                role="tab" aria-controls="Profile_travel"
+                                aria-selected="false">{{ trans('file.Travel') }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="employee_complain-tab" data-toggle="tab" href="#Employee_complain"
+                                role="tab" aria-controls="Employee_complain"
+                                aria-selected="false">{{ __('Complain') }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="employee_payslip-tab" data-toggle="tab" href="#Employee_Payslip"
+                                role="tab" aria-controls="Employee_Payslip"
+                                aria-selected="false">{{ trans('file.Payslip') }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="remainingLeaveType-tab" data-toggle="tab" href="#remainingLeaveType"
+                                role="tab" aria-controls="remainingLeaveType"
+                                aria-selected="false">{{ trans('file.Remaining Leave') }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="activity-log-tab" data-toggle="tab" href="#ActivityLog" role="tab"
+                                aria-controls="ActivityLog" aria-selected="false">{{ __('Activity Log') }}</a>
+                        </li>
+                    </ul>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="tab-content" id="myTabContent">
+                                <div class="tab-pane fade show active" id="General" role="tabpanel"
+                                    aria-labelledby="general-tab">
+                                    <!--Contents for General / Basic starts here-->
+                                    {{ __('Basic Information') }}
+                                    <hr>
+                                    <span id="form_result"></span>
+                                    <form method="post" id="basic_sample_form" class="form-horizontal"
+                                        enctype="multipart/form-data" autocomplete="off">
 
-                                                            <input type="hidden" name="employee_username"
-                                                                value="{{ $employee->user->username }}">
+                                        @csrf
+                                        @php
+                                            $workRo = $profileWorkFieldsReadonly;
+                                            $companyLabel =
+                                                optional($companies->firstWhere('id', $employee->company_id))
+                                                    ->company_name ?? '—';
+                                            $departmentLabel =
+                                                optional($departments->firstWhere('id', $employee->department_id))
+                                                    ->department_name ?? '—';
+                                            $designationLabel =
+                                                optional($designations->firstWhere('id', $employee->designation_id))
+                                                    ->designation_name ?? '—';
+                                            $roleLabel =
+                                                optional($roles->firstWhere('id', $employee->role_users_id))->name ??
+                                                '—';
+                                            $statusLabel =
+                                                optional($statuses->firstWhere('id', $employee->status_id))
+                                                    ->status_title ?? '—';
+                                            $shiftLabel =
+                                                optional($office_shifts->firstWhere('id', $employee->office_shift_id))
+                                                    ->shift_name ?? '—';
+                                            $locationLabel =
+                                                optional($locations->firstWhere('id', $employee->location_id))
+                                                    ->location_name ?? '—';
+                                            $attendanceLabel =
+                                                $employee->attendance_type === 'location_based'
+                                                    ? __('Location Based')
+                                                    : __('General');
+                                        @endphp
+                                        <div class="row">
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ __('Image') }} *</label>
 
-                                                            {{-- Preview + text --}}
-                                                            <div class="d-flex align-items-center mb-2">
+                                                <input type="hidden" name="employee_username"
+                                                    value="{{ $employee->user->username }}">
 
-                                                                <img src="{{ url('uploads/profile_photos', $employee->user->profile_photo) }}"
-                                                                    height="100" width="100">
+                                                {{-- Preview + text --}}
+                                                <div class="d-flex align-items-center mb-2">
 
-                                                                <div style="font-size: 13px; color: #777;">
-                                                                    ({{ trans('file.gif,jpg,png,jpeg') }})
-                                                                </div>
-                                                            </div>
+                                                    @if (!empty($employee->user->profile_photo))
+                                                        <img src="{{ url('uploads/profile_photos', $employee->user->profile_photo) }}"
+                                                            height="100" width="100"
+                                                            style="border-radius:50%;object-fit:cover;">
+                                                    @else
+                                                        @php
+                                                            $name = trim(
+                                                                ($employee->first_name ?? '') .
+                                                                    ' ' .
+                                                                    ($employee->last_name ?? ''),
+                                                            );
 
-                                                            {{-- File Input --}}
-                                                            <input type="file" accept="image/*"
-                                                                id="profile_photo"
-                                                                class="form-control @error('photo') is-invalid @enderror"
-                                                                name="profile_photo">
+                                                            if (empty($name)) {
+                                                                $name = $employee->user->username ?? 'User';
+                                                            }
+
+                                                            $words = explode(' ', $name);
+
+                                                            $initials = strtoupper(substr($words[0], 0, 1));
+
+                                                            if (count($words) > 1) {
+                                                                $initials .= strtoupper(substr($words[1], 0, 1));
+                                                            }
+                                                        @endphp
+
+                                                        <div
+                                                            style="
+            width:100px;
+            height:100px;
+            border-radius:50%;
+            background:#7C5CC4;
+            color:#fff;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:32px;
+            font-weight:700;
+        ">
+                                                            {{ $initials }}
                                                         </div>
+                                                    @endif
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ __('First Name') }} <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="first_name" id="first_name"
-                                                                placeholder="{{ __('First Name') }}" required
-                                                                class="form-control" value="{{ $employee->first_name }}">
-                                                        </div>
+                                                    <div style="font-size:13px;color:#777;margin-left:10px;">
+                                                        ({{ trans('file.gif,jpg,png,jpeg') }})
+                                                    </div>
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ __('Last Name') }} <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="last_name" id="last_name"
-                                                                placeholder="{{ __('Last Name') }}" required
-                                                                class="form-control" value="{{ $employee->last_name }}">
-                                                        </div>
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ __('Staff Id') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
-                                                            @if($workRo)
-                                                                <input type="hidden" name="staff_id" value="{{ $employee->staff_id }}">
-                                                                <input type="text" readonly class="form-control bg-light" value="{{ $employee->staff_id }}">
-                                                            @else
-                                                                <input type="text" name="staff_id" id="staff_id"
-                                                                    placeholder="{{ __('Staff Id') }}" required
-                                                                    class="form-control" value="{{ $employee->staff_id }}">
-                                                            @endif
-                                                        </div>
+                                                </div>
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.Username') }} <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="username" id="username"
-                                                                placeholder="{{ trans('file.Username') }}" required
-                                                                class="form-control" value="{{ $employee->user->username }}">
-                                                        </div>
+                                                {{-- File Input --}}
+                                                <input type="file" accept="image/*" id="profile_photo"
+                                                    class="form-control @error('photo') is-invalid @enderror"
+                                                    name="profile_photo">
+                                            </div>
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.Email') }}</label>
-                                                            <input type="text" name="email" id="email"
-                                                                placeholder="{{ trans('file.Email') }}" class="form-control"
-                                                                value="{{ $employee->email }}">
-                                                        </div>
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ __('First Name') }} <span class="text-danger">*</span></label>
+                                                <input type="text" name="first_name" id="first_name"
+                                                    placeholder="{{ __('First Name') }}" required class="form-control"
+                                                    value="{{ $employee->first_name }}">
+                                            </div>
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.Phone') }} <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="contact_no" id="contact_no"
-                                                                placeholder="{{ trans('file.Phone') }}" required
-                                                                class="form-control" value="{{ $employee->contact_no }}">
-                                                        </div>
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ __('Last Name') }} <span class="text-danger">*</span></label>
+                                                <input type="text" name="last_name" id="last_name"
+                                                    placeholder="{{ __('Last Name') }}" required class="form-control"
+                                                    value="{{ $employee->last_name }}">
+                                            </div>
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ __('Staff Id') }} @if (!$workRo)
+                                                        <span class="text-danger">*</span>
+                                                    @endif
+                                                </label>
+                                                @if ($workRo)
+                                                    <input type="hidden" name="staff_id"
+                                                        value="{{ $employee->staff_id }}">
+                                                    <input type="text" readonly class="form-control bg-light"
+                                                        value="{{ $employee->staff_id }}">
+                                                @else
+                                                    <input type="text" name="staff_id" id="staff_id"
+                                                        placeholder="{{ __('Staff Id') }}" required class="form-control"
+                                                        value="{{ $employee->staff_id }}">
+                                                @endif
+                                            </div>
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ __('CNIC') }} <span class="text-danger">*</span></label>
-                                                            <input type="text" name="cnic" id="cnic"
-                                                                class="form-control cnic-input"
-                                                                placeholder="35201-1234567-1" maxlength="15"
-                                                                autocomplete="off" inputmode="numeric" required
-                                                                value="{{ $employee->cnic }}">
-                                                            <small class="text-muted">{{ __('Format: 12345-1234567-1') }}</small>
-                                                        </div>
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ trans('file.Username') }} <span
+                                                        class="text-danger">*</span></label>
+                                                <input type="text" name="username" id="username"
+                                                    placeholder="{{ trans('file.Username') }}" required
+                                                    class="form-control" value="{{ $employee->user->username }}">
+                                            </div>
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.Address') }} </label>
-                                                            <input type="text" name="address" id="address"
-                                                                placeholder="Address" value="{{ $employee->address }}"
-                                                                class="form-control">
-                                                        </div>
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ trans('file.Email') }}</label>
+                                                <input type="text" name="email" id="email"
+                                                    placeholder="{{ trans('file.Email') }}" class="form-control"
+                                                    value="{{ $employee->email }}">
+                                            </div>
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.City') }} </label>
-                                                            <input type="text" name="city" id="city"
-                                                                placeholder="{{ trans('file.City') }}"
-                                                                value="{{ $employee->city }}" class="form-control">
-                                                        </div>
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ trans('file.Phone') }} <span
+                                                        class="text-danger">*</span></label>
+                                                <input type="text" name="contact_no" id="contact_no"
+                                                    placeholder="{{ trans('file.Phone') }}" required class="form-control"
+                                                    value="{{ $employee->contact_no }}">
+                                            </div>
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.State/Province') }}
-                                                            </label>
-                                                            <input type="text" name="state" id="state"
-                                                                placeholder="{{ trans('file.State/Province') }}"
-                                                                value="{{ $employee->state }}" class="form-control">
-                                                        </div>
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ __('CNIC') }} <span class="text-danger">*</span></label>
+                                                <input type="text" name="cnic" id="cnic"
+                                                    class="form-control cnic-input" placeholder="35201-1234567-1"
+                                                    maxlength="15" autocomplete="off" inputmode="numeric" required
+                                                    value="{{ $employee->cnic }}">
+                                                <small class="text-muted">{{ __('Format: 12345-1234567-1') }}</small>
+                                            </div>
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.ZIP') }} </label>
-                                                            <input type="text" name="zip_code" id="zip_code"
-                                                                placeholder="{{ trans('file.ZIP') }}"
-                                                                value="{{ $employee->zip_code }}" class="form-control">
-                                                        </div>
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ trans('file.Address') }} </label>
+                                                <input type="text" name="address" id="address"
+                                                    placeholder="Address" value="{{ $employee->address }}"
+                                                    class="form-control">
+                                            </div>
+
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ trans('file.City') }} </label>
+                                                <input type="text" name="city" id="city"
+                                                    placeholder="{{ trans('file.City') }}" value="{{ $employee->city }}"
+                                                    class="form-control">
+                                            </div>
+
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ trans('file.State/Province') }}
+                                                </label>
+                                                <input type="text" name="state" id="state"
+                                                    placeholder="{{ trans('file.State/Province') }}"
+                                                    value="{{ $employee->state }}" class="form-control">
+                                            </div>
+
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ trans('file.ZIP') }} </label>
+                                                <input type="text" name="zip_code" id="zip_code"
+                                                    placeholder="{{ trans('file.ZIP') }}"
+                                                    value="{{ $employee->zip_code }}" class="form-control">
+                                            </div>
 
 
-                                                        <div class="col-md-4">
-                                                            <div class="form-group">
-                                                                <label>{{ trans('file.Country') }}</label>
-                                                                <select name="country" id="country"
-                                                                    class="form-control selectpicker" data-live-search="true"
-                                                                    data-live-search-style="contains"
-                                                                    title="{{ __('Selecting', ['key' => trans('file.Country')]) }}...">
-                                                                    @foreach ($countries as $country)
-                                                                        <option value="{{ $country->id }}"
-                                                                            {{ $employee->country == $country->id ? 'selected' : '' }}>
-                                                                            {{ $country->name }}</option>
-                                                                    @endforeach
-                                                                </select>
-                                                            </div>
-                                                        </div>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label>{{ trans('file.Country') }}</label>
+                                                    <select name="country" id="country"
+                                                        class="form-control selectpicker" data-live-search="true"
+                                                        data-live-search-style="contains"
+                                                        title="{{ __('Selecting', ['key' => trans('file.Country')]) }}...">
+                                                        @foreach ($countries as $country)
+                                                            <option value="{{ $country->id }}"
+                                                                {{ $employee->country == $country->id ? 'selected' : '' }}>
+                                                                {{ $country->name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                            </div>
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ __('Date Of Birth') }} <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="date_of_birth" id="date_of_birth"
-                                                                required autocomplete="off" class="form-control date"
-                                                                value="{{ $employee->date_of_birth }}">
-                                                        </div>
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ __('Date Of Birth') }} <span
+                                                        class="text-danger">*</span></label>
+                                                <input type="text" name="date_of_birth" id="date_of_birth" required
+                                                    autocomplete="off" class="form-control date"
+                                                    value="{{ $employee->date_of_birth }}">
+                                            </div>
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.Gender') }}</label>
-                                                            <input type="hidden" name="gender_hidden"
-                                                                value="{{ $employee->gender }}" />
-                                                            <select name="gender" id="gender"
-                                                                class="selectpicker form-control" data-live-search="true"
-                                                                data-live-search-style="contains"
-                                                                title="{{ __('Selecting', ['key' => trans('file.Gender')]) }}...">
-                                                                <option value="Male">{{ trans('file.Male') }}</option>
-                                                                <option value="Female">{{ trans('file.Female') }}</option>
-                                                                <option value="Other">{{ trans('file.Other') }}</option>
-                                                            </select>
-                                                        </div>
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ trans('file.Gender') }}</label>
+                                                <input type="hidden" name="gender_hidden"
+                                                    value="{{ $employee->gender }}" />
+                                                <select name="gender" id="gender" class="selectpicker form-control"
+                                                    data-live-search="true" data-live-search-style="contains"
+                                                    title="{{ __('Selecting', ['key' => trans('file.Gender')]) }}...">
+                                                    <option value="Male">{{ trans('file.Male') }}</option>
+                                                    <option value="Female">{{ trans('file.Female') }}</option>
+                                                    <option value="Other">{{ trans('file.Other') }}</option>
+                                                </select>
+                                            </div>
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ __('Marital Status') }}</label>
-                                                            <input type="hidden" name="marital_status_hidden"
-                                                                value="{{ $employee->marital_status }}" />
-                                                            <select name="marital_status" id="marital_status"
-                                                                class="selectpicker form-control" data-live-search="true"
-                                                                data-live-search-style="contains"
-                                                                title="{{ __('Selecting', ['key' => __('Marital Status')]) }}...">
-                                                                <option value="single">{{ trans('file.Single') }}</option>
-                                                                <option value="married">{{ trans('file.Married') }}</option>
-                                                                <option value="widowed">{{ trans('file.Widowed') }}</option>
-                                                                <option value="divorced">
-                                                                    {{ trans('file.Divorced/Separated') }}</option>
-                                                            </select>
-                                                        </div>
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ __('Marital Status') }}</label>
+                                                <input type="hidden" name="marital_status_hidden"
+                                                    value="{{ $employee->marital_status }}" />
+                                                <select name="marital_status" id="marital_status"
+                                                    class="selectpicker form-control" data-live-search="true"
+                                                    data-live-search-style="contains"
+                                                    title="{{ __('Selecting', ['key' => __('Marital Status')]) }}...">
+                                                    <option value="single">{{ trans('file.Single') }}</option>
+                                                    <option value="married">{{ trans('file.Married') }}</option>
+                                                    <option value="widowed">{{ trans('file.Widowed') }}</option>
+                                                    <option value="divorced">
+                                                        {{ trans('file.Divorced/Separated') }}</option>
+                                                </select>
+                                            </div>
 
-                                                        @if($workRo)
-                                                            <div class="col-md-12">
-                                                                <hr>
-                                                                <p class="text-muted mb-2"><i>{{ __('Work information') }}</i> — {{ __('Managed by HR (read only)') }}</p>
-                                                            </div>
+                                            @if ($workRo)
+                                                <div class="col-md-12">
+                                                    <hr>
+                                                    <p class="text-muted mb-2"><i>{{ __('Work information') }}</i> —
+                                                        {{ __('Managed by HR (read only)') }}</p>
+                                                </div>
+                                            @endif
+
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label>{{ trans('file.Company') }} @if (!$workRo)
+                                                            <span class="text-danger">*</span>
                                                         @endif
+                                                    </label>
+                                                    @if ($workRo)
+                                                        <input type="hidden" name="company_id"
+                                                            value="{{ $employee->company_id }}">
+                                                        <input type="text" readonly class="form-control bg-light"
+                                                            value="{{ $companyLabel }}">
+                                                    @else
+                                                        <input type="hidden" name="company_id_hidden"
+                                                            value="{{ $employee->company_id }}" />
+                                                        <select name="company_id" id="company_id"
+                                                            class="form-control selectpicker dynamic"
+                                                            data-live-search="true" data-live-search-style="contains"
+                                                            data-dependent="department_name" data-shift_name="shift_name"
+                                                            title="{{ __('Selecting', ['key' => trans('file.Company')]) }}...">
+                                                            @foreach ($companies as $company)
+                                                                <option value="{{ $company->id }}">
+                                                                    {{ $company->company_name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    @endif
+                                                </div>
+                                            </div>
 
-                                                        <div class="col-md-4">
-                                                            <div class="form-group">
-                                                                <label>{{ trans('file.Company') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
-                                                                @if($workRo)
-                                                                    <input type="hidden" name="company_id" value="{{ $employee->company_id }}">
-                                                                    <input type="text" readonly class="form-control bg-light" value="{{ $companyLabel }}">
-                                                                @else
-                                                                    <input type="hidden" name="company_id_hidden"
-                                                                        value="{{ $employee->company_id }}" />
-                                                                    <select name="company_id" id="company_id"
-                                                                        class="form-control selectpicker dynamic"
-                                                                        data-live-search="true" data-live-search-style="contains"
-                                                                        data-dependent="department_name"
-                                                                        data-shift_name="shift_name"
-                                                                        title="{{ __('Selecting', ['key' => trans('file.Company')]) }}...">
-                                                                        @foreach ($companies as $company)
-                                                                            <option value="{{ $company->id }}">
-                                                                                {{ $company->company_name }}</option>
-                                                                        @endforeach
-                                                                    </select>
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label>{{ trans('file.Department') }} @if (!$workRo)
+                                                            <span class="text-danger">*</span>
+                                                        @endif
+                                                    </label>
+                                                    @if ($workRo)
+                                                        <input type="hidden" name="department_id"
+                                                            value="{{ $employee->department_id }}">
+                                                        <input type="text" readonly class="form-control bg-light"
+                                                            value="{{ $departmentLabel }}">
+                                                    @else
+                                                        <input type="hidden" name="department_id_hidden"
+                                                            value="{{ $employee->department_id }}" />
+                                                        <select name="department_id" id="department_id"
+                                                            class="selectpicker form-control designation"
+                                                            data-live-search="true" data-live-search-style="contains"
+                                                            data-designation_name="designation_name"
+                                                            title="{{ __('Selecting', ['key' => trans('file.Department')]) }}...">
+                                                            @foreach ($departments as $department)
+                                                                <option value="{{ $department->id }}">
+                                                                    {{ $department->department_name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    @endif
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ trans('file.Designation') }} @if (!$workRo)
+                                                        <span class="text-danger">*</span>
+                                                    @endif
+                                                </label>
+                                                @if ($workRo)
+                                                    <input type="hidden" name="designation_id"
+                                                        value="{{ $employee->designation_id }}">
+                                                    <input type="text" readonly class="form-control bg-light"
+                                                        value="{{ $designationLabel }}">
+                                                @else
+                                                    <input type="hidden" name="designation_id_hidden"
+                                                        value="{{ $employee->designation_id }}" />
+                                                    <select name="designation_id" id="designation_id"
+                                                        class="selectpicker form-control" data-live-search="true"
+                                                        data-live-search-style="contains"
+                                                        title="{{ __('Selecting', ['key' => trans('file.Designation')]) }}...">
+                                                        @foreach ($designations as $designation)
+                                                            <option value="{{ $designation->id }}">
+                                                                {{ $designation->designation_name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                @endif
+                                            </div>
+
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ trans('file.Role') }} @if (!$workRo)
+                                                        <span class="text-danger">*</span>
+                                                    @endif
+                                                </label>
+                                                @if ($workRo)
+                                                    <input type="text" readonly class="form-control bg-light"
+                                                        value="{{ $roleLabel }}">
+                                                @else
+                                                    <input type="hidden" name="role_user_hidden"
+                                                        value="{{ $employee->role_users_id }}" />
+                                                    <select name="role_users_id" id="role_users_id" required
+                                                        class="selectpicker form-control" data-live-search="true"
+                                                        data-live-search-style="contains"
+                                                        title="{{ __('Selecting', ['key' => trans('file.Role')]) }}...">
+                                                        @foreach ($roles as $item)
+                                                            <option value="{{ $item->id }}">{{ $item->name }}
+                                                            </option>
+                                                        @endforeach
+                                                    </select>
+                                                @endif
+                                            </div>
+
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label>{{ trans('file.Status') }} @if (!$workRo)
+                                                            <span class="text-danger">*</span>
+                                                        @endif
+                                                    </label>
+                                                    @if ($workRo)
+                                                        <input type="hidden" name="status_id"
+                                                            value="{{ $employee->status_id }}">
+                                                        <input type="text" readonly class="form-control bg-light"
+                                                            value="{{ $statusLabel }}">
+                                                    @else
+                                                        <input type="hidden" name="status_id_hidden"
+                                                            value="{{ $employee->status_id }}" />
+                                                        <select name="status_id" id="status_id" required
+                                                            class="form-control selectpicker" data-live-search="true"
+                                                            data-live-search-style="contains"
+                                                            title="{{ __('Selecting', ['key' => trans('file.Status')]) }}...">
+                                                            @foreach ($statuses as $status)
+                                                                <option value="{{ $status->id }}">
+                                                                    {{ $status->status_title }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    @endif
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ trans('file.Office_Shift') }} @if (!$workRo)
+                                                        <span class="text-danger">*</span>
+                                                    @endif
+                                                </label>
+                                                @if ($workRo)
+                                                    <input type="hidden" name="office_shift_id"
+                                                        value="{{ $employee->office_shift_id }}">
+                                                    <input type="text" readonly class="form-control bg-light"
+                                                        value="{{ $shiftLabel }}">
+                                                @else
+                                                    <input type="hidden" name="office_shift_id_hidden"
+                                                        value="{{ $employee->office_shift_id }}" />
+                                                    <select name="office_shift_id" id="office_shift_id"
+                                                        class="selectpicker form-control" data-live-search="true"
+                                                        data-live-search-style="contains"
+                                                        title="{{ __('Selecting', ['key' => trans('file.Office Shift')]) }}...">
+                                                        @foreach ($office_shifts as $office_shift)
+                                                            <option value="{{ $office_shift->id }}">
+                                                                {{ $office_shift->shift_name }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                @endif
+                                            </div>
+
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ trans('file.Location') }}</label>
+                                                @if ($workRo)
+                                                    <input type="hidden" name="location_id"
+                                                        value="{{ $employee->location_id }}">
+                                                    <input type="text" readonly class="form-control bg-light"
+                                                        value="{{ $locationLabel }}">
+                                                @else
+                                                    <input type="hidden" name="location_id_hidden"
+                                                        value="{{ $employee->location_id }}" />
+                                                    <select name="location_id" id="location_id"
+                                                        class="selectpicker form-control" data-live-search="true"
+                                                        data-live-search-style="contains"
+                                                        title="{{ __('Selecting', ['key' => trans('file.Location')]) }}...">
+                                                        @foreach ($locations as $location)
+                                                            <option value="{{ $location->id }}">
+                                                                {{ $location->location_name }}
+                                                                @if ($location->max_radius)
+                                                                    ({{ $location->max_radius }}m)
                                                                 @endif
-                                                            </div>
-                                                        </div>
+                                                            </option>
+                                                        @endforeach
+                                                    </select>
+                                                @endif
+                                            </div>
 
-                                                        <div class="col-md-4">
-                                                            <div class="form-group">
-                                                                <label>{{ trans('file.Department') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
-                                                                @if($workRo)
-                                                                    <input type="hidden" name="department_id" value="{{ $employee->department_id }}">
-                                                                    <input type="text" readonly class="form-control bg-light" value="{{ $departmentLabel }}">
-                                                                @else
-                                                                    <input type="hidden" name="department_id_hidden"
-                                                                        value="{{ $employee->department_id }}" />
-                                                                    <select name="department_id" id="department_id"
-                                                                        class="selectpicker form-control designation"
-                                                                        data-live-search="true" data-live-search-style="contains"
-                                                                        data-designation_name="designation_name"
-                                                                        title="{{ __('Selecting', ['key' => trans('file.Department')]) }}...">
-                                                                        @foreach ($departments as $department)
-                                                                            <option value="{{ $department->id }}">
-                                                                                {{ $department->department_name }}</option>
-                                                                        @endforeach
-                                                                    </select>
-                                                                @endif
-                                                            </div>
-                                                        </div>
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ __('Date Of Joining') }} @if (!$workRo)
+                                                        <span class="text-danger">*</span>
+                                                    @endif
+                                                </label>
+                                                @if ($workRo)
+                                                    <input type="hidden" name="joining_date"
+                                                        value="{{ $employee->joining_date }}">
+                                                    <input type="text" readonly class="form-control bg-light"
+                                                        value="{{ $employee->joining_date }}">
+                                                @else
+                                                    <input type="text" name="joining_date" id="joining_date"
+                                                        autocomplete="off" class="form-control date"
+                                                        value="{{ $employee->joining_date }}">
+                                                @endif
+                                            </div>
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.Designation') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
-                                                            @if($workRo)
-                                                                <input type="hidden" name="designation_id" value="{{ $employee->designation_id }}">
-                                                                <input type="text" readonly class="form-control bg-light" value="{{ $designationLabel }}">
-                                                            @else
-                                                                <input type="hidden" name="designation_id_hidden"
-                                                                    value="{{ $employee->designation_id }}" />
-                                                                <select name="designation_id" id="designation_id"
-                                                                    class="selectpicker form-control" data-live-search="true"
-                                                                    data-live-search-style="contains"
-                                                                    title="{{ __('Selecting', ['key' => trans('file.Designation')]) }}...">
-                                                                    @foreach ($designations as $designation)
-                                                                        <option value="{{ $designation->id }}">
-                                                                            {{ $designation->designation_name }}</option>
-                                                                    @endforeach
-                                                                </select>
-                                                            @endif
-                                                        </div>
+                                            <div class="col-md-4 form-group">
+                                                <label>{{ __('Date Of Leaving') }}</label>
+                                                @if ($workRo)
+                                                    <input type="hidden" name="exit_date"
+                                                        value="{{ $employee->exit_date }}">
+                                                    <input type="text" readonly class="form-control bg-light"
+                                                        value="{{ $employee->exit_date ?: '—' }}">
+                                                @else
+                                                    <input type="text" name="exit_date" id="exit_date"
+                                                        class="form-control date" value="{{ $employee->exit_date }}">
+                                                @endif
+                                            </div>
 
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.Role') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
-                                                            @if($workRo)
-                                                                <input type="text" readonly class="form-control bg-light" value="{{ $roleLabel }}">
-                                                            @else
-                                                                <input type="hidden" name="role_user_hidden"
-                                                                    value="{{ $employee->role_users_id }}" />
-                                                                <select name="role_users_id" id="role_users_id" required
-                                                                    class="selectpicker form-control" data-live-search="true"
-                                                                    data-live-search-style="contains"
-                                                                    title="{{ __('Selecting', ['key' => trans('file.Role')]) }}...">
-                                                                    @foreach ($roles as $item)
-                                                                        <option value="{{ $item->id }}">{{ $item->name }}</option>
-                                                                    @endforeach
-                                                                </select>
-                                                            @endif
-                                                        </div>
+                                            <div class="col-md-4 form-group">
+                                                <label class="text-bold">{{ __('Attendance Type') }} @if (!$workRo)
+                                                        <span class="text-danger">*</span>
+                                                    @endif
+                                                </label>
+                                                @if ($workRo)
+                                                    <input type="hidden" name="attendance_type"
+                                                        value="{{ $employee->attendance_type }}">
+                                                    <input type="text" readonly class="form-control bg-light"
+                                                        value="{{ $attendanceLabel }}">
+                                                @else
+                                                    <select name="attendance_type" id="attendance_type"
+                                                        class="selectpicker form-control" data-live-search="true"
+                                                        data-live-search-style="contains"
+                                                        title="{{ __('Select Login Type...') }}">
+                                                        <option value="general"
+                                                            @if ($employee->attendance_type == 'general') selected @endif>
+                                                            {{ __('General') }}</option>
+                                                        <option value="location_based"
+                                                            @if ($employee->attendance_type == 'location_based') selected @endif>
+                                                            {{ __('Location Based') }}</option>
+                                                    </select>
+                                                @endif
+                                            </div>
 
-                                                        <div class="col-md-4">
-                                                            <div class="form-group">
-                                                                <label>{{ trans('file.Status') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
-                                                                @if($workRo)
-                                                                    <input type="hidden" name="status_id" value="{{ $employee->status_id }}">
-                                                                    <input type="text" readonly class="form-control bg-light" value="{{ $statusLabel }}">
-                                                                @else
-                                                                    <input type="hidden" name="status_id_hidden"
-                                                                        value="{{ $employee->status_id }}" />
-                                                                    <select name="status_id" id="status_id" required
-                                                                        class="form-control selectpicker" data-live-search="true"
-                                                                        data-live-search-style="contains"
-                                                                        title="{{ __('Selecting', ['key' => trans('file.Status')]) }}...">
-                                                                        @foreach ($statuses as $status)
-                                                                            <option value="{{ $status->id }}">
-                                                                                {{ $status->status_title }}</option>
-                                                                        @endforeach
-                                                                    </select>
-                                                                @endif
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.Office_Shift') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
-                                                            @if($workRo)
-                                                                <input type="hidden" name="office_shift_id" value="{{ $employee->office_shift_id }}">
-                                                                <input type="text" readonly class="form-control bg-light" value="{{ $shiftLabel }}">
-                                                            @else
-                                                                <input type="hidden" name="office_shift_id_hidden"
-                                                                    value="{{ $employee->office_shift_id }}" />
-                                                                <select name="office_shift_id" id="office_shift_id"
-                                                                    class="selectpicker form-control" data-live-search="true"
-                                                                    data-live-search-style="contains"
-                                                                    title="{{ __('Selecting', ['key' => trans('file.Office Shift')]) }}...">
-                                                                    @foreach ($office_shifts as $office_shift)
-                                                                        <option value="{{ $office_shift->id }}">
-                                                                            {{ $office_shift->shift_name }}</option>
-                                                                    @endforeach
-                                                                </select>
-                                                            @endif
-                                                        </div>
-
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ trans('file.Location') }}</label>
-                                                            @if($workRo)
-                                                                <input type="hidden" name="location_id" value="{{ $employee->location_id }}">
-                                                                <input type="text" readonly class="form-control bg-light" value="{{ $locationLabel }}">
-                                                            @else
-                                                                <input type="hidden" name="location_id_hidden"
-                                                                       value="{{ $employee->location_id }}" />
-                                                                <select name="location_id" id="location_id"
-                                                                        class="selectpicker form-control" data-live-search="true"
-                                                                        data-live-search-style="contains"
-                                                                        title="{{ __('Selecting', ['key' => trans('file.Location')]) }}...">
-                                                                    @foreach ($locations as $location)
-                                                                        <option value="{{ $location->id }}">
-                                                                            {{ $location->location_name }}
-                                                                            @if($location->max_radius) ({{ $location->max_radius }}m) @endif
-                                                                        </option>
-                                                                    @endforeach
-                                                                </select>
-                                                            @endif
-                                                        </div>
-
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ __('Date Of Joining') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
-                                                            @if($workRo)
-                                                                <input type="hidden" name="joining_date" value="{{ $employee->joining_date }}">
-                                                                <input type="text" readonly class="form-control bg-light" value="{{ $employee->joining_date }}">
-                                                            @else
-                                                                <input type="text" name="joining_date" id="joining_date"
-                                                                    autocomplete="off" class="form-control date"
-                                                                    value="{{ $employee->joining_date }}">
-                                                            @endif
-                                                        </div>
-
-                                                        <div class="col-md-4 form-group">
-                                                            <label>{{ __('Date Of Leaving') }}</label>
-                                                            @if($workRo)
-                                                                <input type="hidden" name="exit_date" value="{{ $employee->exit_date }}">
-                                                                <input type="text" readonly class="form-control bg-light" value="{{ $employee->exit_date ?: '—' }}">
-                                                            @else
-                                                                <input type="text" name="exit_date" id="exit_date"
-                                                                    class="form-control date"
-                                                                    value="{{ $employee->exit_date }}">
-                                                            @endif
-                                                        </div>
-
-                                                        <div class="col-md-4 form-group">
-                                                            <label class="text-bold">{{ __('Attendance Type') }} @if(!$workRo)<span class="text-danger">*</span>@endif</label>
-                                                            @if($workRo)
-                                                                <input type="hidden" name="attendance_type" value="{{ $employee->attendance_type }}">
-                                                                <input type="text" readonly class="form-control bg-light" value="{{ $attendanceLabel }}">
-                                                            @else
-                                                                <select name="attendance_type" id="attendance_type"
-                                                                    class="selectpicker form-control" data-live-search="true"
-                                                                    data-live-search-style="contains"
-                                                                    title="{{ __('Select Login Type...') }}">
-                                                                    <option value="general"
-                                                                        @if ($employee->attendance_type == 'general') selected @endif>
-                                                                        {{ __('General') }}</option>
-                                                                    <option value="location_based"
-                                                                        @if ($employee->attendance_type == 'location_based') selected @endif>
-                                                                        {{ __('Location Based') }}</option>
-                                                                </select>
-                                                            @endif
-                                                        </div>
-
-                                                        {{-- <div class="col-md-4 form-group">
+                                            {{-- <div class="col-md-4 form-group">
                                                         <label>{{__('Total Annual Leave')}}  (Year - {{date('Y')}})</label>
                                                         <input type="number" min="0" name="total_leave" id="total_leave" autocomplete="off" class="form-control" value="{{$employee->total_leave}}">
                                                     </div>
@@ -480,98 +583,106 @@
                                                     </div> --}}
 
 
-                                                        {{-- <div class="col-md-4"></div> --}}
-                                                        <div class="col-md-4"></div>
+                                            {{-- <div class="col-md-4"></div> --}}
+                                            <div class="col-md-4"></div>
 
-                                                        <div class="mt-3 form-group row">
-                                                            <div class="form-group row mb-0">
-                                                                <div class="col-md-6 offset-md-4">
-                                                                    <button type="submit" class="btn btn-primary">
-                                                                        {{ trans('file.Save') }}
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
+                                            <div class="mt-3 form-group row">
+                                                <div class="form-group row mb-0">
+                                                    <div class="col-md-6 offset-md-4">
+                                                        <button type="submit" class="btn btn-primary">
+                                                            {{ trans('file.Save') }}
+                                                        </button>
                                                     </div>
-                                                </form>
-                                    </div>
-
-                                    <div class="tab-pane fade" id="Leave" role="tabpanel" aria-labelledby="leave-tab">
-                                        {{ __('Leave Info') }}
-                                        <hr>
-                                        @include('employee.leave.index')
-                                    </div>
-
-                                    <div class="tab-pane fade" id="WFH" role="tabpanel" aria-labelledby="wfh-tab">
-                                        {{ __('WFH') }}
-                                        <p class="text-muted small mb-0">{{ __('Work from home requests and approval status') }}</p>
-                                        <hr>
-                                        @include('employee.leave.wfh_index')
-                                    </div>
-
-                                    <div class="tab-pane fade" id="Employee_award" role="tabpanel" aria-labelledby="employee_award-tab">
-                                        {{ __('Award Info') }}
-                                        <hr>
-                                        @include('employee.core_hr.award.index')
-                                    </div>
-
-                                    <div class="tab-pane fade" id="Employee_project_task" role="tabpanel" aria-labelledby="employee_project_task-tab">
-                                        {{ trans('file.Project') }} &amp; {{ trans('file.Task') }}
-                                        <hr>
-                                        @include('employee.project_task.index')
-                                    </div>
-
-                                    <div class="tab-pane fade" id="Profile_travel" role="tabpanel" aria-labelledby="employee_travel-tab">
-                                        {{ trans('file.Travel') }}
-                                        <hr>
-                                        @include('employee.core_hr.travel.index_profile')
-                                    </div>
-
-                                    <div class="tab-pane fade" id="Employee_complain" role="tabpanel" aria-labelledby="employee_complain-tab">
-                                        {{ __('Complain') }}
-                                        <hr>
-                                        @include('employee.core_hr.ticket.index_profile')
-                                    </div>
-
-                                    <div class="tab-pane fade" id="Employee_Payslip" role="tabpanel" aria-labelledby="employee_payslip-tab">
-                                        {{ trans('file.Payslip') }}
-                                        <hr>
-                                        @include('employee.payslip.index')
-                                    </div>
-
-                                    <div class="tab-pane fade" id="remainingLeaveType" role="tabpanel" aria-labelledby="remainingLeaveType-tab">
-                                        {{ trans('file.Remaining Leave') }}
-                                        <hr>
-                                        @include('employee.remaining_leave.index')
-                                    </div>
-
-                                    <div class="tab-pane fade" id="ActivityLog" role="tabpanel" aria-labelledby="activity-log-tab">
-                                        {{ __('Activity Log') }}
-                                        <hr>
-                                        <div class="row mb-3">
-                                            <div class="col-md-4">
-                                                <input class="form-control date" placeholder="{{__('Select Date')}}" readonly id="activity_log_date" type="text">
+                                                </div>
                                             </div>
-                                            <div class="col-md-3">
-                                                <button type="button" class="btn btn-primary" id="activity_log_filter_btn">
-                                                    <i class="fa fa-search"></i> {{trans('file.Search')}}
-                                                </button>
-                                            </div>
+
                                         </div>
-                                        <div class="table-responsive">
-                                            <table id="profile-activity-log-table" class="table">
-                                                <thead>
+                                    </form>
+                                </div>
+
+                                <div class="tab-pane fade" id="Leave" role="tabpanel" aria-labelledby="leave-tab">
+                                    {{ __('Leave Info') }}
+                                    <hr>
+                                    @include('employee.leave.index')
+                                </div>
+
+                                <div class="tab-pane fade" id="WFH" role="tabpanel" aria-labelledby="wfh-tab">
+                                    {{ __('WFH') }}
+                                    <p class="text-muted small mb-0">
+                                        {{ __('Work from home requests and approval status') }}</p>
+                                    <hr>
+                                    @include('employee.leave.wfh_index')
+                                </div>
+
+                                <div class="tab-pane fade" id="Employee_award" role="tabpanel"
+                                    aria-labelledby="employee_award-tab">
+                                    {{ __('Award Info') }}
+                                    <hr>
+                                    @include('employee.core_hr.award.index')
+                                </div>
+
+                                <div class="tab-pane fade" id="Employee_project_task" role="tabpanel"
+                                    aria-labelledby="employee_project_task-tab">
+                                    {{ trans('file.Project') }} &amp; {{ trans('file.Task') }}
+                                    <hr>
+                                    @include('employee.project_task.index')
+                                </div>
+
+                                <div class="tab-pane fade" id="Profile_travel" role="tabpanel"
+                                    aria-labelledby="employee_travel-tab">
+                                    {{ trans('file.Travel') }}
+                                    <hr>
+                                    @include('employee.core_hr.travel.index_profile')
+                                </div>
+
+                                <div class="tab-pane fade" id="Employee_complain" role="tabpanel"
+                                    aria-labelledby="employee_complain-tab">
+                                    {{ __('Complain') }}
+                                    <hr>
+                                    @include('employee.core_hr.ticket.index_profile')
+                                </div>
+
+                                <div class="tab-pane fade" id="Employee_Payslip" role="tabpanel"
+                                    aria-labelledby="employee_payslip-tab">
+                                    {{ trans('file.Payslip') }}
+                                    <hr>
+                                    @include('employee.payslip.index')
+                                </div>
+
+                                <div class="tab-pane fade" id="remainingLeaveType" role="tabpanel"
+                                    aria-labelledby="remainingLeaveType-tab">
+                                    {{ trans('file.Remaining Leave') }}
+                                    <hr>
+                                    @include('employee.remaining_leave.index')
+                                </div>
+
+                                <div class="tab-pane fade" id="ActivityLog" role="tabpanel"
+                                    aria-labelledby="activity-log-tab">
+                                    {{ __('Activity Log') }}
+                                    <hr>
+                                    <div class="row mb-3">
+                                        <div class="col-md-4">
+                                            <input class="form-control date" placeholder="{{ __('Select Date') }}"
+                                                readonly id="activity_log_date" type="text">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <button type="button" class="btn btn-primary" id="activity_log_filter_btn">
+                                                <i class="fa fa-search"></i> {{ trans('file.Search') }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table id="profile-activity-log-table" class="table">
+                                            <thead>
                                                 <tr>
-                                                    <th>{{__('Action')}}</th>
-                                                    <th>{{__('Description')}}</th>
-                                                    <th>{{__('Performed By')}}</th>
-                                                    <th>{{__('IP Address')}}</th>
-                                                    <th>{{__('Date Time')}}</th>
+                                                    <th>{{ __('Action') }}</th>
+                                                    <th>{{ __('Description') }}</th>
+                                                    <th>{{ __('Performed By') }}</th>
+                                                    <th>{{ __('IP Address') }}</th>
+                                                    <th>{{ __('Date Time') }}</th>
                                                 </tr>
-                                                </thead>
-                                            </table>
-                                        </div>
+                                            </thead>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -579,6 +690,7 @@
                     </div>
                 </div>
             </div>
+        </div>
     </section>
 
 
@@ -594,7 +706,7 @@
             return digits.slice(0, 5) + '-' + digits.slice(5, 12) + '-' + digits.slice(12);
         }
 
-        $(document).on('input', '.cnic-input', function () {
+        $(document).on('input', '.cnic-input', function() {
             this.value = formatCnicValue(this.value);
         });
 
@@ -722,24 +834,38 @@
                         url: "{{ route('profile.activity_logs') }}",
                         data: {
                             activity_date: activity_date,
-                            "_token": "{{ csrf_token()}}"
+                            "_token": "{{ csrf_token() }}"
                         }
                     },
-                    columns: [
-                        { data: 'action', name: 'action' },
-                        { data: 'description', name: 'description' },
-                        { data: 'performed_by', name: 'performed_by' },
-                        { data: 'ip_address', name: 'ip_address' },
-                        { data: 'created_at', name: 'created_at' },
+                    columns: [{
+                            data: 'action',
+                            name: 'action'
+                        },
+                        {
+                            data: 'description',
+                            name: 'description'
+                        },
+                        {
+                            data: 'performed_by',
+                            name: 'performed_by'
+                        },
+                        {
+                            data: 'ip_address',
+                            name: 'ip_address'
+                        },
+                        {
+                            data: 'created_at',
+                            name: 'created_at'
+                        },
                     ],
                     order: [],
                     language: {
-                        lengthMenu: '_MENU_ {{__("records per page")}}',
-                        info: '{{trans("file.Showing")}} _START_ - _END_ (_TOTAL_)',
-                        search: '{{trans("file.Search")}}',
+                        lengthMenu: '_MENU_ {{ __('records per page') }}',
+                        info: '{{ trans('file.Showing') }} _START_ - _END_ (_TOTAL_)',
+                        search: '{{ trans('file.Search') }}',
                         paginate: {
-                            previous: '{{trans("file.Previous")}}',
-                            next: '{{trans("file.Next")}}'
+                            previous: '{{ trans('file.Previous') }}',
+                            next: '{{ trans('file.Next') }}'
                         }
                     },
                 });
@@ -886,7 +1012,7 @@
         //     }
         // });
 
-        (function () {
+        (function() {
             var h = window.location.hash;
             if (!h) {
                 return;
