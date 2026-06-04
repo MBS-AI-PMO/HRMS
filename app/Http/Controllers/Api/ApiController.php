@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\Country;
 use App\Models\department;
 use App\Models\Employee;
 use App\Models\EmployeeActivityLog;
@@ -304,7 +305,7 @@ class ApiController extends Controller
 
             return response()->json([
                 'status' => true,
-                'data' => $employee,
+                'data' => $this->formatEmployeeForProfileApi($employee),
             ]);
         } catch (Throwable $e) {
             return response()->json([
@@ -313,6 +314,40 @@ class ApiController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Profile / mobile app: human-readable labels (not raw country/company IDs).
+     */
+    private function formatEmployeeForProfileApi(Employee $employee): array
+    {
+        $employee->loadMissing([
+            'company:id,company_name',
+            'department:id,department_name',
+            'designation:id,designation_name',
+            'officeShift:id,shift_name',
+            'status:id,status_title',
+            'role:id,name',
+        ]);
+
+        $data = $employee->toArray();
+
+        $data['company_name'] = $employee->company?->company_name;
+        $data['department_name'] = $employee->department?->department_name;
+        $data['designation_name'] = $employee->designation?->designation_name;
+        $data['office_shift_name'] = $employee->officeShift?->shift_name;
+        $data['status_title'] = $employee->status?->status_title;
+        $data['role_name'] = $employee->role?->name;
+
+        $countryId = $employee->country;
+        if ($countryId !== null && $countryId !== '') {
+            $data['country_name'] = Country::whereKey($countryId)->value('name')
+                ?? (is_numeric($countryId) ? null : (string) $countryId);
+        } else {
+            $data['country_name'] = null;
+        }
+
+        return $data;
     }
 
     public function administrators()
@@ -389,9 +424,17 @@ class ApiController extends Controller
             return response()->json([
                 'status' => true,
                 'user_id' => $userId,
+                'date_from' => $validated['date_from'] ?? null,
+                'date_to' => $validated['date_to'] ?? null,
                 'count' => $attendances->count(),
-                'data' => $attendances,
+                'data' => $attendances->map(fn ($row) => $this->formatAttendanceForApi($row))->values(),
             ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (Throwable $e) {
             return response()->json([
                 'status' => false,
@@ -399,6 +442,109 @@ class ApiController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Mobile-friendly attendance row (history tab + calendar dots).
+     */
+    private function formatAttendanceForApi(Attendance $row): array
+    {
+        $rawDate = $row->getAttributes()['attendance_date'] ?? null;
+        $dateIso = $rawDate
+            ? Carbon::parse($rawDate)->format('Y-m-d')
+            : null;
+
+        $clockIn = $this->formatClockTimeForApi($row->clock_in ?? null);
+        $clockOut = $this->formatClockTimeForApi($row->clock_out ?? null);
+        $displayStatus = $this->resolveAttendanceDisplayStatus($row);
+
+        return [
+            'id' => (int) $row->id,
+            'employee_id' => (int) $row->employee_id,
+            'attendance_date' => $row->attendance_date,
+            'attendance_date_iso' => $dateIso,
+            'clock_in' => $row->clock_in,
+            'clock_out' => $row->clock_out,
+            'clock_in_display' => $clockIn,
+            'clock_out_display' => $clockOut,
+            'clock_in_out' => $row->clock_in_out,
+            'time_late' => $row->time_late,
+            'early_leaving' => $row->early_leaving,
+            'overtime' => $row->overtime,
+            'total_work' => $row->total_work,
+            'total_rest' => $row->total_rest,
+            'attendance_status' => $row->attendance_status,
+            'display_status' => $displayStatus,
+            'duration_label' => $this->formatTotalWorkLabel($row->total_work ?? null),
+        ];
+    }
+
+    private function resolveAttendanceDisplayStatus(Attendance $row): string
+    {
+        $status = strtolower(trim((string) ($row->attendance_status ?? '')));
+        $clockIn = trim((string) ($row->clock_in ?? ''));
+
+        if ($clockIn === '' || str_contains($status, 'absent')) {
+            return 'absent';
+        }
+
+        $late = trim((string) ($row->time_late ?? ''));
+        if ($late !== '' && ! in_array($late, ['00:00', '00:00:00', '---'], true)) {
+            return 'late';
+        }
+
+        return 'present';
+    }
+
+    private function formatClockTimeForApi(?string $time): ?string
+    {
+        if ($time === null) {
+            return null;
+        }
+
+        $time = trim($time);
+        if ($time === '' || $time === '---') {
+            return null;
+        }
+
+        foreach (['H:i:s', 'H:i'] as $format) {
+            try {
+                return Carbon::createFromFormat($format, $time)->format('h:i A');
+            } catch (Throwable $e) {
+                continue;
+            }
+        }
+
+        return $time;
+    }
+
+    private function formatTotalWorkLabel(?string $totalWork): ?string
+    {
+        if ($totalWork === null) {
+            return null;
+        }
+
+        $totalWork = trim($totalWork);
+        if ($totalWork === '' || $totalWork === '00:00' || $totalWork === '---') {
+            return null;
+        }
+
+        $parts = explode(':', $totalWork);
+        if (count($parts) < 2) {
+            return $totalWork;
+        }
+
+        $hours = (int) $parts[0];
+        $minutes = (int) $parts[1];
+        if ($hours <= 0 && $minutes <= 0) {
+            return null;
+        }
+
+        if ($minutes === 0) {
+            return $hours.'h';
+        }
+
+        return $hours.'h '.$minutes.'m';
     }
 
     public function clockIn(Request $request)

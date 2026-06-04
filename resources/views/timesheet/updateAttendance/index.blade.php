@@ -166,11 +166,45 @@
         });
 
 
-        fill_datatable();
+        let updateAttendanceTable = null;
 
-        function fill_datatable(attendance_date1 = '', attendance_date2 = '', company_id = '', employee_id = '') {
+        function filterPayload() {
+            return {
+                attendance_date1: $('#attendance_date1').val(),
+                attendance_date2: $('#attendance_date2').val(),
+                company_id: $('#company_id').val(),
+                employee_id: $('#employee_id').val(),
+                _token: "{{ csrf_token() }}"
+            };
+        }
 
-            let table_table = $('#update_attendance-table').DataTable({
+        function canLoadAttendanceList() {
+            const p = filterPayload();
+            return p.employee_id !== '' && p.attendance_date1 !== '' && p.attendance_date2 !== '';
+        }
+
+        function reloadAttendanceList() {
+            if (!canLoadAttendanceList()) {
+                return;
+            }
+            if (updateAttendanceTable) {
+                updateAttendanceTable.ajax.reload(null, false);
+                return;
+            }
+            fill_datatable();
+        }
+
+        function fill_datatable() {
+            if (!canLoadAttendanceList()) {
+                return;
+            }
+
+            if (updateAttendanceTable) {
+                updateAttendanceTable.destroy();
+                updateAttendanceTable = null;
+            }
+
+            updateAttendanceTable = $('#update_attendance-table').DataTable({
                 responsive: true,
                 fixedHeader: {
                     header: true,
@@ -180,12 +214,8 @@
                 serverSide: true,
                 ajax: {
                     url: "{{ route('update_attendances.index') }}",
-                    data: {
-                        attendance_date1: attendance_date1,
-                        attendance_date2: attendance_date2,
-                        company_id: company_id,
-                        employee_id: employee_id,
-                        "_token": "{{ csrf_token()}}",
+                    data: function (d) {
+                        return Object.assign(d, filterPayload());
                     }
                 },
 
@@ -227,19 +257,16 @@
                 'lengthMenu': [[10, 25, 50, -1], [10, 25, 50, "All"]],
 
             });
-            new $.fn.dataTable.FixedHeader(table_table);
+            new $.fn.dataTable.FixedHeader(updateAttendanceTable);
 
         }
 
         $('#update_attendance_from').on('submit',function (e) {
             e.preventDefault();
-            let attendance_date1 = $('#attendance_date1').val();
-            let attendance_date2 = $('#attendance_date2').val();
             let company_id = $('#company_id').val();
             let employee_id = $('#employee_id').val();
-            if (attendance_date1 !== '' && attendance_date2 !== '' && company_id !== '' && employee_id !== '') {
-                $('#update_attendance-table').DataTable().destroy();
-                fill_datatable(attendance_date1, attendance_date2, company_id, employee_id);
+            if (canLoadAttendanceList() && company_id !== '') {
+                fill_datatable();
                 $('#hidden_employee_id').val($('#employee_id').val());
             } else {
                 let data_name = '';
@@ -344,8 +371,18 @@
                         if(data.success)
                         {
                             html = '<div class="alert alert-success">' + data.success + '</div>';
+                            let addedDate = $('#attendance_date_edit').val();
+                            if (addedDate) {
+                                if (!$('#attendance_date1').val()) {
+                                    $('#attendance_date1').val(addedDate);
+                                }
+                                if (!$('#attendance_date2').val()) {
+                                    $('#attendance_date2').val(addedDate);
+                                }
+                            }
                             $('#edit_form')[0].reset();
-                            $('#update_attendance-table').DataTable().ajax.reload();
+                            $('#hidden_employee_id').val($('#employee_id').val());
+                            reloadAttendanceList();
                         }
                         $('#form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                     }
@@ -380,7 +417,7 @@
                             html = '<div class="alert alert-success">' + data.success + '</div>';
                             setTimeout(function(){
                                 $('#editModal').modal('hide');
-                                $('#update_attendance-table').DataTable().ajax.reload();
+                                reloadAttendanceList();
                                 $('#edit_form')[0].reset();
 
                             }, 2000);
@@ -421,7 +458,7 @@
                     }
                     setTimeout(function(){
                         $('#confirmModal').modal('hide');
-                        $('#update_attendance-table').DataTable().ajax.reload();
+                        reloadAttendanceList();
                     }, 2000);
                 }
             })
@@ -450,7 +487,7 @@
 
         $('#close').on('click', function() {
             $('#edit_form')[0].reset();
-            $('#update_attendance-table').DataTable().ajax.reload();
+            reloadAttendanceList();
 
         });
     })(jQuery);
