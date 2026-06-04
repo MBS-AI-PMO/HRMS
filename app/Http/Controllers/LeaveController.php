@@ -13,16 +13,14 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
 
 //Notification
-use App\Notifications\EmployeeLeaveNotification; //Mail
 use App\Notifications\LeaveNotification; //Database
-use App\Notifications\LeaveNotificationToAdmin; //Database
 use App\Notifications\WfhRequestNotificationToApprover; //Database
 use App\Notifications\WfhEventNotification; //Database+Mail
+use App\Services\LeaveNotifier;
 use App\Models\User;
 use App\Models\EmployeeLeaveTypeDetail;
 use DateTime;
 use Exception;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
@@ -209,39 +207,12 @@ class LeaveController extends Controller
                     $text = "A new leave-notification has been published";
                     $notifiable = User::findOrFail($data['employee_id']);
                     $notifiable->notify(new LeaveNotification($text)); //To Employee
-                } elseif ((Auth::user()->role_users_id != 1) && ($leave->is_notify == NULL)) {
-                    //get-leave-notification - 294
-                    $role_ids = DB::table('role_has_permissions')->where('permission_id', 294)->get()->pluck('role_id');
-                    $role_ids[] = 1;
-
-                    $notifiable = User::whereIn('role_users_id', $role_ids)->get();
-                    foreach ($notifiable as $item) {
-                        $item->notify(new LeaveNotificationToAdmin());
+                } else {
+                    try {
+                        LeaveNotifier::notify($leave, 'requested');
+                    } catch (\Throwable $e) {
+                        // Do not block leave submission on notification failures.
                     }
-
-                    //Mail
-                    $department = department::with('DepartmentHead:id,email')->where('id', $request->department_id)->first();
-                    if(isset($department->DepartmentHead->email)) {
-                        $departmentHeadEmail = $department->DepartmentHead->email;
-                        $employeeName = $leave->employee->full_name;
-                        $totalDays = $leave->total_days;
-                        $startDate = $leave->start_date;
-                        $endDate = $leave->end_date;
-                        $leaveReason = $leave->leave_reason;
-
-                        // Do not block leave submission on slow SMTP.
-                        dispatch(function () use ($departmentHeadEmail, $employeeName, $totalDays, $startDate, $endDate, $leaveReason) {
-                            Notification::route('mail', $departmentHeadEmail)
-                                ->notify(new EmployeeLeaveNotification(
-                                    $employeeName,
-                                    $totalDays,
-                                    $startDate,
-                                    $endDate,
-                                    $leaveReason
-                                ));
-                        })->afterResponse();
-                    }
-
                 }
 
             }
@@ -428,6 +399,18 @@ class LeaveController extends Controller
                         } else {
                             $this->notifyWfhEvent($leave, 'pending');
                         }
+                    }
+                } elseif ($leave->status !== $previousStatus) {
+                    try {
+                        if ($leave->status === 'approved') {
+                            LeaveNotifier::notify($leave, 'approved');
+                        } elseif ($leave->status === 'rejected') {
+                            LeaveNotifier::notify($leave, 'rejected');
+                        } else {
+                            LeaveNotifier::notify($leave, 'pending');
+                        }
+                    } catch (\Throwable $e) {
+                        // Do not block status update on notification failures.
                     }
                 }
 

@@ -14,7 +14,7 @@ use App\Models\IpSetting;
 use App\Models\leave;
 use App\Models\LeaveType;
 use App\Models\User;
-use App\Notifications\EmployeeLeaveNotification;
+use App\Services\LeaveNotifier;
 use App\Notifications\LeaveNotificationToAdmin;
 use App\Notifications\WfhEventNotification;
 use App\Notifications\WfhRequestNotificationToApprover;
@@ -1239,7 +1239,7 @@ class ApiController extends Controller
                 if ($isWfhLeave) {
                     $this->notifyWfhEventApi($leave, 'requested');
                 } else {
-                    $this->notifyLeaveRequestToAdmins($leave);
+                    LeaveNotifier::notify($leave, 'requested');
                 }
             } catch (Throwable $notifyError) {
                 // Request is saved; do not fail API if mail/notification breaks.
@@ -1624,38 +1624,6 @@ class ApiController extends Controller
         }
 
         return $this->isWfhLeaveTypeName((string) $leaveType->leave_type);
-    }
-
-    private function notifyLeaveRequestToAdmins(leave $leave): void
-    {
-        $roleIds = DB::table('role_has_permissions')->where('permission_id', 294)->pluck('role_id');
-        $roleIds[] = 1;
-
-        $notifiable = User::whereIn('role_users_id', $roleIds)->get();
-        foreach ($notifiable as $item) {
-            $item->notify(new LeaveNotificationToAdmin());
-        }
-
-        $department = department::with('DepartmentHead:id,email')->where('id', $leave->department_id)->first();
-        if (isset($department->DepartmentHead->email)) {
-            $departmentHeadEmail = $department->DepartmentHead->email;
-            $employeeName = $leave->employee->full_name ?? 'Employee';
-            $totalDays = $leave->total_days;
-            $startDate = $leave->start_date;
-            $endDate = $leave->end_date;
-            $leaveReason = $leave->leave_reason;
-
-            dispatch(function () use ($departmentHeadEmail, $employeeName, $totalDays, $startDate, $endDate, $leaveReason) {
-                Notification::route('mail', $departmentHeadEmail)
-                    ->notify(new EmployeeLeaveNotification(
-                        $employeeName,
-                        $totalDays,
-                        $startDate,
-                        $endDate,
-                        $leaveReason
-                    ));
-            })->afterResponse();
-        }
     }
 
     private function notifyWfhEventApi(leave $leave, string $event): void
