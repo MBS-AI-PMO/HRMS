@@ -1315,7 +1315,8 @@ class AttendanceController extends Controller {
 
 
 		$month_year = $request->filter_month_year;
-
+		$this->date_range = [];
+		$this->date_attendance = [];
 
 		$first_date = date('Y-m-d', strtotime('first day of ' . $month_year));
 		$last_date = date('Y-m-d', strtotime('last day of ' . $month_year));
@@ -1346,7 +1347,7 @@ class AttendanceController extends Controller {
 					{
 						$query->whereBetween('attendance_date', [$first_date, $last_date]);
 					},
-						'employeeLeave.leaveType',
+						'employeeLeave.LeaveType',
 						'company:id,company_name',
 						'company.companyHolidays'
 					])
@@ -1366,7 +1367,7 @@ class AttendanceController extends Controller {
 						{
 							$query->whereBetween('attendance_date', [$first_date, $last_date]);
 						},
-							'employeeLeave.leaveType',
+							'employeeLeave.LeaveType',
 							'company:id,company_name',
 							'company.companyHolidays'
 						])
@@ -1379,7 +1380,7 @@ class AttendanceController extends Controller {
 						{
 							$query->whereBetween('attendance_date', [$first_date, $last_date]);
 						},
-							'employeeLeave.leaveType',
+							'employeeLeave.LeaveType',
 							'company:id,company_name',
 							'company.companyHolidays'
 						])
@@ -1393,7 +1394,7 @@ class AttendanceController extends Controller {
 						{
 							$query->whereBetween('attendance_date', [$first_date, $last_date]);
 						},
-							'employeeLeave.leaveType',
+							'employeeLeave.LeaveType',
 							'company:id,company_name',
 							'company.companyHolidays'
 						])
@@ -1598,13 +1599,13 @@ class AttendanceController extends Controller {
                 $isLateArrival = $firstAttendance && ($firstAttendance->time_late ?? '00:00') !== '00:00';
 
 				return $isLateArrival ? 'LA' : 'P';
-			} elseif (!$emp->officeShift->$day)
+			} elseif (!$emp->officeShift || !$emp->officeShift->$day)
 			{
 				return 'O';
 			} elseif ($leave->isNotEmpty())
 			{
                 $hasWfhLeave = $leave->contains(function ($leaveItem) {
-                    $leaveType = strtolower(optional($leaveItem->leaveType)->leave_type ?? '');
+                    $leaveType = strtolower(optional($leaveItem->LeaveType)->leave_type ?? '');
 
                     return str_contains($leaveType, 'wfh') || str_contains($leaveType, 'work from home');
                 });
