@@ -1811,7 +1811,7 @@
                 if (checkedNodes) {
                     $.ajaxSetup({
                         headers: {
-                            'X-CSRF-T{{trans('file.OK')}}EN': $('meta[name="csrf-token"]').attr('content')
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                         }
                     });
                     var target = '{{route('set_permission')}}';
@@ -1839,6 +1839,12 @@
                                 html = '<div class="alert alert-danger">' + data.error + '</div>';
                             }
                             $('#form_result_permission').html(html).slideDown(100).delay(3000).slideUp(100);
+                        },
+                        error: function (xhr) {
+                            var msg = (xhr.responseJSON && xhr.responseJSON.error)
+                                ? xhr.responseJSON.error
+                                : '{{ __('Could not save permissions. Please try again.') }}';
+                            $('#form_result_permission').html('<div class="alert alert-danger">' + msg + '</div>').slideDown(100);
                         }
                     });
                 } else {
