@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\GeneralSetting;
+use App\Support\CompanyScope;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\File;
@@ -82,6 +83,10 @@ class ViewComposerServiceProvider extends ServiceProvider
             [
                 'url' => url('organization/departments').'#formModal',
                 'title' => 'Department',
+            ],
+            [
+                'url' => url('organization/teams').'#formModal',
+                'title' => 'Team',
             ],
             [
                 'url' => url('organization/designations').'#formModal',
@@ -232,6 +237,13 @@ class ViewComposerServiceProvider extends ServiceProvider
         }
 
         $addFrom = array_merge($hrmAddFrom, $crmAddForm);
+
+        if (CompanyScope::applies()) {
+            $blockedTitles = ['Admin', 'Company', 'Role', 'IP', 'Location'];
+            $addFrom = array_values(array_filter($addFrom, function ($item) use ($blockedTitles) {
+                return ! in_array($item['title'], $blockedTitles, true);
+            }));
+        }
 
         usort($addFrom, function($a, $b) {
             return strcmp($a['title'], $b['title']);

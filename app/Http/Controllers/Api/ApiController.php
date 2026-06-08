@@ -15,6 +15,7 @@ use App\Models\leave;
 use App\Models\LeaveType;
 use App\Models\User;
 use App\Services\LeaveNotifier;
+use App\Services\NotificationRecipientResolver;
 use App\Notifications\LeaveNotificationToAdmin;
 use App\Notifications\WfhEventNotification;
 use App\Notifications\WfhRequestNotificationToApprover;
@@ -1628,12 +1629,12 @@ class ApiController extends Controller
 
     private function notifyWfhEventApi(leave $leave, string $event): void
     {
+        $companyId = (int) $leave->company_id;
         $employee = User::find($leave->employee_id);
         $departmentHeadId = department::where('id', $leave->department_id)->value('department_head');
         $departmentHeadUser = $departmentHeadId ? User::find($departmentHeadId) : null;
-        $roleIds = DB::table('role_has_permissions')->where('permission_id', 294)->pluck('role_id');
-        $roleIds[] = 1;
-        $permissionUsers = User::query()->whereIn('role_users_id', $roleIds)->get();
+        $permissionUsers = NotificationRecipientResolver::usersWithPermissionInCompany('view-leave', $companyId);
+        $teamLeaders = NotificationRecipientResolver::teamLeadersForEmployee((int) $leave->employee_id, $companyId);
 
         $link = route('leaves.index');
         if ($event === 'requested') {
@@ -1654,17 +1655,14 @@ class ApiController extends Controller
         $requestorName = optional($leave->employee)->full_name ?? 'Employee';
         $eventMessage = $message.' ('.$requestorName.')';
 
-        $recipients = collect()
-            ->merge($permissionUsers);
+        $recipients = NotificationRecipientResolver::uniqueUsers(
+            $permissionUsers,
+            $teamLeaders,
+            $departmentHeadUser ? collect([$departmentHeadUser]) : collect(),
+            $employee ? collect([$employee]) : collect(),
+        );
 
-        if ($departmentHeadUser) {
-            $recipients->push($departmentHeadUser);
-        }
-        if ($employee) {
-            $recipients->push($employee);
-        }
-
-        $recipients = $recipients->filter()->unique('id');
+        $recipients = NotificationRecipientResolver::filterByCompany($recipients, $companyId);
 
         foreach ($recipients as $recipient) {
             $recipientLink = (int) $recipient->id === (int) $leave->employee_id

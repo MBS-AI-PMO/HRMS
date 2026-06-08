@@ -94,6 +94,7 @@ use App\Http\Controllers\SalaryOtherPaymentController;
 use App\Http\Controllers\SalaryOvertimeController;
 use App\Http\Controllers\SupportTicketCommentController;
 use App\Http\Controllers\SupportTicketController;
+use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskDiscussionController;
 use App\Http\Controllers\TaskFileController;
@@ -538,6 +539,14 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         ]);
         Route::get('departments/{id}/delete', [DepartmentController::class, 'destroy'])->name('departments.destroy');
         Route::post('departments/delete/selected', [DepartmentController::class, 'delete_by_selection'])->name('mass_delete_departments');
+
+        Route::get('teams/options/employees', [TeamController::class, 'employeesOptions'])->name('teams.employees_options');
+        Route::post('teams/update', [TeamController::class, 'update'])->name('teams.update');
+        Route::resource('teams', TeamController::class)->except([
+            'destroy', 'show', 'create', 'update',
+        ]);
+        Route::get('teams/{id}/delete', [TeamController::class, 'destroy'])->name('teams.destroy');
+        Route::post('teams/delete/selected', [TeamController::class, 'delete_by_selection'])->name('mass_delete_teams');
 
         Route::post('designations/update', [DesignationController::class, 'update'])->name('designations.update');
         Route::resource('designations', DesignationController::class)->except([

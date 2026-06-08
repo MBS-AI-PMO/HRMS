@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\company;
+use App\Support\CompanyScope;
 use App\Models\department;
 use App\Models\Employee;
 use App\Models\EmployeeActivityLog;
@@ -17,6 +18,7 @@ use App\Notifications\LeaveNotification; //Database
 use App\Notifications\WfhRequestNotificationToApprover; //Database
 use App\Notifications\WfhEventNotification; //Database+Mail
 use App\Services\LeaveNotifier;
+use App\Services\NotificationRecipientResolver;
 use App\Models\User;
 use App\Models\EmployeeLeaveTypeDetail;
 use DateTime;
@@ -42,7 +44,7 @@ class LeaveController extends Controller
     public function index()
     {
         $logged_user = auth()->user();
-        $companies = company::select('id', 'company_name')->get();
+        $companies = CompanyScope::companiesForSelect();
         $leave_types = LeaveType::select('id', 'leave_type', 'allocated_day')->get();
         $managedDepartmentIds = department::where('department_head', $logged_user->id)->pluck('id');
         $isDepartmentManager = $managedDepartmentIds->isNotEmpty();
@@ -516,14 +518,12 @@ class LeaveController extends Controller
 
     private function notifyWfhEvent(leave $leave, string $event): void
     {
+        $companyId = (int) $leave->company_id;
         $employee = User::find($leave->employee_id);
         $departmentHeadId = department::where('id', $leave->department_id)->value('department_head');
         $departmentHeadUser = $departmentHeadId ? User::find($departmentHeadId) : null;
-        // Use the same permission-based audience as leave notifications,
-        // so WFH alerts are delivered to the expected approvers.
-        $roleIds = DB::table('role_has_permissions')->where('permission_id', 294)->pluck('role_id');
-        $roleIds[] = 1; // admin fallback
-        $permissionUsers = User::query()->whereIn('role_users_id', $roleIds)->get();
+        $permissionUsers = NotificationRecipientResolver::usersWithPermissionInCompany('view-leave', $companyId);
+        $teamLeaders = NotificationRecipientResolver::teamLeadersForEmployee((int) $leave->employee_id, $companyId);
 
         $link = route('leaves.index');
         if ($event === 'requested') {
@@ -543,17 +543,14 @@ class LeaveController extends Controller
         $requestorName = optional($leave->employee)->full_name ?? 'Employee';
         $eventMessage = $message . ' (' . $requestorName . ')';
 
-        $recipients = collect()
-            ->merge($permissionUsers);
+        $recipients = NotificationRecipientResolver::uniqueUsers(
+            $permissionUsers,
+            $teamLeaders,
+            $departmentHeadUser ? collect([$departmentHeadUser]) : collect(),
+            $employee ? collect([$employee]) : collect(),
+        );
 
-        if ($departmentHeadUser) {
-            $recipients->push($departmentHeadUser);
-        }
-        if ($employee) {
-            $recipients->push($employee);
-        }
-
-        $recipients = $recipients->filter()->unique('id');
+        $recipients = NotificationRecipientResolver::filterByCompany($recipients, $companyId);
 
         foreach ($recipients as $recipient) {
             $recipientLink = (int) $recipient->id === (int) $leave->employee_id
