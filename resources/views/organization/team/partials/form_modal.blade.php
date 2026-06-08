@@ -1,6 +1,6 @@
 @php
     $companyScoped = \App\Support\CompanyScope::applies();
-    $singleCompany = $companyScoped && $companies->count() === 1 ? $companies->first() : null;
+    $singleCompany = $companyScoped && $companies->isNotEmpty() ? $companies->first() : null;
 @endphp
 
 <div id="formModal" class="modal fade" role="dialog">
@@ -40,9 +40,9 @@
                             </select>
                         </div>
                         <div class="col-md-4 form-group">
-                            <label>{{ __('Department Head') }} *</label>
-                            <select name="department_head_id" id="department_head_id" class="form-control selectpicker"
-                                    data-live-search="true" title="{{ __('Select Department Head') }}" required>
+                            <label>{{ __('Department Heads') }} *</label>
+                            <select name="department_head_ids[]" id="department_head_ids" class="form-control selectpicker"
+                                    data-live-search="true" multiple title="{{ __('Select Department Heads') }}" required>
                             </select>
                         </div>
                         <div class="col-md-4 form-group">

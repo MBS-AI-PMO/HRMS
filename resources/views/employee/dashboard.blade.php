@@ -16,7 +16,7 @@
         }
     </style>
     <section>
-        @can('view-details-employee')
+        @if(auth()->user()->can('view-details-employee') || ($employeeViewOnly ?? false))
             <div class="container-fluid">
                 <div class="card">
                     <div class="card-body">
@@ -32,6 +32,7 @@
                                 <a class="nav-link" id="profile-tab" data-toggle="tab" href="#Profile" role="tab"
                                     aria-controls="Profile" aria-selected="false">{{ trans('file.Profile') }}</a>
                             </li> --}}
+                            @can('view-details-employee')
                             <li class="nav-item">
                                 <a class="nav-link" id="set_salary-tab" data-toggle="tab" href="#Set_salary" role="tab"
                                     aria-controls="Set_salary" aria-selected="false">{{ __('Set Salary') }}</a>
@@ -61,6 +62,7 @@
                                     aria-selected="false">{{ trans('file.Remaining Leave') }}
                                 </a>
                             </li>
+                            @endcan
                         </ul>
                         <div class="tab-content" id="myTabContent">
                             <div class="tab-pane fade show active" id="General" role="tabpanel" aria-labelledby="general-tab">
@@ -81,6 +83,7 @@
                                                data-target="#Immigration" role="tab" aria-controls="Immigration"
                                                aria-selected="false">{{trans('file.Immigration')}}</a>
                                         </li> --}}
+                                            @can('view-details-employee')
                                             <li class="nav-item">
                                                 <a class="nav-link" href="{{ route('contacts.show', $employee) }}"
                                                     id="emergency-tab" data-toggle="tab" data-table="emergency"
@@ -119,10 +122,10 @@
                                                     data-target="#Bank_account" role="tab" aria-controls="Bank_account"
                                                     aria-selected="false">{{ __('Bank Account') }}</a>
                                             </li>
+                                            @endcan
                                         </ul>
                                     </div>
-                                @endcan
-                                @canany(['modify-details-employee', 'view-details-employee'])
+                                @if(auth()->user()->can('modify-details-employee') || auth()->user()->can('view-details-employee') || ($employeeViewOnly ?? false))
                                     <div class="col-md-9">
                                         <div class="tab-content" id="myTabContent">
                                             <div class="tab-pane fade show active" id="Basic" role="tabpanel"
@@ -130,7 +133,7 @@
                                                 <!--Contents for Basic starts here-->
                                                 {{ __('Basic Information') }}
                                                 <hr>
-                                                @can('modify-details-employee')
+                                                @if(auth()->user()->can('modify-details-employee') && empty($employeeViewOnly))
                                                 <span id="form_result"></span>
                                                 <form method="post" id="basic_sample_form" class="form-horizontal"
                                                     enctype="multipart/form-data" autocomplete="off">
@@ -521,9 +524,9 @@
                                                             </tr>
                                                         </table>
                                                     </div>
-                                                @endcan
+                                                @endif
                                             </div>
-                                        @endcanany
+                                        @endif
 
                                         @can('view-details-employee')
                                             <div class="tab-pane fade" id="Immigration" role="tabpanel"
@@ -646,7 +649,7 @@
                     </div>
                 </div>
             </div>
-        @endcan
+        @endif
 
     </section>
 

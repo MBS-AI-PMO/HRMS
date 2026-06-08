@@ -24,7 +24,7 @@ class TeamController extends Controller
             $teams = Team::with([
                 'company:id,company_name',
                 'department:id,department_name',
-                'departmentHead:id,first_name,last_name',
+                'departmentHeads:id,first_name,last_name',
                 'projectManager:id,first_name,last_name',
                 'assistantHr:id,first_name,last_name',
                 'members:id,first_name,last_name',
@@ -41,7 +41,7 @@ class TeamController extends Controller
                     return $row->department->department_name ?? '-';
                 })
                 ->addColumn('department_head', function ($row) {
-                    return $row->departmentHead->full_name ?? '-';
+                    return $row->departmentHeadsLabel();
                 })
                 ->addColumn('project_manager', function ($row) {
                     return $row->projectManager->full_name ?? '';
@@ -77,7 +77,7 @@ class TeamController extends Controller
             $teams = Team::with([
                 'company:id,company_name',
                 'department:id,department_name',
-                'departmentHead:id,first_name,last_name',
+                'departmentHeads:id,first_name,last_name',
                 'projectManager:id,first_name,last_name',
                 'assistantHr:id,first_name,last_name',
                 'members:id,first_name,last_name',
@@ -99,7 +99,7 @@ class TeamController extends Controller
                     return $row->department->department_name ?? '-';
                 })
                 ->addColumn('department_head', function ($row) {
-                    return $row->departmentHead->full_name ?? '-';
+                    return $row->departmentHeadsLabel();
                 })
                 ->addColumn('project_manager', function ($row) {
                     return $row->projectManager->full_name ?? '';
@@ -110,8 +110,8 @@ class TeamController extends Controller
                 ->addColumn('members', function ($row) {
                     return $row->members->pluck('full_name')->filter()->implode(', ');
                 })
-                ->addColumn('action', function ($data) {
-                    return $this->teamActionButtons($data, false);
+                ->addColumn('action', function ($data) use ($userId) {
+                    return $this->teamActionButtons($data, false, $userId);
                 })
                 ->rawColumns(['action'])
                 ->make(true);
@@ -146,14 +146,16 @@ class TeamController extends Controller
         }
 
         $companyId = CompanyScope::resolveCompanyIdForInput((int) $request->company_id);
+        $departmentHeadIds = $this->departmentHeadIdsFromRequest($request);
 
         $validator = Validator::make($request->all(), [
             'team_name' => 'required|string|max:191|unique:teams,team_name,NULL,id,company_id,'.$companyId,
             'company_id' => 'required|exists:companies,id',
             'department_id' => 'nullable|exists:departments,id',
-            'department_head_id' => 'required|exists:employees,id|different:project_manager_id|different:assistant_hr_id',
-            'project_manager_id' => 'required|exists:employees,id|different:department_head_id|different:assistant_hr_id',
-            'assistant_hr_id' => 'nullable|exists:employees,id|different:department_head_id|different:project_manager_id',
+            'department_head_ids' => 'required|array|min:1',
+            'department_head_ids.*' => 'exists:employees,id',
+            'project_manager_id' => 'required|exists:employees,id',
+            'assistant_hr_id' => 'nullable|exists:employees,id',
             'member_ids' => 'nullable|array',
             'member_ids.*' => 'exists:employees,id',
             'description' => 'nullable|string|max:2000',
@@ -163,8 +165,12 @@ class TeamController extends Controller
             return response()->json(['errors' => $validator->errors()->all()]);
         }
 
+        if ($leaderErrors = $this->validateLeaders($request)) {
+            return response()->json(['errors' => $leaderErrors]);
+        }
+
         $this->assertEmployeesBelongToCompany([
-            $request->department_head_id,
+            ...$departmentHeadIds,
             $request->project_manager_id,
             $request->assistant_hr_id,
             ...((array) $request->member_ids),
@@ -174,7 +180,6 @@ class TeamController extends Controller
             'team_name' => $request->team_name,
             'company_id' => $companyId,
             'department_id' => $request->department_id,
-            'department_head_id' => $request->department_head_id,
             'project_manager_id' => $request->project_manager_id,
             'assistant_hr_id' => $request->assistant_hr_id,
             'description' => $request->description,
@@ -182,15 +187,50 @@ class TeamController extends Controller
             'added_by' => auth()->id(),
         ]);
 
+        $team->departmentHeads()->sync($departmentHeadIds);
+
         $memberIds = $this->filterMemberIds($request);
 
         if (! empty($memberIds)) {
             $team->members()->sync($memberIds);
         }
 
-        TeamNotifier::notify($team->fresh(['members']), 'created');
+        TeamNotifier::notify($team->fresh(['members', 'departmentHeads']), 'created');
 
         return response()->json(['success' => __('Team created successfully.')]);
+    }
+
+    public function show($id)
+    {
+        if (! request()->ajax()) {
+            return response()->json(['error' => __('You are not authorized')], 403);
+        }
+
+        $team = Team::with([
+            'company:id,company_name',
+            'department:id,department_name',
+            'departmentHeads:id,first_name,last_name',
+            'projectManager:id,first_name,last_name',
+            'assistantHr:id,first_name,last_name',
+            'members:id,first_name,last_name',
+        ])->findOrFail($id);
+
+        if (! $this->canViewTeam($team)) {
+            return response()->json(['error' => __('You are not authorized')], 403);
+        }
+
+        return response()->json([
+            'data' => [
+                'team_name' => $team->team_name,
+                'company' => $team->company->company_name ?? '-',
+                'department' => $team->department->department_name ?? '-',
+                'department_heads' => $team->departmentHeadsLabel(),
+                'project_manager' => $team->projectManager->full_name ?? '-',
+                'assistant_hr' => $team->assistantHr->full_name ?? '-',
+                'members' => $team->members->pluck('full_name')->filter()->implode(', ') ?: '-',
+                'description' => $team->description ?: '-',
+            ],
+        ]);
     }
 
     public function edit($id)
@@ -199,7 +239,7 @@ class TeamController extends Controller
             return response()->json(['error' => __('You are not authorized')], 403);
         }
 
-        $team = Team::with('members:id')->findOrFail($id);
+        $team = Team::with(['members:id', 'departmentHeads:id'])->findOrFail($id);
 
         if (! $this->canEditTeam($team)) {
             return response()->json(['error' => __('You are not authorized')], 403);
@@ -208,6 +248,7 @@ class TeamController extends Controller
         return response()->json([
             'data' => $team,
             'member_ids' => $team->members->pluck('id')->values(),
+            'department_head_ids' => $team->departmentHeads->pluck('id')->values(),
         ]);
     }
 
@@ -220,14 +261,16 @@ class TeamController extends Controller
         }
 
         $companyId = CompanyScope::resolveCompanyIdForInput((int) $request->company_id);
+        $departmentHeadIds = $this->departmentHeadIdsFromRequest($request);
 
         $validator = Validator::make($request->all(), [
             'team_name' => 'required|string|max:191|unique:teams,team_name,'.$team->id.',id,company_id,'.$companyId,
             'company_id' => 'required|exists:companies,id',
             'department_id' => 'nullable|exists:departments,id',
-            'department_head_id' => 'required|exists:employees,id|different:project_manager_id|different:assistant_hr_id',
-            'project_manager_id' => 'required|exists:employees,id|different:department_head_id|different:assistant_hr_id',
-            'assistant_hr_id' => 'nullable|exists:employees,id|different:department_head_id|different:project_manager_id',
+            'department_head_ids' => 'required|array|min:1',
+            'department_head_ids.*' => 'exists:employees,id',
+            'project_manager_id' => 'required|exists:employees,id',
+            'assistant_hr_id' => 'nullable|exists:employees,id',
             'member_ids' => 'nullable|array',
             'member_ids.*' => 'exists:employees,id',
             'description' => 'nullable|string|max:2000',
@@ -237,8 +280,12 @@ class TeamController extends Controller
             return response()->json(['errors' => $validator->errors()->all()]);
         }
 
+        if ($leaderErrors = $this->validateLeaders($request)) {
+            return response()->json(['errors' => $leaderErrors]);
+        }
+
         $this->assertEmployeesBelongToCompany([
-            $request->department_head_id,
+            ...$departmentHeadIds,
             $request->project_manager_id,
             $request->assistant_hr_id,
             ...((array) $request->member_ids),
@@ -248,17 +295,18 @@ class TeamController extends Controller
             'team_name' => $request->team_name,
             'company_id' => $companyId,
             'department_id' => $request->department_id,
-            'department_head_id' => $request->department_head_id,
             'project_manager_id' => $request->project_manager_id,
             'assistant_hr_id' => $request->assistant_hr_id,
             'description' => $request->description,
         ]);
 
+        $team->departmentHeads()->sync($departmentHeadIds);
+
         $memberIds = $this->filterMemberIds($request);
 
         $team->members()->sync($memberIds);
 
-        TeamNotifier::notify($team->fresh(['members']), 'updated');
+        TeamNotifier::notify($team->fresh(['members', 'departmentHeads']), 'updated');
 
         return response()->json(['success' => __('Team updated successfully.')]);
     }
@@ -273,6 +321,7 @@ class TeamController extends Controller
         CompanyScope::assertCompanyAccess($team->company_id);
 
         TeamNotifier::notify($team, 'deleted');
+        $team->departmentHeads()->detach();
         $team->members()->detach();
         $team->delete();
 
@@ -300,11 +349,31 @@ class TeamController extends Controller
 
             CompanyScope::assertCompanyAccess($team->company_id);
             TeamNotifier::notify($team, 'deleted');
+            $team->departmentHeads()->detach();
             $team->members()->detach();
             $team->delete();
         }
 
         return response()->json(['success' => __('Selected teams deleted successfully.')]);
+    }
+
+    protected function canViewTeam(Team $team): bool
+    {
+        $userId = (int) auth()->id();
+
+        if (auth()->user()->can('view-team')) {
+            try {
+                CompanyScope::assertCompanyAccess($team->company_id);
+
+                return true;
+            } catch (\Throwable $e) {
+                // fall through to membership check
+            }
+        }
+
+        $team->loadMissing('members:id');
+
+        return $team->userIsLeader($userId) || $team->members->contains('id', $userId);
     }
 
     protected function canEditTeam(Team $team): bool
@@ -332,9 +401,21 @@ class TeamController extends Controller
             || Team::userCanLeadAnyTeam((int) auth()->id());
     }
 
-    protected function teamActionButtons(Team $team, bool $allowDelete): string
+    protected function teamActionButtons(Team $team, bool $allowDelete, ?int $myTeamUserId = null): string
     {
         $button = '';
+
+        if ($myTeamUserId !== null) {
+            $team->loadMissing('members:id');
+
+            if ($team->userIsLeader($myTeamUserId)) {
+                $button .= '<button type="button" data-id="'.$team->id.'" class="edit-team btn btn-primary btn-sm" title="'.__('Edit').'"><i class="dripicons-pencil"></i></button>';
+            } elseif ($team->members->contains('id', $myTeamUserId)) {
+                $button .= '<button type="button" data-id="'.$team->id.'" class="view-team btn btn-info btn-sm" title="'.__('View').'"><i class="dripicons-preview"></i></button>';
+            }
+
+            return $button;
+        }
 
         if ($this->canEditTeam($team)) {
             $button .= '<button type="button" data-id="'.$team->id.'" class="edit-team btn btn-primary btn-sm"><i class="dripicons-pencil"></i></button>&nbsp;&nbsp;';
@@ -347,13 +428,40 @@ class TeamController extends Controller
         return $button;
     }
 
+    protected function departmentHeadIdsFromRequest(Request $request): array
+    {
+        return collect($request->input('department_head_ids', []))
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    protected function validateLeaders(Request $request): ?array
+    {
+        $departmentHeadIds = $this->departmentHeadIdsFromRequest($request);
+        $pmId = (int) $request->project_manager_id;
+        $assistantId = $request->assistant_hr_id ? (int) $request->assistant_hr_id : null;
+
+        if (in_array($pmId, $departmentHeadIds, true)) {
+            return [__('Project Manager cannot also be a Department Head on the same team.')];
+        }
+
+        if ($assistantId && in_array($assistantId, $departmentHeadIds, true)) {
+            return [__('Assistant HR cannot also be a Department Head on the same team.')];
+        }
+
+        return null;
+    }
+
     protected function filterMemberIds(Request $request): array
     {
-        $leaderIds = collect([
-            $request->department_head_id,
-            $request->project_manager_id,
-            $request->assistant_hr_id,
-        ])->filter()->map(fn ($id) => (int) $id);
+        $leaderIds = collect($this->departmentHeadIdsFromRequest($request))
+            ->push($request->project_manager_id)
+            ->push($request->assistant_hr_id)
+            ->filter()
+            ->map(fn ($id) => (int) $id);
 
         return collect($request->member_ids ?? [])
             ->filter()

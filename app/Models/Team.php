@@ -10,7 +10,6 @@ class Team extends Model
         'company_id',
         'team_name',
         'department_id',
-        'department_head_id',
         'project_manager_id',
         'assistant_hr_id',
         'description',
@@ -32,23 +31,15 @@ class Team extends Model
         return $this->belongsTo(department::class, 'department_id');
     }
 
-    public function departmentHead()
+    public function departmentHeads()
     {
-        return $this->belongsTo(Employee::class, 'department_head_id');
+        return $this->belongsToMany(Employee::class, 'team_department_heads', 'team_id', 'employee_id')
+            ->withTimestamps();
     }
 
     public function projectManager()
     {
         return $this->belongsTo(Employee::class, 'project_manager_id');
-    }
-
-    public function leaderEmployeeIds(): array
-    {
-        return array_values(array_filter([
-            $this->department_head_id,
-            $this->project_manager_id,
-            $this->assistant_hr_id,
-        ]));
     }
 
     public function assistantHr()
@@ -67,12 +58,35 @@ class Team extends Model
         return $this->belongsTo(User::class, 'added_by');
     }
 
+    public function leaderEmployeeIds(): array
+    {
+        $this->loadMissing('departmentHeads:id');
+
+        return collect($this->departmentHeads->pluck('id'))
+            ->push($this->project_manager_id)
+            ->push($this->assistant_hr_id)
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public function departmentHeadsLabel(): string
+    {
+        $this->loadMissing('departmentHeads:id,first_name,last_name');
+
+        return $this->departmentHeads->pluck('full_name')->filter()->implode(', ') ?: '-';
+    }
+
     public function scopeForUser($query, int $userId)
     {
         return $query->where(function ($builder) use ($userId) {
-            $builder->where('department_head_id', $userId)
-                ->orWhere('project_manager_id', $userId)
+            $builder->where('project_manager_id', $userId)
                 ->orWhere('assistant_hr_id', $userId)
+                ->orWhereHas('departmentHeads', function ($heads) use ($userId) {
+                    $heads->where('employees.id', $userId);
+                })
                 ->orWhereHas('members', function ($members) use ($userId) {
                     $members->where('employees.id', $userId);
                 });
@@ -87,9 +101,11 @@ class Team extends Model
     public function scopeLedByUser($query, int $userId)
     {
         return $query->where(function ($builder) use ($userId) {
-            $builder->where('department_head_id', $userId)
-                ->orWhere('project_manager_id', $userId)
-                ->orWhere('assistant_hr_id', $userId);
+            $builder->where('project_manager_id', $userId)
+                ->orWhere('assistant_hr_id', $userId)
+                ->orWhereHas('departmentHeads', function ($heads) use ($userId) {
+                    $heads->where('employees.id', $userId);
+                });
         });
     }
 
@@ -98,16 +114,40 @@ class Team extends Model
         return static::query()->ledByUser($userId)->exists();
     }
 
+    /**
+     * Team leaders (DH / PM / Assistant HR) may open the employee list for their team members
+     * without any separate Spatie permission.
+     */
+    public static function userCanAccessEmployeeList(int $userId): bool
+    {
+        return static::userCanLeadAnyTeam($userId);
+    }
+
+    public static function memberEmployeeIdsLedByUser(int $userId): array
+    {
+        return static::query()
+            ->ledByUser($userId)
+            ->with('members:id')
+            ->get()
+            ->flatMap(fn ($team) => $team->members->pluck('id'))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     public function userIsLeader(int $userId): bool
     {
-        return in_array($userId, array_map('intval', $this->leaderEmployeeIds()), true);
+        return in_array($userId, $this->leaderEmployeeIds(), true);
     }
 
     public function roleLabelForUser(int $userId): string
     {
         $roles = [];
 
-        if ((int) $this->department_head_id === $userId) {
+        $this->loadMissing('departmentHeads:id', 'members:id');
+
+        if ($this->departmentHeads->contains('id', $userId)) {
             $roles[] = __('Department Head');
         }
         if ((int) $this->project_manager_id === $userId) {
@@ -116,7 +156,7 @@ class Team extends Model
         if ((int) $this->assistant_hr_id === $userId) {
             $roles[] = __('Assistant HR');
         }
-        if ($this->relationLoaded('members') && $this->members->contains('id', $userId)) {
+        if ($this->members->contains('id', $userId)) {
             $roles[] = __('Team Member');
         }
 

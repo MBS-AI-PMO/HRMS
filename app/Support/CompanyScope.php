@@ -55,7 +55,19 @@ class CompanyScope
 
     public static function companiesForSelect()
     {
-        return company::select('id', 'company_name')->orderBy('company_name')->get();
+        $query = company::select('id', 'company_name')->orderBy('company_name');
+
+        if (static::applies()) {
+            $companyId = static::companyId();
+
+            if (! $companyId) {
+                return collect();
+            }
+
+            $query->where('id', $companyId);
+        }
+
+        return $query->get();
     }
 
     public static function employeesForCompany(int $companyId)

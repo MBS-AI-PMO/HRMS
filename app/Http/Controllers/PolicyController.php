@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\company;
 use App\Models\Employee;
+use App\Support\CompanyScope;
 use App\Notifications\CompanyPolicyNotify;
 use App\Models\Policy;
 use App\Models\User;
@@ -23,7 +24,7 @@ class PolicyController extends Controller {
 	public function index()
 	{
 		$logged_user = auth()->user();
-		$companies = company::select('id', 'company_name')->get();
+		$companies = CompanyScope::companiesForSelect();
 
 		if (request()->ajax())
 		{

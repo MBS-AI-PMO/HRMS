@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Employee;
 use App\Models\company;
 use App\Models\location;
+use App\Support\CompanyScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -17,8 +18,12 @@ class LocationController extends Controller
 	public function index()
 	{
 		$countries = \DB::table('countries')->select('id','name')->get();
-		$employees = Employee::select('id','first_name','last_name')->where('is_active',1)->where('exit_date',NULL)->get();
-        $companies = company::select('id', 'company_name')->orderBy('company_name')->get();
+		$employeesQuery = Employee::select('id','first_name','last_name')->where('is_active',1)->where('exit_date',NULL);
+        if (CompanyScope::applies() && ($scopedCompanyId = CompanyScope::companyId())) {
+            $employeesQuery->where('company_id', $scopedCompanyId);
+        }
+        $employees = $employeesQuery->get();
+        $companies = CompanyScope::companiesForSelect();
 
 		if(request()->ajax())
 		{

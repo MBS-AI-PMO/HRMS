@@ -10,7 +10,7 @@ class TeamNotifier
 {
     public static function notify(Team $team, string $event, array $extraMemberIds = []): void
     {
-        $team->loadMissing(['company', 'departmentHead', 'projectManager', 'assistantHr', 'members']);
+        $team->loadMissing(['company', 'departmentHeads', 'projectManager', 'assistantHr', 'members']);
 
         $companyId = (int) $team->company_id;
         $teamName = $team->team_name;

@@ -19,7 +19,7 @@
                 <tr>
                     <th class="not-exported"></th>
                     <th>{{ __('Team Name') }}</th>
-                    <th>{{ __('Department Head') }}</th>
+                    <th>{{ __('Department Heads') }}</th>
                     <th>{{ __('Project Manager') }}</th>
                     <th>{{ __('Assistant HR') }}</th>
                     <th>{{ __('Department') }}</th>
@@ -55,7 +55,7 @@
 @endsection
 
 @php
-    $singleCompanyId = \App\Support\CompanyScope::applies() && $companies->count() === 1
+    $singleCompanyId = \App\Support\CompanyScope::applies() && $companies->isNotEmpty()
         ? $companies->first()->id
         : null;
 @endphp

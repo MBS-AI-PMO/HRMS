@@ -5,7 +5,7 @@
         <div class="container-fluid mb-3">
             <h4 class="mb-1">{{ __('My Team') }}</h4>
             <p class="text-muted mb-0">
-                {{ __('Manage teams where you are Department Head, Project Manager, or Assistant HR. Only employees from your company are shown in dropdowns.') }}
+                {{ __('View your team details. Leaders can edit the team; members can only view.') }}
             </p>
         </div>
 
@@ -15,7 +15,7 @@
                 <tr>
                     <th>{{ __('Team Name') }}</th>
                     <th>{{ __('Your Role') }}</th>
-                    <th>{{ __('Department Head') }}</th>
+                    <th>{{ __('Department Heads') }}</th>
                     <th>{{ __('Project Manager') }}</th>
                     <th>{{ __('Assistant HR') }}</th>
                     <th>{{ __('Department') }}</th>
@@ -29,11 +29,12 @@
     </section>
 
     @include('organization.team.partials.form_modal', ['allowCreate' => false])
+    @include('organization.team.partials.view_modal')
 
 @endsection
 
 @php
-    $singleCompanyId = \App\Support\CompanyScope::applies() && $companies->count() === 1
+    $singleCompanyId = \App\Support\CompanyScope::applies() && $companies->isNotEmpty()
         ? $companies->first()->id
         : null;
 @endphp
