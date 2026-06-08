@@ -742,7 +742,23 @@
 <!--        </a>-->
 <!--    </li>-->
 <!--@endif-->
-
+<li class="mt-3" style="padding: 0 14px;">
+    <a href="{{ asset('app_link/app-release.apk') }}"
+       target="_blank"
+       download
+       style="
+            background:#7C5CC4;
+            color:#fff !important;
+            border-radius:6px;
+            padding:12px 15px;
+            display:block;
+            text-align:center;
+            font-weight:600;
+            text-decoration:none;
+       ">
+        Download App
+    </a>
+</li>
 </ul>
 </div>
 </div>

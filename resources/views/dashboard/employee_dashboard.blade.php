@@ -11,10 +11,37 @@
         <div class="container-fluid">
             <div class="row">
 
-                <div class="col-3 col-md-2 mb-3">
-                    <img src={{ URL::to('/uploads/profile_photos') }}/{{ $user->profile_photo ?? 'avatar.jpg' }}
-                        width='150' class='rounded-circle'>
-                </div>
+                @if (!empty($user->profile_photo) && file_exists(public_path('uploads/profile_photos/' . $user->profile_photo)))
+                    <img src="{{ URL::to('/uploads/profile_photos') }}/{{ $user->profile_photo }}" width="150"
+                        height="150" class="rounded-circle">
+                @else
+                    @php
+                        $fullName = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
+
+                        if (empty($fullName)) {
+                            $fullName = $user->username ?? 'User';
+                        }
+
+                        $words = explode(' ', $fullName);
+                        $initials = strtoupper(substr($words[0], 0, 1));
+
+                        if (count($words) > 1) {
+                            $initials .= strtoupper(substr($words[1], 0, 1));
+                        }
+                    @endphp
+
+                    <div class="rounded-circle d-flex align-items-center justify-content-center"
+                        style="
+            width:150px;
+            height:150px;
+            background:#7C5CC4;
+            color:#fff;
+            font-size:48px;
+            font-weight:700;
+         ">
+                        {{ $initials }}
+                    </div>
+                @endif
 
                 <div class="col-9 col-md-10 mb-3">
                     <h4 class="font-weight-bold">{{ $employee->full_name }} <span class="text-muted font-weight-normal">
@@ -362,7 +389,8 @@
                                         @foreach ($leave_types as $leave_type)
                                             <option value="{{ $leave_type->id }}"
                                                 data-day="{{ $leave_type->allocated_day }}"
-                                                data-is-wfh="{{ str_contains(strtolower($leave_type->leave_type), 'wfh') || str_contains(strtolower($leave_type->leave_type), 'work from home') ? 1 : 0 }}">{{ $leave_type->leave_type }}</option>
+                                                data-is-wfh="{{ str_contains(strtolower($leave_type->leave_type), 'wfh') || str_contains(strtolower($leave_type->leave_type), 'work from home') ? 1 : 0 }}">
+                                                {{ $leave_type->leave_type }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -676,10 +704,10 @@
                 $('#holidayModal').modal('show');
             });
 
-            const wfhFallbackTypeId = @json(optional(collect($leave_types)->first(function($item){
-                $name = strtolower((string) ($item->leave_type ?? ''));
-                return str_contains($name, 'wfh') || str_contains($name, 'work from home');
-            }))->id);
+            const wfhFallbackTypeId = @json(optional(collect($leave_types)->first(function ($item) {
+                        $name = strtolower((string) ($item->leave_type ?? ''));
+                        return str_contains($name, 'wfh') || str_contains($name, 'work from home');
+                    }))->id);
             let leaveRequestMode = 'leave';
             let lockedWfhTypeId = null;
             const allLeaveTypeOptions = $('#leave_type option').clone();
@@ -693,7 +721,8 @@
                     let option = $(this).clone();
                     let isWfhAttr = String(option.attr('data-is-wfh') || '').trim();
                     let optionText = String(option.text() || '').toLowerCase();
-                    let isWfh = isWfhAttr === '1' || optionText.includes('wfh') || optionText.includes('work from home');
+                    let isWfh = isWfhAttr === '1' || optionText.includes('wfh') || optionText.includes(
+                        'work from home');
                     if (isWfh) {
                         hasWfhOption = true;
                     }
@@ -708,7 +737,8 @@
 
                 if (leaveRequestMode === 'wfh' && !hasWfhOption) {
                     const fallbackOptionValue = wfhFallbackTypeId ? String(wfhFallbackTypeId) : '0';
-                    const fallbackWfhOption = $('<option value="' + fallbackOptionValue + '" data-day="365" data-is-wfh="1">WFH</option>');
+                    const fallbackWfhOption = $('<option value="' + fallbackOptionValue +
+                        '" data-day="365" data-is-wfh="1">WFH</option>');
                     $('#leave_type').append(fallbackWfhOption);
                     firstAvailableValue = fallbackOptionValue;
                 }
@@ -723,9 +753,9 @@
                 } else {
                     $('#leave_type').selectpicker('val', '');
                     lockedWfhTypeId = null;
-                    let html = leaveRequestMode === 'wfh'
-                        ? '<div class="alert alert-danger"><p>{{ __('WFH leave type is not configured yet. Please contact HR/Admin.') }}</p></div>'
-                        : '<div class="alert alert-danger"><p>{{ __('Leave types are not configured yet. Please contact HR/Admin.') }}</p></div>';
+                    let html = leaveRequestMode === 'wfh' ?
+                        '<div class="alert alert-danger"><p>{{ __('WFH leave type is not configured yet. Please contact HR/Admin.') }}</p></div>' :
+                        '<div class="alert alert-danger"><p>{{ __('Leave types are not configured yet. Please contact HR/Admin.') }}</p></div>';
                     $('#leave_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                 }
                 // Keep select enabled so value is submitted; lock only UI interaction in WFH mode.
@@ -939,9 +969,12 @@
                     document.getElementById('user_lat').value = userLat;
                     document.getElementById('user_lng').value = userLng;
 
-                    let officeLat = parseFloat("{{ $employee->location?->latitude ?? $general_setting->latitude ?? 'NaN' }}");
-                    let officeLng = parseFloat("{{ $employee->location?->longitude ?? $general_setting->longitude ?? 'NaN' }}");
-                    let maxRadius = parseFloat("{{ $employee->location?->max_radius ?? $general_setting->max_radius ?? 'NaN' }}");
+                    let officeLat = parseFloat(
+                        "{{ $employee->location?->latitude ?? ($general_setting->latitude ?? 'NaN') }}");
+                    let officeLng = parseFloat(
+                        "{{ $employee->location?->longitude ?? ($general_setting->longitude ?? 'NaN') }}");
+                    let maxRadius = parseFloat(
+                        "{{ $employee->location?->max_radius ?? ($general_setting->max_radius ?? 'NaN') }}");
 
                     if (isNaN(officeLat) || isNaN(officeLng)) {
                         Swal.fire({

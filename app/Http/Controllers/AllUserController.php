@@ -34,14 +34,38 @@ class AllUserController extends Controller {
                         ->addColumn('username', function ($row)
                         {
                             if ($row->profile_photo)
-                            {
-                                $url = url("uploads/profile_photos/".$row->profile_photo);
-                                $profile_photo = '<img src="'. $url .'" class="profile-photo md" style="height:35px;width:35px"/>';
-                            }
-                            else {
-                                $url = url("logo/avatar.jpg");
-                                $profile_photo = '<img src="'. $url .'" class="profile-photo md" style="height:35px;width:35px"/>';
-                            }
+{
+    $url = url("uploads/profile_photos/".$row->profile_photo);
+
+    $profile_photo = '<img src="'. $url .'"
+        class="profile-photo md"
+        style="height:35px;width:35px;border-radius:50%;object-fit:cover;" />';
+}
+else
+{
+    $initials = strtoupper(substr($row->first_name ?? 'U', 0, 1));
+
+    if (!empty($row->last_name)) {
+        $initials .= strtoupper(substr($row->last_name, 0, 1));
+    }
+
+    $profile_photo = '
+        <div style="
+            width:35px;
+            height:35px;
+            border-radius:50%;
+            background:#7C5CC4;
+            color:#fff;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:12px;
+            font-weight:700;
+        ">
+            '.$initials.'
+        </div>
+    ';
+}
                             $full_name  = "<span><a class='d-block text-bold' style='color:#24ABF2'>".$row->first_name.' '.$row->last_name."</a></span>";
                             $username = "<span><b>Username :</b> &nbsp;".$row->username."</span>";
 
