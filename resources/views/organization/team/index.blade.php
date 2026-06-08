@@ -19,6 +19,7 @@
                 <tr>
                     <th class="not-exported"></th>
                     <th>{{ __('Team Name') }}</th>
+                    <th>{{ __('Department Head') }}</th>
                     <th>{{ __('Project Manager') }}</th>
                     <th>{{ __('Assistant HR') }}</th>
                     <th>{{ __('Department') }}</th>
@@ -62,13 +63,19 @@
                                         data-live-search="true" title="{{ __('Select Department') }}">
                                 </select>
                             </div>
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-4 form-group">
+                                <label>{{ __('Department Head') }} *</label>
+                                <select name="department_head_id" id="department_head_id" class="form-control selectpicker"
+                                        data-live-search="true" title="{{ __('Select Department Head') }}" required>
+                                </select>
+                            </div>
+                            <div class="col-md-4 form-group">
                                 <label>{{ __('Project Manager') }} *</label>
                                 <select name="project_manager_id" id="project_manager_id" class="form-control selectpicker"
                                         data-live-search="true" title="{{ __('Select Project Manager') }}" required>
                                 </select>
                             </div>
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-4 form-group">
                                 <label>{{ __('Assistant HR') }}</label>
                                 <select name="assistant_hr_id" id="assistant_hr_id" class="form-control selectpicker"
                                         data-live-search="true" title="{{ __('Select Assistant HR') }}">
@@ -154,13 +161,14 @@
         $select.selectpicker('refresh');
     }
 
-    function loadCompanyOptions(selectedPm, selectedAssistant, selectedMembers, selectedDepartment) {
+    function loadCompanyOptions(selectedPm, selectedAssistant, selectedMembers, selectedDepartment, selectedDeptHead) {
         const companyId = $('#company_id').val();
         if (!companyId) {
             return;
         }
 
         $.get("{{ route('teams.employees_options') }}", { company_id: companyId }, function (res) {
+            fillSelect($('#department_head_id'), res.employees, selectedDeptHead, '{{ __('Select Department Head') }}');
             fillSelect($('#project_manager_id'), res.employees, selectedPm, '{{ __('Select Project Manager') }}');
             fillSelect($('#assistant_hr_id'), res.employees, selectedAssistant, '{{ __('Select Assistant HR') }}');
             fillDepartmentSelect(res.departments, selectedDepartment);
@@ -177,6 +185,7 @@
             columns: [
                 { data: 'id', orderable: false, searchable: false },
                 { data: 'team_name', name: 'team_name' },
+                { data: 'department_head', name: 'department_head' },
                 { data: 'project_manager', name: 'project_manager' },
                 { data: 'assistant_hr', name: 'assistant_hr' },
                 { data: 'department', name: 'department' },
@@ -272,7 +281,8 @@
                         data.data.project_manager_id,
                         data.data.assistant_hr_id,
                         data.member_ids,
-                        data.data.department_id
+                        data.data.department_id,
+                        data.data.department_head_id
                     );
                     $('#formModal').modal('show');
                 }

@@ -10,7 +10,7 @@ class TeamNotifier
 {
     public static function notify(Team $team, string $event, array $extraMemberIds = []): void
     {
-        $team->loadMissing(['company', 'projectManager', 'assistantHr', 'members']);
+        $team->loadMissing(['company', 'departmentHead', 'projectManager', 'assistantHr', 'members']);
 
         $companyId = (int) $team->company_id;
         $teamName = $team->team_name;
@@ -30,10 +30,7 @@ class TeamNotifier
 
         $recipients = NotificationRecipientResolver::uniqueUsers(
             NotificationRecipientResolver::usersWithPermissionInCompany('view-team', $companyId),
-            static::usersFromEmployeeIds([
-                $team->project_manager_id,
-                $team->assistant_hr_id,
-            ], $companyId),
+            static::usersFromEmployeeIds($team->leaderEmployeeIds(), $companyId),
             static::usersFromEmployeeIds($team->members->pluck('id')->all(), $companyId),
             static::usersFromEmployeeIds($extraMemberIds, $companyId),
         );

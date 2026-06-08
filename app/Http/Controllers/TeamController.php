@@ -24,6 +24,7 @@ class TeamController extends Controller
             $teams = Team::with([
                 'company:id,company_name',
                 'department:id,department_name',
+                'departmentHead:id,first_name,last_name',
                 'projectManager:id,first_name,last_name',
                 'assistantHr:id,first_name,last_name',
                 'members:id,first_name,last_name',
@@ -38,6 +39,9 @@ class TeamController extends Controller
                 })
                 ->addColumn('department', function ($row) {
                     return $row->department->department_name ?? '-';
+                })
+                ->addColumn('department_head', function ($row) {
+                    return $row->departmentHead->full_name ?? '-';
                 })
                 ->addColumn('project_manager', function ($row) {
                     return $row->projectManager->full_name ?? '';
@@ -112,8 +116,9 @@ class TeamController extends Controller
             'team_name' => 'required|string|max:191|unique:teams,team_name,NULL,id,company_id,'.$companyId,
             'company_id' => 'required|exists:companies,id',
             'department_id' => 'nullable|exists:departments,id',
-            'project_manager_id' => 'required|exists:employees,id',
-            'assistant_hr_id' => 'nullable|exists:employees,id|different:project_manager_id',
+            'department_head_id' => 'required|exists:employees,id|different:project_manager_id|different:assistant_hr_id',
+            'project_manager_id' => 'required|exists:employees,id|different:department_head_id|different:assistant_hr_id',
+            'assistant_hr_id' => 'nullable|exists:employees,id|different:department_head_id|different:project_manager_id',
             'member_ids' => 'nullable|array',
             'member_ids.*' => 'exists:employees,id',
             'description' => 'nullable|string|max:2000',
@@ -124,6 +129,7 @@ class TeamController extends Controller
         }
 
         $this->assertEmployeesBelongToCompany([
+            $request->department_head_id,
             $request->project_manager_id,
             $request->assistant_hr_id,
             ...((array) $request->member_ids),
@@ -133,6 +139,7 @@ class TeamController extends Controller
             'team_name' => $request->team_name,
             'company_id' => $companyId,
             'department_id' => $request->department_id,
+            'department_head_id' => $request->department_head_id,
             'project_manager_id' => $request->project_manager_id,
             'assistant_hr_id' => $request->assistant_hr_id,
             'description' => $request->description,
@@ -140,12 +147,7 @@ class TeamController extends Controller
             'added_by' => auth()->id(),
         ]);
 
-        $memberIds = collect($request->member_ids ?? [])
-            ->filter()
-            ->reject(fn ($id) => (int) $id === (int) $request->project_manager_id || (int) $id === (int) $request->assistant_hr_id)
-            ->unique()
-            ->values()
-            ->all();
+        $memberIds = $this->filterMemberIds($request);
 
         if (! empty($memberIds)) {
             $team->members()->sync($memberIds);
@@ -186,8 +188,9 @@ class TeamController extends Controller
             'team_name' => 'required|string|max:191|unique:teams,team_name,'.$team->id.',id,company_id,'.$companyId,
             'company_id' => 'required|exists:companies,id',
             'department_id' => 'nullable|exists:departments,id',
-            'project_manager_id' => 'required|exists:employees,id',
-            'assistant_hr_id' => 'nullable|exists:employees,id|different:project_manager_id',
+            'department_head_id' => 'required|exists:employees,id|different:project_manager_id|different:assistant_hr_id',
+            'project_manager_id' => 'required|exists:employees,id|different:department_head_id|different:assistant_hr_id',
+            'assistant_hr_id' => 'nullable|exists:employees,id|different:department_head_id|different:project_manager_id',
             'member_ids' => 'nullable|array',
             'member_ids.*' => 'exists:employees,id',
             'description' => 'nullable|string|max:2000',
@@ -198,6 +201,7 @@ class TeamController extends Controller
         }
 
         $this->assertEmployeesBelongToCompany([
+            $request->department_head_id,
             $request->project_manager_id,
             $request->assistant_hr_id,
             ...((array) $request->member_ids),
@@ -207,17 +211,13 @@ class TeamController extends Controller
             'team_name' => $request->team_name,
             'company_id' => $companyId,
             'department_id' => $request->department_id,
+            'department_head_id' => $request->department_head_id,
             'project_manager_id' => $request->project_manager_id,
             'assistant_hr_id' => $request->assistant_hr_id,
             'description' => $request->description,
         ]);
 
-        $memberIds = collect($request->member_ids ?? [])
-            ->filter()
-            ->reject(fn ($id) => (int) $id === (int) $request->project_manager_id || (int) $id === (int) $request->assistant_hr_id)
-            ->unique()
-            ->values()
-            ->all();
+        $memberIds = $this->filterMemberIds($request);
 
         $team->members()->sync($memberIds);
 
@@ -268,6 +268,22 @@ class TeamController extends Controller
         }
 
         return response()->json(['success' => __('Selected teams deleted successfully.')]);
+    }
+
+    protected function filterMemberIds(Request $request): array
+    {
+        $leaderIds = collect([
+            $request->department_head_id,
+            $request->project_manager_id,
+            $request->assistant_hr_id,
+        ])->filter()->map(fn ($id) => (int) $id);
+
+        return collect($request->member_ids ?? [])
+            ->filter()
+            ->reject(fn ($id) => $leaderIds->contains((int) $id))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     protected function assertEmployeesBelongToCompany(array $employeeIds, int $companyId): void

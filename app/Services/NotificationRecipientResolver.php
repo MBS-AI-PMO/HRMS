@@ -54,11 +54,8 @@ class NotificationRecipientResolver
         $leaderIds = collect();
 
         foreach ($teamsQuery->get() as $team) {
-            if ($team->project_manager_id) {
-                $leaderIds->push((int) $team->project_manager_id);
-            }
-            if ($team->assistant_hr_id) {
-                $leaderIds->push((int) $team->assistant_hr_id);
+            foreach ($team->leaderEmployeeIds() as $leaderId) {
+                $leaderIds->push((int) $leaderId);
             }
         }
 

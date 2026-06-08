@@ -10,6 +10,7 @@ class Team extends Model
         'company_id',
         'team_name',
         'department_id',
+        'department_head_id',
         'project_manager_id',
         'assistant_hr_id',
         'description',
@@ -31,9 +32,23 @@ class Team extends Model
         return $this->belongsTo(department::class, 'department_id');
     }
 
+    public function departmentHead()
+    {
+        return $this->belongsTo(Employee::class, 'department_head_id');
+    }
+
     public function projectManager()
     {
         return $this->belongsTo(Employee::class, 'project_manager_id');
+    }
+
+    public function leaderEmployeeIds(): array
+    {
+        return array_values(array_filter([
+            $this->department_head_id,
+            $this->project_manager_id,
+            $this->assistant_hr_id,
+        ]));
     }
 
     public function assistantHr()
