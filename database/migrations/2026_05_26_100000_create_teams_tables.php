@@ -14,6 +14,7 @@ return new class extends Migration
             $table->unsignedBigInteger('company_id');
             $table->string('team_name');
             $table->unsignedBigInteger('department_id')->nullable();
+            $table->unsignedBigInteger('department_head_id')->nullable();
             $table->unsignedBigInteger('project_manager_id');
             $table->unsignedBigInteger('assistant_hr_id')->nullable();
             $table->text('description')->nullable();
