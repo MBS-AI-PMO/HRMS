@@ -1504,6 +1504,31 @@ class PermissionsSeeder extends Seeder
 				'guard_name' => 'web',
 				'name' => 'report-pension'
 			),
+            array(
+				'id' => 298,
+				'guard_name' => 'web',
+				'name' => 'team-management'
+			),
+            array(
+				'id' => 299,
+				'guard_name' => 'web',
+				'name' => 'view-team'
+			),
+            array(
+				'id' => 300,
+				'guard_name' => 'web',
+				'name' => 'store-team'
+			),
+            array(
+				'id' => 301,
+				'guard_name' => 'web',
+				'name' => 'edit-team'
+			),
+            array(
+				'id' => 302,
+				'guard_name' => 'web',
+				'name' => 'delete-team'
+			),
 		);
 		DB::table('permissions')->insert($permissions);
     }

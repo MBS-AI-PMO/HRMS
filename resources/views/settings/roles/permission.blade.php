@@ -1204,6 +1204,154 @@
                         check: onCheck,
                         dataSource: [
                             {
+                                id: 'organization',
+                                text: "{{ __('Organization') }}",
+                                expanded: true,
+                                checked: ($.inArray('organization', result) >= 0) ? true : false,
+                                items: [
+                                    {
+                                        id: 'company',
+                                        text: "{{trans('Company')}}",
+                                        expanded: true,
+                                        checked: ($.inArray('company', result) >= 0) ? true : false,
+                                        items: [
+                                            {
+                                                id: 'view-company',
+                                                text: '{{__('View Company')}}',
+                                                checked: ($.inArray('view-company', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'store-company',
+                                                text: '{{__('Add Company')}}',
+                                                checked: ($.inArray('store-company', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'edit-company',
+                                                text: '{{__('Edit Company')}}',
+                                                checked: ($.inArray('edit-company', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'delete-company',
+                                                text: "{{__('Delete Company')}}",
+                                                checked: ($.inArray('delete-company', result) >= 0) ? true : false
+                                            },
+                                        ]
+                                    },
+                                    {
+                                        id: 'department',
+                                        text: "{{trans('Department')}}",
+                                        expanded: true,
+                                        checked: ($.inArray('department', result) >= 0) ? true : false,
+                                        items: [
+                                            {
+                                                id: 'view-department',
+                                                text: '{{__('View Department')}}',
+                                                checked: ($.inArray('view-department', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'store-department',
+                                                text: '{{__('Add Department')}}',
+                                                checked: ($.inArray('store-department', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'edit-department',
+                                                text: '{{__('Edit Department')}}',
+                                                checked: ($.inArray('edit-department', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'delete-department',
+                                                text: "{{__('Delete Department')}}",
+                                                checked: ($.inArray('delete-department', result) >= 0) ? true : false
+                                            },
+                                        ]
+                                    },
+                                    {
+                                        id: 'team-management',
+                                        text: "{{__('Team Management')}}",
+                                        expanded: true,
+                                        checked: ($.inArray('team-management', result) >= 0) ? true : false,
+                                        items: [
+                                            {
+                                                id: 'view-team',
+                                                text: '{{__('View Team')}}',
+                                                checked: ($.inArray('view-team', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'store-team',
+                                                text: '{{__('Add Team')}}',
+                                                checked: ($.inArray('store-team', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'edit-team',
+                                                text: '{{__('Edit Team')}}',
+                                                checked: ($.inArray('edit-team', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'delete-team',
+                                                text: "{{__('Delete Team')}}",
+                                                checked: ($.inArray('delete-team', result) >= 0) ? true : false
+                                            },
+                                        ]
+                                    },
+                                    {
+                                        id: 'designation',
+                                        text: "{{trans('Designation')}}",
+                                        expanded: true,
+                                        checked: ($.inArray('designation', result) >= 0) ? true : false,
+                                        items: [
+                                            {
+                                                id: 'view-designation',
+                                                text: '{{__('View Designation')}}',
+                                                checked: ($.inArray('view-designation', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'store-designation',
+                                                text: '{{__('Add Designation')}}',
+                                                checked: ($.inArray('store-designation', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'edit-designation',
+                                                text: '{{__('Edit Designation')}}',
+                                                checked: ($.inArray('edit-designation', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'delete-designation',
+                                                text: "{{__('Delete Designation')}}",
+                                                checked: ($.inArray('delete-designation', result) >= 0) ? true : false
+                                            },
+                                        ]
+                                    },
+                                    {
+                                        id: 'location',
+                                        text: "{{trans('Location')}}",
+                                        expanded: true,
+                                        checked: ($.inArray('location', result) >= 0) ? true : false,
+                                        items: [
+                                            {
+                                                id: 'view-location',
+                                                text: '{{__('View Location')}}',
+                                                checked: ($.inArray('view-location', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'store-location',
+                                                text: '{{__('Add Location')}}',
+                                                checked: ($.inArray('store-location', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'edit-location',
+                                                text: '{{__('Edit Location')}}',
+                                                checked: ($.inArray('edit-location', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'delete-location',
+                                                text: "{{__('Delete Location')}}",
+                                                checked: ($.inArray('delete-location', result) >= 0) ? true : false
+                                            },
+                                        ]
+                                    },
+                                ]
+                            },
+                            {
                                 id: 'finance',
                                 text: "{{trans('Finance')}}",
                                 expanded: true,
@@ -1460,119 +1608,6 @@
                                 ]
                             },
 
-                            {
-                                id: 'company',
-                                text: "{{trans('Company')}}",
-                                expanded: true,
-                                checked: ($.inArray('company', result) >= 0) ? true : false,
-                                items: [
-                                    {
-                                        id: 'view-company',
-                                        text: '{{__('View Company')}}',
-                                        checked: ($.inArray('view-company', result) >= 0) ? true : false
-                                    },
-                                    {
-                                        id: 'store-company',
-                                        text: '{{__('Add Company')}}',
-                                        checked: ($.inArray('store-company', result) >= 0) ? true : false
-                                    },
-                                    {
-                                        id: 'edit-company',
-                                        text: '{{__('Edit Company')}}',
-                                        checked: ($.inArray('edit-company', result) >= 0) ? true : false
-                                    },
-                                    {
-                                        id: 'delete-company',
-                                        text: "{{__('Delete Company')}}",
-                                        checked: ($.inArray('delete-company', result) >= 0) ? true : false
-                                    },
-                                ]
-                            },
-
-                            {
-                                id: 'department',
-                                text: "{{trans('Department')}}",
-                                expanded: true,
-                                checked: ($.inArray('department', result) >= 0) ? true : false,
-                                items: [
-                                    {
-                                        id: 'view-department',
-                                        text: '{{__('View Department')}}',
-                                        checked: ($.inArray('view-department', result) >= 0) ? true : false
-                                    },
-                                    {
-                                        id: 'store-department',
-                                        text: '{{__('Add Department')}}',
-                                        checked: ($.inArray('store-department', result) >= 0) ? true : false
-                                    },
-                                    {
-                                        id: 'edit-department',
-                                        text: '{{__('Edit Department')}}',
-                                        checked: ($.inArray('edit-department', result) >= 0) ? true : false
-                                    },
-                                    {
-                                        id: 'delete-department',
-                                        text: "{{__('Delete Department')}}",
-                                        checked: ($.inArray('delete-department', result) >= 0) ? true : false
-                                    },
-                                ]
-                            },
-                            {
-                                id: 'designation',
-                                text: "{{trans('Designation')}}",
-                                expanded: true,
-                                checked: ($.inArray('designation', result) >= 0) ? true : false,
-                                items: [
-                                    {
-                                        id: 'view-designation',
-                                        text: '{{__('View Designation')}}',
-                                        checked: ($.inArray('view-designation', result) >= 0) ? true : false
-                                    },
-                                    {
-                                        id: 'store-designation',
-                                        text: '{{__('Add Designation')}}',
-                                        checked: ($.inArray('store-designation', result) >= 0) ? true : false
-                                    },
-                                    {
-                                        id: 'edit-designation',
-                                        text: '{{__('Edit Designation')}}',
-                                        checked: ($.inArray('edit-designation', result) >= 0) ? true : false
-                                    },
-                                    {
-                                        id: 'delete-designation',
-                                        text: "{{__('Delete Designation')}}",
-                                        checked: ($.inArray('delete-designation', result) >= 0) ? true : false
-                                    },
-                                ]
-                            },
-                            {
-                                id: 'location',
-                                text: "{{trans('Location')}}",
-                                expanded: true,
-                                checked: ($.inArray('location', result) >= 0) ? true : false,
-                                items: [
-                                    {
-                                        id: 'view-location',
-                                        text: '{{__('View Location')}}',
-                                        checked: ($.inArray('view-location', result) >= 0) ? true : false
-                                    },
-                                    {
-                                        id: 'store-location',
-                                        text: '{{__('Add Location')}}',
-                                        checked: ($.inArray('store-location', result) >= 0) ? true : false
-                                    },
-                                    {
-                                        id: 'edit-location',
-                                        text: '{{__('Edit Location')}}',
-                                        checked: ($.inArray('edit-location', result) >= 0) ? true : false
-                                    },
-                                    {
-                                        id: 'delete-location',
-                                        text: "{{__('Delete Location')}}",
-                                        checked: ($.inArray('delete-location', result) >= 0) ? true : false
-                                    },
-                                ]
-                            },
                             {
                                 id: 'policy',
                                 text: "{{trans('Policy')}}",
