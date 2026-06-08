@@ -68,6 +68,59 @@ class NotificationRecipientResolver
         return $companyId ? static::filterByCompany($users, $companyId) : $users;
     }
 
+    /**
+     * Project manager + team department heads only (no assistant HR, no team members).
+     */
+    public static function teamPmAndDepartmentHeadsForEmployee(int $employeeId, ?int $companyId = null): Collection
+    {
+        $teamsQuery = Team::query()->whereHas('members', function ($query) use ($employeeId) {
+            $query->where('employees.id', $employeeId);
+        });
+
+        if ($companyId) {
+            $teamsQuery->where('company_id', $companyId);
+        }
+
+        $approverIds = collect();
+
+        foreach ($teamsQuery->with(['departmentHeads:id'])->get() as $team) {
+            foreach ($team->departmentHeads as $head) {
+                $approverIds->push((int) $head->id);
+            }
+
+            if ($team->project_manager_id) {
+                $approverIds->push((int) $team->project_manager_id);
+            }
+        }
+
+        if ($approverIds->isEmpty()) {
+            return collect();
+        }
+
+        $users = User::query()->whereIn('id', $approverIds->unique()->values())->get();
+
+        return $companyId ? static::filterByCompany($users, $companyId) : $users;
+    }
+
+    public static function leaveWfhEmailRecipients(int $employeeId, int $companyId): Collection
+    {
+        return static::uniqueUsers(
+            static::usersWithPermissionInCompany('view-leave', $companyId),
+            static::teamPmAndDepartmentHeadsForEmployee($employeeId, $companyId),
+        );
+    }
+
+    public static function leaveWfhInAppRecipients(int $employeeId, int $companyId): Collection
+    {
+        $employee = User::find($employeeId);
+
+        return static::uniqueUsers(
+            static::usersWithPermissionInCompany('view-leave', $companyId),
+            static::teamLeadersForEmployee($employeeId, $companyId),
+            $employee ? collect([$employee]) : collect(),
+        );
+    }
+
     public static function uniqueUsers(Collection ...$groups): Collection
     {
         return collect($groups)
