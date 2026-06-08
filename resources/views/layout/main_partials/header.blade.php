@@ -4,10 +4,11 @@
         <div class="container-fluid">
             <div class="navbar-holder d-flex align-items-center justify-content-between">
                 <a id="toggle-btn" href="#" class="menu-btn"><i class="dripicons-menu"> </i></a>
-                
+
                 <span class="brand-big" id="site_logo_main">
-                    @if($general_settings->site_logo)
-						<img src="{{asset('/images/logo/'.$general_settings->site_logo)}}" width="220" height="85">
+                    @if ($general_settings->site_logo)
+                        <img src="{{ asset('/images/logo/' . $general_settings->site_logo) }}" width="220"
+                            height="85">
                         &nbsp; &nbsp;
                     @endif
                 </span>
@@ -20,7 +21,7 @@
                                     <i class="fa fa-plus"></i> {{__('Create')}}
                                 </button>
                                 <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                                    @if(auth()->user()->role_users_id == 1)
+                                    @if (auth()->user()->role_users_id == 1)
                                     <a class="dropdown-item" href="#" name="create_record" id="create_record">Add Admin</a>
                                     @endif
                                     <a class="dropdown-item" href="{{url('/staff/employees')}}#formModal">Add Employee</a>
@@ -36,9 +37,11 @@
                     {{-- <li class="nav-item">
                         <a class="dropdown-header-name" style="padding-right: 10px" href="{{url('/optimize')}}" data-toggle="tooltip" title="Clear all cache with refresh"><i class=" dripicons-plus"></i></a>
                     </li> --}}
-                    <li class="nav-item">
-                        <div class="btn-group">
-                            {{-- <select name="company_id" id="company_id" required
+                    @if (auth()->user()->role_users_id == 1)
+
+                        <li class="nav-item">
+                            <div class="btn-group">
+                                {{-- <select name="company_id" id="company_id" required
                                             class="form-control selectpicker dynamic"
                                             data-live-search="true" data-live-search-style="contains"
                                             data-first_name="first_name" data-last_name="last_name"
@@ -48,51 +51,64 @@
 
                             </select> --}}
 
-                            <button class="btn btn-primary" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Create">
-                                <i class="fa fa-plus-circle"></i>
-                            </button>
-                            <div class="dropdown-menu">
-                                @foreach ($addFrom as $item)
-                                    <a class="dropdown-item" href="{{ $item['url'] }}">Add {{ $item['title'] }}</a>
-                                @endforeach
+                                <button class="btn btn-primary" type="button" data-toggle="dropdown"
+                                    aria-haspopup="true" aria-expanded="false" title="Create">
+                                    <i class="fa fa-plus-circle"></i>
+                                </button>
+
+                                <div class="dropdown-menu">
+                                    @foreach ($addFrom as $item)
+                                        <a class="dropdown-item" href="{{ $item['url'] }}">
+                                            Add {{ $item['title'] }}
+                                        </a>
+                                    @endforeach
+                                </div>
                             </div>
-                          </div>
-                    </li>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="dropdown-header-name" style="padding-right: 10px" href="{{ url('/optimize') }}"
+                                data-toggle="tooltip" title="Clear all cache with refresh">
+                                <i class="fa fa-refresh"></i>
+                            </a>
+                        </li>
+
+                    @endif
+                    <li class="nav-item"><a id="btnFullscreen" data-toggle="tooltip" title="{{ __('Full Screen') }}"><i
+                                class="dripicons-expand"></i></a></li>
                     <li class="nav-item">
-                        <a class="dropdown-header-name" style="padding-right: 10px" href="{{url('/optimize')}}" data-toggle="tooltip" title="Clear all cache with refresh"><i class="fa fa-refresh"></i></a>
-                    </li>
-                    <li class="nav-item"><a id="btnFullscreen" data-toggle="tooltip"
-                                            title="{{__('Full Screen')}}"><i class="dripicons-expand"></i></a></li>
-                    <li class="nav-item">
-                        <a rel="nofollow" id="notify-btn" href="#" class="nav-link dropdown-item" data-toggle="tooltip"
-                           title="{{__('Notifications')}}">
+                        <a rel="nofollow" id="notify-btn" href="#" class="nav-link dropdown-item"
+                            data-toggle="tooltip" title="{{ __('Notifications') }}">
                             <i class="dripicons-bell"></i>
-                            @if(auth()->user()->unreadNotifications->count())
+                            @if (auth()->user()->unreadNotifications->count())
                                 <span class="badge badge-danger">
-                                    {{auth()->user()->unreadNotifications->count()}}
+                                    {{ auth()->user()->unreadNotifications->count() }}
                                 </span>
                             @endif
                         </a>
                         <ul class="right-sidebar">
                             <li class="header">
-                                <span class="pull-right"><a href="{{route('clearAll')}}">{{__('Clear All')}}</a></span>
-                                <span class="pull-left"><a href="{{route('seeAllNoti')}}">{{__('See All')}}</a></span>
+                                <span class="pull-right"><a
+                                        href="{{ route('clearAll') }}">{{ __('Clear All') }}</a></span>
+                                <span class="pull-left"><a
+                                        href="{{ route('seeAllNoti') }}">{{ __('See All') }}</a></span>
                             </li>
-                            @foreach(auth()->user()->notifications as $notification)
+                            @foreach (auth()->user()->notifications as $notification)
                                 <li><a class="unread-notification"
-                                       href={{$notification->data['link']}}>{{$notification->data['data']}}</a></li>
+                                        href={{ $notification->data['link'] }}>{{ $notification->data['data'] }}</a>
+                                </li>
                             @endforeach
                         </ul>
                     </li>
                     <li class="nav-item">
                         <a rel="nofollow" href="#" class="nav-link dropdown-item" data-toggle="tooltip"
-                           title="{{__('Language')}}">
+                            title="{{ __('Language') }}">
                             <i class="dripicons-web"></i>
                         </a>
                         <ul class="right-sidebar">
-                            @foreach($languages as $lang)
+                            @foreach ($languages as $lang)
                                 <li>
-                                    <a href="{{route('language.switch',$lang)}}">{{$lang}}</a>
+                                    <a href="{{ route('language.switch', $lang) }}">{{ $lang }}</a>
                                 </li>
                             @endforeach
                         </ul>
@@ -100,23 +116,52 @@
 
                     <li class="nav-item">
                         <a rel="nofollow" href="#" class="nav-link dropdown-item">
-                            @if(!empty(auth()->user()->profile_photo))
+                            @if (!empty(auth()->user()->profile_photo))
                                 <img class="profile-photo sm mr-1"
-                                     src={{ URL::to('/uploads/profile_photos')}}/{{auth()->user()->profile_photo}}>
+                                    src="{{ URL::to('/uploads/profile_photos') }}/{{ auth()->user()->profile_photo }}">
                             @else
-                                <img class="profile-photo sm mr-1"
-                                     src="{{ asset('uploads/profile_photos/avatar.jpg')}}">
+                                @php
+                                    $user = auth()->user();
+
+                                    $name = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
+
+                                    if (empty($name)) {
+                                        $name = $user->name ?? ($user->username ?? 'User');
+                                    }
+
+                                    $words = explode(' ', $name);
+
+                                    $initials = strtoupper(substr($words[0], 0, 1));
+
+                                    if (count($words) > 1) {
+                                        $initials .= strtoupper(substr($words[1], 0, 1));
+                                    }
+                                @endphp
+
+                                <span
+                                    class="profile-photo sm mr-1 d-inline-flex align-items-center justify-content-center"
+                                    style="
+                width:40px;
+                height:40px;
+                border-radius:50%;
+                background:#7C5CC4;
+                color:#fff;
+                font-size:14px;
+                font-weight:700;
+          ">
+                                    {{ $initials }}
+                                </span>
                             @endif
-                            <span> {{auth()->user()->username}}</span>
+                            <span> {{ auth()->user()->username }}</span>
                         </a>
                         <ul class="right-sidebar">
                             <li>
-                                <a href="{{route('profile')}}">
+                                <a href="{{ route('profile') }}">
                                     <i class="dripicons-user"></i>
-                                    {{trans('file.Profile')}}
+                                    {{ trans('file.Profile') }}
                                 </a>
                             </li>
-                            {{-- @if(auth()->user()->role_users_id == 1)
+                            {{-- @if (auth()->user()->role_users_id == 1)
                                 <li id="empty_database">
                                     <a href="#">
                                         <i class="dripicons-stack"></i>
@@ -124,7 +169,7 @@
                                     </a>
                                 </li>
                             @endif
-                            @if(auth()->user()->role_users_id == 1)
+                            @if (auth()->user()->role_users_id == 1)
                                 <li id="export_database">
                                     <a href="{{route('export_database')}}">
                                         <i class="dripicons-cloud-download"></i>
@@ -135,8 +180,8 @@
                             <li>
                                 <form id="logout-form" action="{{ route('logout') }}" method="POST">
                                     @csrf
-                                    <button class="btn btn-link" type="submit"><i
-                                                class="dripicons-exit"></i> {{trans('file.logout')}}</button>
+                                    <button class="btn btn-link" type="submit"><i class="dripicons-exit"></i>
+                                        {{ trans('file.logout') }}</button>
                                 </form>
                             </li>
                         </ul>

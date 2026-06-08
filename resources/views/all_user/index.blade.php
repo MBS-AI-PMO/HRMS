@@ -521,13 +521,46 @@
                     }
 
 
-                    if (html.data.profile_photo == null) {
-                        $('#store_profile_photo').html("<img src={{ URL::to('/public') }}/logo/avatar.jpg" + " width='100'  class='rounded-circle' />");
-                        $('#store_profile_photo').append("<input type='hidden' name='hidden_image' value='" + html.data.profile_photo + "'  />");
-                    } else {
-                        $('#store_profile_photo').html("<img src={{ URL::to('/public') }}/uploads/profile_photos/" + html.data.profile_photo + " width='100'  class='rounded-circle' />");
-                        $('#store_profile_photo').append("<input type='hidden' name='hidden_image' value='" + html.data.profile_photo + "'  />");
-                    }
+                   if (html.data.profile_photo == null || html.data.profile_photo === '') {
+
+    let initials = '';
+
+    if (html.data.first_name) {
+        initials += html.data.first_name.charAt(0).toUpperCase();
+    }
+
+    if (html.data.last_name) {
+        initials += html.data.last_name.charAt(0).toUpperCase();
+    }
+
+    if (initials === '') {
+        initials = 'U';
+    }
+
+    $('#store_profile_photo').html(
+        "<div style='width:100px;height:100px;border-radius:50%;background:#7C5CC4;color:#fff;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:bold;'>" +
+        initials +
+        "</div>"
+    );
+
+    $('#store_profile_photo').append(
+        "<input type='hidden' name='hidden_image' value='' />"
+    );
+
+} else {
+
+    $('#store_profile_photo').html(
+        "<img src='{{ URL::to('/uploads/profile_photos') }}/" +
+        html.data.profile_photo +
+        "' width='100' height='100' class='rounded-circle' style='object-fit:cover;' />"
+    );
+
+    $('#store_profile_photo').append(
+        "<input type='hidden' name='hidden_image' value='" +
+        html.data.profile_photo +
+        "' />"
+    );
+}
 
                     $('#hidden_id_edit').val(html.data.id);
                     $('#action_button_edit').val('{{trans('file.Edit')}}');
