@@ -137,14 +137,29 @@
                                                 <form method="post" id="basic_sample_form" class="form-horizontal"
                                                     enctype="multipart/form-data" autocomplete="off">
 
+                                                    @csrf
+                                                    <div class="row">
+                                                        <div class="col-md-4 form-group">
+                                                            <label>{{ __('Image') }} *</label>
+
+                                                            <input type="hidden" name="employee_username"
+                                                                value="{{ $employee->user?->username }}">
+
+                                                            <div class="d-flex align-items-center mb-2">
+                                                                <img src="{{ $employee->user?->profile_photo ? url('uploads/profile_photos/'.$employee->user->profile_photo) : url('logo/avatar.jpg') }}"
+                                                                    height="100" width="100">
+
+                                                                <div style="font-size: 13px; color: #777;">
+                                                                    ({{ trans('file.gif,jpg,png,jpeg') }})
                                                                 </div>
-                                                                {{-- File Input --}}
-                                                                <input type="file" accept="image/*" id="profile_photo"
-                                                                    class="form-control @error('photo') is-invalid @enderror"
-                                                                    name="profile_photo">
                                                             </div>
 
-                                                            <div class="col-md-4 form-group">
+                                                            <input type="file" accept="image/*" id="profile_photo"
+                                                                class="form-control @error('photo') is-invalid @enderror"
+                                                                name="profile_photo">
+                                                        </div>
+
+                                                        <div class="col-md-4 form-group">
                                                                 <label>{{ __('First Name') }} <span
                                                                         class="text-danger">*</span></label>
                                                                 <input type="text" name="first_name" id="first_name"
@@ -511,7 +526,6 @@
                                                     </div>
                                                 @endif
                                             </div>
-                                        @endif
 
                                         @can('view-details-employee')
                                             <div class="tab-pane fade" id="Immigration" role="tabpanel"
@@ -558,10 +572,11 @@
                                                 <hr>
                                                 @include('employee.bank_account.index')
                                             </div>
-
+                                        @endcan
 
                                         </div>
                                     </div>
+                                @endif
                                 </div>
                                 <!--Contents for General Ends here-->
                             </div>
