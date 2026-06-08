@@ -15,10 +15,7 @@ use App\Models\leave;
 use App\Models\LeaveType;
 use App\Models\User;
 use App\Services\LeaveNotifier;
-use App\Services\NotificationRecipientResolver;
 use App\Notifications\LeaveNotificationToAdmin;
-use App\Notifications\WfhEventNotification;
-use App\Notifications\WfhRequestNotificationToApprover;
 use Carbon\Carbon;
 use DateTime;
 use Exception;
@@ -1238,7 +1235,7 @@ class ApiController extends Controller
 
             try {
                 if ($isWfhLeave) {
-                    $this->notifyWfhEventApi($leave, 'requested');
+                    LeaveNotifier::notifyWfh($leave, 'requested');
                 } else {
                     LeaveNotifier::notify($leave, 'requested');
                 }
@@ -1625,58 +1622,6 @@ class ApiController extends Controller
         }
 
         return $this->isWfhLeaveTypeName((string) $leaveType->leave_type);
-    }
-
-    private function notifyWfhEventApi(leave $leave, string $event): void
-    {
-        $companyId = (int) $leave->company_id;
-        $employee = User::find($leave->employee_id);
-        $departmentHeadId = department::where('id', $leave->department_id)->value('department_head');
-        $departmentHeadUser = $departmentHeadId ? User::find($departmentHeadId) : null;
-        $permissionUsers = NotificationRecipientResolver::usersWithPermissionInCompany('view-leave', $companyId);
-        $teamLeaders = NotificationRecipientResolver::teamLeadersForEmployee((int) $leave->employee_id, $companyId);
-
-        $link = route('leaves.index', ['wfh' => 1]);
-        if ($event === 'requested') {
-            $subject = 'WFH request submitted';
-            $message = 'A new WFH request has been submitted.';
-        } elseif ($event === 'approved') {
-            $subject = 'WFH request approved';
-            $message = 'WFH request has been approved.';
-        } elseif ($event === 'rejected') {
-            $subject = 'WFH request rejected';
-            $message = 'WFH request has been rejected.';
-        } else {
-            $subject = 'WFH request updated';
-            $message = 'WFH request status is pending.';
-        }
-
-        $leave->loadMissing('employee');
-        $requestorName = optional($leave->employee)->full_name ?? 'Employee';
-        $eventMessage = $message.' ('.$requestorName.')';
-
-        $recipients = NotificationRecipientResolver::uniqueUsers(
-            $permissionUsers,
-            $teamLeaders,
-            $departmentHeadUser ? collect([$departmentHeadUser]) : collect(),
-            $employee ? collect([$employee]) : collect(),
-        );
-
-        $recipients = NotificationRecipientResolver::filterByCompany($recipients, $companyId);
-
-        foreach ($recipients as $recipient) {
-            $recipientLink = (int) $recipient->id === (int) $leave->employee_id
-                ? route('profile').'#WFH'
-                : $link;
-
-            $recipient->notify(new WfhRequestNotificationToApprover($eventMessage, $recipientLink));
-
-            try {
-                $recipient->notify(new WfhEventNotification($subject, $eventMessage, $recipientLink));
-            } catch (Throwable $e) {
-                // keep in-app notification even if mail fails
-            }
-        }
     }
 
     /**

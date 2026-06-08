@@ -16,10 +16,7 @@ use Illuminate\Support\Facades\Validator;
 
 //Notification
 use App\Notifications\LeaveNotification; //Database
-use App\Notifications\WfhRequestNotificationToApprover; //Database
-use App\Notifications\WfhEventNotification; //Database+Mail
 use App\Services\LeaveNotifier;
-use App\Services\NotificationRecipientResolver;
 use App\Models\User;
 use App\Models\EmployeeLeaveTypeDetail;
 use DateTime;
@@ -286,7 +283,7 @@ class LeaveController extends Controller
                 ]);
 
                 if ($isWfhLeave) {
-                    $this->notifyWfhEvent($leave, 'requested');
+                    LeaveNotifier::notifyWfh($leave, 'requested');
                 } elseif ($leave->is_notify == 1) {
                     $text = "A new leave-notification has been published";
                     $notifiable = User::findOrFail($data['employee_id']);
@@ -483,11 +480,11 @@ class LeaveController extends Controller
                         $leave->status !== $previousStatus
                     ) {
                         if ($leave->status === 'approved') {
-                            $this->notifyWfhEvent($leave, 'approved');
+                            LeaveNotifier::notifyWfh($leave, 'approved');
                         } elseif ($leave->status === 'rejected') {
-                            $this->notifyWfhEvent($leave, 'rejected');
+                            LeaveNotifier::notifyWfh($leave, 'rejected');
                         } else {
-                            $this->notifyWfhEvent($leave, 'pending');
+                            LeaveNotifier::notifyWfh($leave, 'pending');
                         }
                     }
                 } elseif ($leave->status !== $previousStatus) {
@@ -600,59 +597,6 @@ class LeaveController extends Controller
         Employee::where('id', $employeeId)->update([
             'attendance_type' => $hasActiveWfh ? 'general' : 'location_based',
         ]);
-    }
-
-    private function notifyWfhEvent(leave $leave, string $event): void
-    {
-        $companyId = (int) $leave->company_id;
-        $employee = User::find($leave->employee_id);
-        $departmentHeadId = department::where('id', $leave->department_id)->value('department_head');
-        $departmentHeadUser = $departmentHeadId ? User::find($departmentHeadId) : null;
-        $permissionUsers = NotificationRecipientResolver::usersWithPermissionInCompany('view-leave', $companyId);
-        $teamLeaders = NotificationRecipientResolver::teamLeadersForEmployee((int) $leave->employee_id, $companyId);
-
-        $link = route('leaves.index', ['wfh' => 1]);
-        if ($event === 'requested') {
-            $subject = 'WFH request submitted';
-            $message = 'A new WFH request has been submitted.';
-        } elseif ($event === 'approved') {
-            $subject = 'WFH request approved';
-            $message = 'WFH request has been approved.';
-        } elseif ($event === 'rejected') {
-            $subject = 'WFH request rejected';
-            $message = 'WFH request has been rejected.';
-        } else {
-            $subject = 'WFH request updated';
-            $message = 'WFH request status is pending.';
-        }
-
-        $requestorName = optional($leave->employee)->full_name ?? 'Employee';
-        $eventMessage = $message . ' (' . $requestorName . ')';
-
-        $recipients = NotificationRecipientResolver::uniqueUsers(
-            $permissionUsers,
-            $teamLeaders,
-            $departmentHeadUser ? collect([$departmentHeadUser]) : collect(),
-            $employee ? collect([$employee]) : collect(),
-        );
-
-        $recipients = NotificationRecipientResolver::filterByCompany($recipients, $companyId);
-
-        foreach ($recipients as $recipient) {
-            $recipientLink = (int) $recipient->id === (int) $leave->employee_id
-                ? route('profile') . '#WFH'
-                : $link;
-
-            // Always store in-app notification first.
-            $recipient->notify(new WfhRequestNotificationToApprover($eventMessage, $recipientLink));
-
-            // Try email separately so DB notification is not blocked by mail issues.
-            try {
-                $recipient->notify(new WfhEventNotification($subject, $eventMessage, $recipientLink));
-            } catch (\Throwable $e) {
-                // Fail-safe: keep in-app notification even if mail transport fails.
-            }
-        }
     }
 
     private function employeeLeaveTypeDataManage($leave, $request, $employee_id, $isRestore)
