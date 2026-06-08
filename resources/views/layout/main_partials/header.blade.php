@@ -37,9 +37,11 @@
                     {{-- <li class="nav-item">
                         <a class="dropdown-header-name" style="padding-right: 10px" href="{{url('/optimize')}}" data-toggle="tooltip" title="Clear all cache with refresh"><i class=" dripicons-plus"></i></a>
                     </li> --}}
-                    <li class="nav-item">
-                        <div class="btn-group">
-                            {{-- <select name="company_id" id="company_id" required
+                    @if (auth()->user()->role_users_id == 1)
+
+                        <li class="nav-item">
+                            <div class="btn-group">
+                                {{-- <select name="company_id" id="company_id" required
                                             class="form-control selectpicker dynamic"
                                             data-live-search="true" data-live-search-style="contains"
                                             data-first_name="first_name" data-last_name="last_name"
@@ -49,21 +51,29 @@
 
                             </select> --}}
 
-                            <button class="btn btn-primary" type="button" data-toggle="dropdown" aria-haspopup="true"
-                                aria-expanded="false" title="Create">
-                                <i class="fa fa-plus-circle"></i>
-                            </button>
-                            <div class="dropdown-menu">
-                                @foreach ($addFrom as $item)
-                                    <a class="dropdown-item" href="{{ $item['url'] }}">Add {{ $item['title'] }}</a>
-                                @endforeach
+                                <button class="btn btn-primary" type="button" data-toggle="dropdown"
+                                    aria-haspopup="true" aria-expanded="false" title="Create">
+                                    <i class="fa fa-plus-circle"></i>
+                                </button>
+
+                                <div class="dropdown-menu">
+                                    @foreach ($addFrom as $item)
+                                        <a class="dropdown-item" href="{{ $item['url'] }}">
+                                            Add {{ $item['title'] }}
+                                        </a>
+                                    @endforeach
+                                </div>
                             </div>
-                        </div>
-                    </li>
-                    <li class="nav-item">
-                        <a class="dropdown-header-name" style="padding-right: 10px" href="{{ url('/optimize') }}"
-                            data-toggle="tooltip" title="Clear all cache with refresh"><i class="fa fa-refresh"></i></a>
-                    </li>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="dropdown-header-name" style="padding-right: 10px" href="{{ url('/optimize') }}"
+                                data-toggle="tooltip" title="Clear all cache with refresh">
+                                <i class="fa fa-refresh"></i>
+                            </a>
+                        </li>
+
+                    @endif
                     <li class="nav-item"><a id="btnFullscreen" data-toggle="tooltip" title="{{ __('Full Screen') }}"><i
                                 class="dripicons-expand"></i></a></li>
                     <li class="nav-item">
