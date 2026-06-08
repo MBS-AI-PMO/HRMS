@@ -66,4 +66,60 @@ class Team extends Model
     {
         return $this->belongsTo(User::class, 'added_by');
     }
+
+    public function scopeForUser($query, int $userId)
+    {
+        return $query->where(function ($builder) use ($userId) {
+            $builder->where('department_head_id', $userId)
+                ->orWhere('project_manager_id', $userId)
+                ->orWhere('assistant_hr_id', $userId)
+                ->orWhereHas('members', function ($members) use ($userId) {
+                    $members->where('employees.id', $userId);
+                });
+        });
+    }
+
+    public static function userHasTeamAccess(int $userId): bool
+    {
+        return static::query()->forUser($userId)->exists();
+    }
+
+    public function scopeLedByUser($query, int $userId)
+    {
+        return $query->where(function ($builder) use ($userId) {
+            $builder->where('department_head_id', $userId)
+                ->orWhere('project_manager_id', $userId)
+                ->orWhere('assistant_hr_id', $userId);
+        });
+    }
+
+    public static function userCanLeadAnyTeam(int $userId): bool
+    {
+        return static::query()->ledByUser($userId)->exists();
+    }
+
+    public function userIsLeader(int $userId): bool
+    {
+        return in_array($userId, array_map('intval', $this->leaderEmployeeIds()), true);
+    }
+
+    public function roleLabelForUser(int $userId): string
+    {
+        $roles = [];
+
+        if ((int) $this->department_head_id === $userId) {
+            $roles[] = __('Department Head');
+        }
+        if ((int) $this->project_manager_id === $userId) {
+            $roles[] = __('Project Manager');
+        }
+        if ((int) $this->assistant_hr_id === $userId) {
+            $roles[] = __('Assistant HR');
+        }
+        if ($this->relationLoaded('members') && $this->members->contains('id', $userId)) {
+            $roles[] = __('Team Member');
+        }
+
+        return $roles !== [] ? implode(', ', $roles) : '-';
+    }
 }

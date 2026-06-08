@@ -540,6 +540,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::get('departments/{id}/delete', [DepartmentController::class, 'destroy'])->name('departments.destroy');
         Route::post('departments/delete/selected', [DepartmentController::class, 'delete_by_selection'])->name('mass_delete_departments');
 
+        Route::get('teams/my', [TeamController::class, 'myTeams'])->name('teams.my');
         Route::get('teams/options/employees', [TeamController::class, 'employeesOptions'])->name('teams.employees_options');
         Route::post('teams/update', [TeamController::class, 'update'])->name('teams.update');
         Route::resource('teams', TeamController::class)->except([

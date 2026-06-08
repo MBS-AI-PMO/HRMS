@@ -58,6 +58,21 @@ class CompanyScope
         return company::select('id', 'company_name')->orderBy('company_name')->get();
     }
 
+    public static function employeesForCompany(int $companyId)
+    {
+        return Employee::query()
+            ->select('id', 'first_name', 'last_name')
+            ->where('company_id', $companyId)
+            ->where('is_active', 1)
+            ->whereNull('exit_date')
+            ->orderBy('first_name')
+            ->get()
+            ->map(fn ($employee) => [
+                'id' => $employee->id,
+                'name' => $employee->full_name,
+            ]);
+    }
+
     public static function resolveCompanyIdForInput($requested): int
     {
         $scopedId = static::companyId();
