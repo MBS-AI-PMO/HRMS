@@ -17,6 +17,15 @@
                     </li>
                 @endif
 
+                @if (\App\Models\Team::userHasTeamAccess((int) auth()->id()))
+                    <li class="{{ request()->is('organization/teams/my*') ? 'active' : '' }}">
+                        <a href="{{ route('teams.my') }}">
+                            <i class="dripicons-user-group"></i>
+                            <span>{{ __('My Team') }}</span>
+                        </a>
+                    </li>
+                @endif
+
 
 
 

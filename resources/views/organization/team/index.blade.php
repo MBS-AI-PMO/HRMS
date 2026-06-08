@@ -32,76 +32,7 @@
         </div>
     </section>
 
-    <div id="formModal" class="modal fade" role="dialog">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="exampleModalLabel">{{ __('Add Team') }}</h5>
-                    <button type="button" class="close" data-dismiss="modal"><i class="dripicons-cross"></i></button>
-                </div>
-                <div class="modal-body">
-                    <span id="form_result"></span>
-                    <form method="post" id="sample_form" class="form-horizontal">
-                        @csrf
-                        <div class="row">
-                            <div class="col-md-6 form-group">
-                                <label>{{ __('Team Name') }} *</label>
-                                <input type="text" name="team_name" id="team_name" class="form-control" required>
-                            </div>
-                            <div class="col-md-6 form-group">
-                                <label>{{ trans('file.Company') }} *</label>
-                                <select name="company_id" id="company_id" class="form-control selectpicker"
-                                        data-live-search="true" title="{{ __('Select Company') }}" required>
-                                    @foreach ($companies as $company)
-                                        <option value="{{ $company->id }}">{{ $company->company_name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-6 form-group">
-                                <label>{{ trans('file.Department') }}</label>
-                                <select name="department_id" id="department_id" class="form-control selectpicker"
-                                        data-live-search="true" title="{{ __('Select Department') }}">
-                                </select>
-                            </div>
-                            <div class="col-md-4 form-group">
-                                <label>{{ __('Department Head') }} *</label>
-                                <select name="department_head_id" id="department_head_id" class="form-control selectpicker"
-                                        data-live-search="true" title="{{ __('Select Department Head') }}" required>
-                                </select>
-                            </div>
-                            <div class="col-md-4 form-group">
-                                <label>{{ __('Project Manager') }} *</label>
-                                <select name="project_manager_id" id="project_manager_id" class="form-control selectpicker"
-                                        data-live-search="true" title="{{ __('Select Project Manager') }}" required>
-                                </select>
-                            </div>
-                            <div class="col-md-4 form-group">
-                                <label>{{ __('Assistant HR') }}</label>
-                                <select name="assistant_hr_id" id="assistant_hr_id" class="form-control selectpicker"
-                                        data-live-search="true" title="{{ __('Select Assistant HR') }}">
-                                </select>
-                            </div>
-                            <div class="col-md-12 form-group">
-                                <label>{{ __('Team Members') }}</label>
-                                <select name="member_ids[]" id="member_ids" class="form-control selectpicker"
-                                        data-live-search="true" multiple title="{{ __('Select Team Members') }}">
-                                </select>
-                            </div>
-                            <div class="col-md-12 form-group">
-                                <label>{{ __('Description') }}</label>
-                                <textarea name="description" id="description" class="form-control" rows="2"></textarea>
-                            </div>
-                            <div class="col-md-12 form-group text-center">
-                                <input type="hidden" name="action" id="action">
-                                <input type="hidden" name="hidden_id" id="hidden_id">
-                                <input type="submit" id="action_button" class="btn btn-warning" value="{{ trans('file.Add') }}">
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+    @include('organization.team.partials.form_modal', ['allowCreate' => true])
 
     <div id="confirmModal" class="modal fade" role="dialog">
         <div class="modal-dialog modal-dialog-centered">
@@ -123,58 +54,18 @@
 
 @endsection
 
+@php
+    $singleCompanyId = \App\Support\CompanyScope::applies() && $companies->count() === 1
+        ? $companies->first()->id
+        : null;
+@endphp
+
 @push('scripts')
 <script type="text/javascript">
 (function ($) {
     "use strict";
 
     let deleteId = null;
-
-    function fillSelect($select, items, selectedValue, placeholder) {
-        $select.empty();
-        $select.append('<option value="">' + placeholder + '</option>');
-        items.forEach(function (item) {
-            const selected = String(selectedValue) === String(item.id) ? 'selected' : '';
-            $select.append('<option value="' + item.id + '" ' + selected + '>' + item.name + '</option>');
-        });
-        $select.selectpicker('refresh');
-    }
-
-    function fillDepartmentSelect(departments, selectedValue) {
-        const $select = $('#department_id');
-        $select.empty();
-        $select.append('<option value="">{{ __('Select Department') }}</option>');
-        departments.forEach(function (item) {
-            const selected = String(selectedValue) === String(item.id) ? 'selected' : '';
-            $select.append('<option value="' + item.id + '" ' + selected + '>' + item.department_name + '</option>');
-        });
-        $select.selectpicker('refresh');
-    }
-
-    function fillMembersSelect(employees, selectedIds) {
-        const $select = $('#member_ids');
-        $select.empty();
-        employees.forEach(function (item) {
-            const selected = (selectedIds || []).map(String).includes(String(item.id)) ? 'selected' : '';
-            $select.append('<option value="' + item.id + '" ' + selected + '>' + item.name + '</option>');
-        });
-        $select.selectpicker('refresh');
-    }
-
-    function loadCompanyOptions(selectedPm, selectedAssistant, selectedMembers, selectedDepartment, selectedDeptHead) {
-        const companyId = $('#company_id').val();
-        if (!companyId) {
-            return;
-        }
-
-        $.get("{{ route('teams.employees_options') }}", { company_id: companyId }, function (res) {
-            fillSelect($('#department_head_id'), res.employees, selectedDeptHead, '{{ __('Select Department Head') }}');
-            fillSelect($('#project_manager_id'), res.employees, selectedPm, '{{ __('Select Project Manager') }}');
-            fillSelect($('#assistant_hr_id'), res.employees, selectedAssistant, '{{ __('Select Assistant HR') }}');
-            fillDepartmentSelect(res.departments, selectedDepartment);
-            fillMembersSelect(res.employees, selectedMembers);
-        });
-    }
 
     $(document).ready(function () {
         const table = $('#team-table').DataTable({
@@ -218,78 +109,12 @@
             $('#action_button').val('{{ trans('file.Add') }}');
             $('#exampleModalLabel').text('{{ __('Add Team') }}');
             $('#formModal').modal('show');
-            if ($('#company_id option').length === 1) {
+            if ($('#company_id').is('select') && $('#company_id option').length === 1) {
                 $('#company_id').val($('#company_id option:first').val()).selectpicker('refresh');
             }
-            loadCompanyOptions();
+            $('#company_id').trigger('change');
         });
 
-        $('#company_id').on('change', function () {
-            loadCompanyOptions();
-        });
-
-        $('#sample_form').on('submit', function (event) {
-            event.preventDefault();
-            const actionUrl = $('#action').val() === '{{ trans('file.Add') }}'
-                ? "{{ route('teams.store') }}"
-                : "{{ route('teams.update') }}";
-
-            $.ajax({
-                url: actionUrl,
-                method: "POST",
-                data: $(this).serialize(),
-                dataType: "json",
-                success: function (data) {
-                    if (data.errors) {
-                        let html = '<div class="alert alert-danger">';
-                        data.errors.forEach(function (error) {
-                            html += '<div>' + error + '</div>';
-                        });
-                        html += '</div>';
-                        $('#form_result').html(html);
-                    }
-
-                    if (data.success) {
-                        $('#form_result').html('<div class="alert alert-success">' + data.success + '</div>');
-                        $('#sample_form')[0].reset();
-                        $('.selectpicker').selectpicker('refresh');
-                        table.ajax.reload();
-                        setTimeout(function () {
-                            $('#formModal').modal('hide');
-                            $('#form_result').html('');
-                        }, 1200);
-                    }
-                }
-            });
-        });
-
-        $(document).on('click', '.edit', function () {
-            const id = $(this).attr('id');
-            $('#form_result').html('');
-            $.ajax({
-                url: "{{ url('organization/teams') }}/" + id + "/edit",
-                dataType: "json",
-                success: function (data) {
-                    $('#team_name').val(data.data.team_name);
-                    $('#company_id').val(data.data.company_id).selectpicker('refresh');
-                    $('#description').val(data.data.description);
-                    $('#hidden_id').val(data.data.id);
-                    $('#action').val('{{ __('Edit') }}');
-                    $('#action_button').val('{{ __('Edit') }}');
-                    $('#exampleModalLabel').text('{{ __('Edit Team') }}');
-                    loadCompanyOptions(
-                        data.data.project_manager_id,
-                        data.data.assistant_hr_id,
-                        data.member_ids,
-                        data.data.department_id,
-                        data.data.department_head_id
-                    );
-                    $('#formModal').modal('show');
-                }
-            });
-        });
-
-        let deleteId = null;
         $(document).on('click', '.delete', function () {
             deleteId = $(this).attr('id');
             $('#confirmModal').modal('show');
@@ -337,4 +162,9 @@
     });
 })(jQuery);
 </script>
+@include('organization.team.partials.form_scripts', [
+    'allowCreate' => true,
+    'tableSelector' => '#team-table',
+    'singleCompanyId' => $singleCompanyId,
+])
 @endpush

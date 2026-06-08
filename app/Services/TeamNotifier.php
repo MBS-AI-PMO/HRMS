@@ -14,7 +14,7 @@ class TeamNotifier
 
         $companyId = (int) $team->company_id;
         $teamName = $team->team_name;
-        $link = route('teams.index');
+        $link = route('teams.my');
 
         if ($event === 'created') {
             $message = __('Team ":name" has been created.', ['name' => $teamName]);

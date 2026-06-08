@@ -53,17 +53,7 @@ class TeamController extends Controller
                     return $row->members->pluck('full_name')->filter()->implode(', ');
                 })
                 ->addColumn('action', function ($data) {
-                    $button = '';
-
-                    if (auth()->user()->can('edit-team')) {
-                        $button .= '<button type="button" name="edit" id="'.$data->id.'" class="edit btn btn-primary btn-sm"><i class="dripicons-pencil"></i></button>&nbsp;&nbsp;';
-                    }
-
-                    if (auth()->user()->can('delete-team')) {
-                        $button .= '<button type="button" name="delete" id="'.$data->id.'" class="delete btn btn-danger btn-sm"><i class="dripicons-trash"></i></button>';
-                    }
-
-                    return $button;
+                    return $this->teamActionButtons($data, true);
                 })
                 ->rawColumns(['action'])
                 ->make(true);
@@ -72,35 +62,80 @@ class TeamController extends Controller
         return view('organization.team.index', compact('companies'));
     }
 
+    /**
+     * Teams where the logged-in user is Department Head, PM, Assistant HR, or a member.
+     */
+    public function myTeams()
+    {
+        $userId = (int) auth()->id();
+
+        if (! Team::userHasTeamAccess($userId) && ! auth()->user()->can('view-team')) {
+            return abort(403, __('You are not assigned to any team yet.'));
+        }
+
+        if (request()->ajax()) {
+            $teams = Team::with([
+                'company:id,company_name',
+                'department:id,department_name',
+                'departmentHead:id,first_name,last_name',
+                'projectManager:id,first_name,last_name',
+                'assistantHr:id,first_name,last_name',
+                'members:id,first_name,last_name',
+            ]);
+
+            $teams->forUser($userId)->latest('id');
+
+            return datatables()->of($teams)
+                ->setRowId(function ($row) {
+                    return $row->id;
+                })
+                ->addColumn('your_role', function ($row) use ($userId) {
+                    return $row->roleLabelForUser($userId);
+                })
+                ->addColumn('company', function ($row) {
+                    return $row->company->company_name ?? '';
+                })
+                ->addColumn('department', function ($row) {
+                    return $row->department->department_name ?? '-';
+                })
+                ->addColumn('department_head', function ($row) {
+                    return $row->departmentHead->full_name ?? '-';
+                })
+                ->addColumn('project_manager', function ($row) {
+                    return $row->projectManager->full_name ?? '';
+                })
+                ->addColumn('assistant_hr', function ($row) {
+                    return $row->assistantHr->full_name ?? '-';
+                })
+                ->addColumn('members', function ($row) {
+                    return $row->members->pluck('full_name')->filter()->implode(', ');
+                })
+                ->addColumn('action', function ($data) {
+                    return $this->teamActionButtons($data, false);
+                })
+                ->rawColumns(['action'])
+                ->make(true);
+        }
+
+        $companies = CompanyScope::companiesForSelect();
+
+        return view('organization.team.my', compact('companies'));
+    }
+
     public function employeesOptions(Request $request)
     {
-        if (! auth()->user()->can('view-team')) {
+        if (! $this->canAccessTeamEmployeeOptions()) {
             return response()->json(['employees' => [], 'departments' => []], 403);
         }
 
         $companyId = CompanyScope::resolveCompanyIdForInput((int) $request->get('company_id'));
 
-        $employees = Employee::select('id', 'first_name', 'last_name')
-            ->where('company_id', $companyId)
-            ->where('is_active', 1)
-            ->whereNull('exit_date')
-            ->orderBy('first_name')
-            ->get()
-            ->map(function ($employee) {
-                return [
-                    'id' => $employee->id,
-                    'name' => $employee->full_name,
-                ];
-            });
-
-        $departments = department::select('id', 'department_name')
-            ->where('company_id', $companyId)
-            ->orderBy('department_name')
-            ->get();
-
         return response()->json([
-            'employees' => $employees,
-            'departments' => $departments,
+            'employees' => CompanyScope::employeesForCompany($companyId),
+            'departments' => department::select('id', 'department_name')
+                ->where('company_id', $companyId)
+                ->orderBy('department_name')
+                ->get(),
         ]);
     }
 
@@ -160,12 +195,15 @@ class TeamController extends Controller
 
     public function edit($id)
     {
-        if (! request()->ajax() || ! auth()->user()->can('edit-team')) {
+        if (! request()->ajax()) {
             return response()->json(['error' => __('You are not authorized')], 403);
         }
 
         $team = Team::with('members:id')->findOrFail($id);
-        CompanyScope::assertCompanyAccess($team->company_id);
+
+        if (! $this->canEditTeam($team)) {
+            return response()->json(['error' => __('You are not authorized')], 403);
+        }
 
         return response()->json([
             'data' => $team,
@@ -175,12 +213,11 @@ class TeamController extends Controller
 
     public function update(Request $request)
     {
-        if (! auth()->user()->can('edit-team')) {
+        $team = Team::findOrFail($request->hidden_id);
+
+        if (! $this->canEditTeam($team)) {
             return response()->json(['error' => __('You are not authorized')]);
         }
-
-        $team = Team::findOrFail($request->hidden_id);
-        CompanyScope::assertCompanyAccess($team->company_id);
 
         $companyId = CompanyScope::resolveCompanyIdForInput((int) $request->company_id);
 
@@ -268,6 +305,46 @@ class TeamController extends Controller
         }
 
         return response()->json(['success' => __('Selected teams deleted successfully.')]);
+    }
+
+    protected function canEditTeam(Team $team): bool
+    {
+        $userId = (int) auth()->id();
+
+        if (auth()->user()->can('edit-team')) {
+            try {
+                CompanyScope::assertCompanyAccess($team->company_id);
+            } catch (\Throwable $e) {
+                return false;
+            }
+
+            return true;
+        }
+
+        return $team->userIsLeader($userId);
+    }
+
+    protected function canAccessTeamEmployeeOptions(): bool
+    {
+        return auth()->user()->can('view-team')
+            || auth()->user()->can('edit-team')
+            || auth()->user()->can('store-team')
+            || Team::userCanLeadAnyTeam((int) auth()->id());
+    }
+
+    protected function teamActionButtons(Team $team, bool $allowDelete): string
+    {
+        $button = '';
+
+        if ($this->canEditTeam($team)) {
+            $button .= '<button type="button" data-id="'.$team->id.'" class="edit-team btn btn-primary btn-sm"><i class="dripicons-pencil"></i></button>&nbsp;&nbsp;';
+        }
+
+        if ($allowDelete && auth()->user()->can('delete-team')) {
+            $button .= '<button type="button" name="delete" id="'.$team->id.'" class="delete btn btn-danger btn-sm"><i class="dripicons-trash"></i></button>';
+        }
+
+        return $button;
     }
 
     protected function filterMemberIds(Request $request): array
