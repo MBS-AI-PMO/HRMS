@@ -6,6 +6,7 @@ use App\Models\company;
 use App\Models\department;
 use App\Models\designation;
 use App\Models\Employee;
+use App\Support\CompanyScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -20,7 +21,7 @@ class DesignationController extends Controller
     public function index()
 	{
 
-		$companies = company::select('id', 'company_name')->get();
+		$companies = CompanyScope::companiesForSelect();
 
 			if (request()->ajax())
 			{

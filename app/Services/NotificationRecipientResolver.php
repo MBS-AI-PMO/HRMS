@@ -53,7 +53,7 @@ class NotificationRecipientResolver
 
         $leaderIds = collect();
 
-        foreach ($teamsQuery->get() as $team) {
+        foreach ($teamsQuery->with(['departmentHeads:id'])->get() as $team) {
             foreach ($team->leaderEmployeeIds() as $leaderId) {
                 $leaderIds->push((int) $leaderId);
             }

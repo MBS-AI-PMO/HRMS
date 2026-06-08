@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Announcement;
 use App\Models\company;
+use App\Support\CompanyScope;
 use App\Models\department;
 use App\Models\Employee;
 use App\Notifications\AnnouncementPublished;
@@ -20,7 +21,7 @@ class AnnouncementController extends Controller {
 	{
 
 		$logged_user = auth()->user();
-		$companies = company::select('id', 'company_name')->get();
+		$companies = CompanyScope::companiesForSelect();
 
 		if (request()->ajax())
 		{

@@ -13,6 +13,7 @@ use App\Models\designation;
 use App\Models\DocumentType;
 use App\Models\Employee;
 use App\Models\EmployeeActivityLog;
+use App\Models\Team;
 use App\Models\GeneralSetting;
 use App\Models\LoanType;
 use App\Models\office_shift;
@@ -51,6 +52,42 @@ class EmployeeController extends Controller
         }
 
         return ! ((int) $user->role_users_id === 1 && $user->can('modify-details-employee'));
+    }
+
+    protected function employeeListRestrictedToTeamMembers(): bool
+    {
+        return (int) auth()->user()->role_users_id !== 1
+            && Team::userCanAccessEmployeeList((int) auth()->id());
+    }
+
+    protected function canAccessEmployeeList(): bool
+    {
+        return auth()->user()->can('view-details-employee')
+            || Team::userCanAccessEmployeeList((int) auth()->id());
+    }
+
+    protected function canViewEmployeeRecord(Employee $employee): bool
+    {
+        if ((int) auth()->user()->role_users_id === 1) {
+            return true;
+        }
+
+        if ($this->employeeListRestrictedToTeamMembers()) {
+            return in_array(
+                (int) $employee->id,
+                Team::memberEmployeeIdsLedByUser((int) auth()->id()),
+                true
+            );
+        }
+
+        return auth()->user()->can('view-details-employee');
+    }
+
+    protected function assertCanModifyEmployees(): void
+    {
+        if ($this->employeeListRestrictedToTeamMembers()) {
+            abort(403, __('You are not authorized'));
+        }
     }
 
     protected function getEmployees($request, $currentDate)
@@ -130,16 +167,22 @@ class EmployeeController extends Controller
     public function index(Request $request)
     {
         $logged_user = auth()->user();
-        if ($logged_user->can('view-details-employee')) {
+        if ($this->canAccessEmployeeList()) {
             $companies = CompanyScope::companiesForSelect();
             $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
             $locations = location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
             $currentDate = date('Y-m-d');
+            $teamLeaderViewOnly = $this->employeeListRestrictedToTeamMembers();
 
             if (request()->ajax()) {
 
 
                 $employees = $this->getEmployees($request, $currentDate);
+
+                if ($teamLeaderViewOnly) {
+                    $allowedIds = Team::memberEmployeeIdsLedByUser((int) auth()->id());
+                    $employees = $employees->whereIn('id', $allowedIds)->values();
+                }
 
                 return datatables()->of($employees)
                     ->setRowId(function ($row) {
@@ -220,13 +263,15 @@ class EmployeeController extends Controller
 
                         return $email.'</br>'.$contact_no.'</br>'.$skype_id.'</br>'.$whatsapp_id;
                     })
-                    ->addColumn('action', function ($data) {
+                    ->addColumn('action', function ($data) use ($teamLeaderViewOnly) {
                         $button = '';
-                        if (auth()->user()->can('view-details-employee')) {
-                            $button .= '<a href="employees/'.$data->id.'"  class="edit btn btn-primary btn-sm" data-toggle="tooltip" data-placement="top" title="View Details"><i class="dripicons-preview"></i></button></a>';
-                            $button .= '&nbsp;&nbsp;&nbsp;';
+
+                        if ($teamLeaderViewOnly || auth()->user()->can('view-details-employee')) {
+                            $button .= '<a href="employees/'.$data->id.'" class="view btn btn-info btn-sm" data-toggle="tooltip" data-placement="top" title="'.__('View Details').'"><i class="dripicons-preview"></i></a>';
                         }
-                        if (auth()->user()->can('modify-details-employee')) {
+
+                        if (! $teamLeaderViewOnly && auth()->user()->can('modify-details-employee')) {
+                            $button .= '&nbsp;&nbsp;&nbsp;';
                             if ($data->role_users_id != 1) {
                                 $button .= '<button type="button" name="delete" id="'.$data->id.'" class="delete btn btn-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Delete"><i class="dripicons-trash"></i></button>';
                                 $button .= '&nbsp;&nbsp;&nbsp;';
@@ -240,15 +285,21 @@ class EmployeeController extends Controller
                     ->rawColumns(['name', 'company', 'contacts', 'action'])
                     ->make(true);
             }
-            return view('employee.index', compact('companies', 'roles', 'locations'));
-        } else {
+            return view('employee.index', compact('companies', 'roles', 'locations', 'teamLeaderViewOnly'));
+        }
+
+        if (request()->ajax()) {
             return response()->json(['success' => __('You are not authorized')]);
         }
+
+        return abort(403, __('You are not authorized'));
     }
 
     public function store(Request $request)
     {
         $logged_user = auth()->user();
+
+        $this->assertCanModifyEmployees();
 
         if ($logged_user->can('store-details-employee')) {
             if (request()->ajax()) {
@@ -394,7 +445,8 @@ class EmployeeController extends Controller
                 ->with('error', __('This employee has no linked user account (ID :id). Please contact administrator.', ['id' => $employee->id]));
         }
 
-        if (auth()->user()->can('view-details-employee')) {
+        if ($this->canViewEmployeeRecord($employee)) {
+            $employeeViewOnly = $this->employeeListRestrictedToTeamMembers();
             $companies = CompanyScope::companiesForSelect();
             $departments = department::select('id', 'department_name')
                 ->where('company_id', $employee->company_id)
@@ -425,10 +477,10 @@ class EmployeeController extends Controller
 
             return view('employee.dashboard', compact('employee', 'countries', 'companies',
                 'departments', 'designations', 'statuses', 'office_shifts', 'document_types',
-                'education_levels', 'language_skills', 'general_skills', 'roles','relationTypes','loanTypes','deductionTypes', 'locations'));
-        } else {
-            return response()->json(['success' => __('You are not authorized')]);
+                'education_levels', 'language_skills', 'general_skills', 'roles','relationTypes','loanTypes','deductionTypes', 'locations', 'employeeViewOnly'));
         }
+
+        return abort(403, __('You are not authorized'));
     }
 
      public function profile()
@@ -526,6 +578,8 @@ class EmployeeController extends Controller
 
     public function destroy($id)
     {
+        $this->assertCanModifyEmployees();
+
         if (! env('USER_VERIFIED')) {
             return response()->json(['error' => 'This feature is disabled for demo!']);
         }
@@ -610,6 +664,8 @@ class EmployeeController extends Controller
 
     public function delete_by_selection(Request $request)
     {
+        $this->assertCanModifyEmployees();
+
         if (! env('USER_VERIFIED')) {
             return response()->json(['error' => 'This feature is disabled for demo!']);
         }
@@ -630,6 +686,8 @@ class EmployeeController extends Controller
 
    public function infoUpdate(Request $request, $employee)
 {
+    $this->assertCanModifyEmployees();
+
     $logged_user = auth()->user();
 
     if ($logged_user->can('modify-details-employee')) {
@@ -1082,9 +1140,15 @@ return response()->json([
 
     public function employeePDF($id)
     {
-        $employee = Employee::with('user:id,profile_photo,username', 'company:id,company_name', 'department:id,department_name', 'designation:id,designation_name', 'officeShift:id,shift_name', 'role:id,name')
-            ->where('id', $id)
-            ->first()
+        $this->assertCanModifyEmployees();
+
+        $employeeModel = Employee::findOrFail($id);
+
+        if (! $this->canViewEmployeeRecord($employeeModel)) {
+            return abort(403, __('You are not authorized'));
+        }
+
+        $employee = $employeeModel->load('user:id,profile_photo,username', 'company:id,company_name', 'department:id,department_name', 'designation:id,designation_name', 'officeShift:id,shift_name', 'role:id,name')
             ->toArray();
 
         PDF::setOptions(['dpi' => 10, 'defaultFont' => 'sans-serif', 'tempDir' => storage_path('temp')]);

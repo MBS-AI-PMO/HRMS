@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\department;
 use App\Models\designation;
 use App\Models\Employee;
+use App\Support\CompanyScope;
 use App\Models\FinanceBankCash;
 use App\Models\JobCandidate;
 use App\Models\office_shift;
@@ -16,7 +17,7 @@ class DynamicDependent extends Controller {
 
 	public function fetchDepartment(Request $request)
 	{
-		$value = $request->get('value');
+		$value = CompanyScope::resolveCompanyIdForInput((int) $request->get('value'));
 		$dependent = $request->get('dependent');
 		$data = department::whereCompany_id($value)->groupBy('department_name')->get();
 		$output = '';
@@ -30,7 +31,7 @@ class DynamicDependent extends Controller {
 
 	public function fetchOfficeShifts(Request $request)
 	{
-		$value = $request->get('value');
+		$value = CompanyScope::resolveCompanyIdForInput((int) $request->get('value'));
 		$dependent = $request->get('dependent');
 		$data = office_shift::whereCompany_id($value)->groupBy('shift_name')->get();
 		$output = '';
@@ -44,7 +45,7 @@ class DynamicDependent extends Controller {
 
 	public function fetchEmployee(Request $request)
 	{
-		$value = $request->get('value');
+		$value = CompanyScope::resolveCompanyIdForInput((int) $request->get('value'));
 		$first_name = $request->get('first_name');
 		$last_name = $request->get('last_name');
         

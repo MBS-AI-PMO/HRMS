@@ -26,6 +26,15 @@
                     </li>
                 @endif
 
+                @if (\App\Models\Team::userCanAccessEmployeeList((int) auth()->id()) && ! auth()->user()->can('view-details-employee'))
+                    <li class="{{ request()->is('staff/employees*') ? 'active' : '' }}">
+                        <a href="{{ route('employees.index') }}">
+                            <i class="dripicons-view-list"></i>
+                            <span>{{ __('Employee List') }}</span>
+                        </a>
+                    </li>
+                @endif
+
 
 
 
@@ -63,10 +72,8 @@
                         <a href="#employees" aria-expanded="false" data-toggle="collapse"> <i
                                 class="dripicons-user-group"></i><span>{{ trans('file.Employees') }}</span></a>
                         <ul id="employees" class="collapse list-unstyled ">
-                            @can('view-details-employee')
-                                <li id="employee_list"><a href="{{ route('employees.index') }}">{{ __('Employee Lists') }}</a>
-                                </li>
-                            @endcan
+                            <li id="employee_list"><a href="{{ route('employees.index') }}">{{ __('Employee Lists') }}</a>
+                            </li>
                             @can('import-employee')
                                 <li id="user-import"><a
                                         href="{{ route('employees.import') }}">{{ __('Import Employees') }}</a>

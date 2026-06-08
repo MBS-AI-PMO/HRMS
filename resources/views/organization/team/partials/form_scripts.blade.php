@@ -27,6 +27,16 @@
         $select.selectpicker('refresh');
     }
 
+    function fillDepartmentHeadsSelect(employees, selectedIds) {
+        const $select = $('#department_head_ids');
+        $select.empty();
+        employees.forEach(function (item) {
+            const selected = (selectedIds || []).map(String).includes(String(item.id)) ? 'selected' : '';
+            $select.append('<option value="' + item.id + '" ' + selected + '>' + item.name + '</option>');
+        });
+        $select.selectpicker('refresh');
+    }
+
     function fillMembersSelect(employees, selectedIds) {
         const $select = $('#member_ids');
         $select.empty();
@@ -37,7 +47,7 @@
         $select.selectpicker('refresh');
     }
 
-    function loadCompanyOptions(selectedPm, selectedAssistant, selectedMembers, selectedDepartment, selectedDeptHead) {
+    function loadCompanyOptions(selectedPm, selectedAssistant, selectedMembers, selectedDepartment, selectedDeptHeads) {
         let companyId = $('#company_id').val();
         if (!companyId && defaultCompanyId) {
             companyId = defaultCompanyId;
@@ -47,7 +57,7 @@
         }
 
         $.get("{{ route('teams.employees_options') }}", { company_id: companyId }, function (res) {
-            fillSelect($('#department_head_id'), res.employees, selectedDeptHead, '{{ __('Select Department Head') }}');
+            fillDepartmentHeadsSelect(res.employees, selectedDeptHeads);
             fillSelect($('#project_manager_id'), res.employees, selectedPm, '{{ __('Select Project Manager') }}');
             fillSelect($('#assistant_hr_id'), res.employees, selectedAssistant, '{{ __('Select Assistant HR') }}');
             fillDepartmentSelect(res.departments, selectedDepartment);
@@ -79,7 +89,7 @@
                     data.data.assistant_hr_id,
                     data.member_ids,
                     data.data.department_id,
-                    data.data.department_head_id
+                    data.department_head_ids
                 );
                 $('#formModal').modal('show');
             }
@@ -131,6 +141,30 @@
 
         $(document).on('click', '.edit-team', function () {
             window.openTeamEditModal($(this).data('id'));
+        });
+
+        $(document).on('click', '.view-team', function () {
+            const id = $(this).data('id');
+            $.ajax({
+                url: "{{ url('organization/teams') }}/" + id + "/show",
+                dataType: "json",
+                success: function (response) {
+                    if (response.error) {
+                        alert(response.error);
+                        return;
+                    }
+                    const data = response.data;
+                    $('#view_team_name').text(data.team_name || '-');
+                    $('#view_team_company').text(data.company || '-');
+                    $('#view_team_department').text(data.department || '-');
+                    $('#view_team_department_heads').text(data.department_heads || '-');
+                    $('#view_team_project_manager').text(data.project_manager || '-');
+                    $('#view_team_assistant_hr').text(data.assistant_hr || '-');
+                    $('#view_team_members').text(data.members || '-');
+                    $('#view_team_description').text(data.description || '-');
+                    $('#viewTeamModal').modal('show');
+                }
+            });
         });
     });
 })(jQuery);

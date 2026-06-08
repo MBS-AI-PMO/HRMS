@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\company;
 use App\Models\department;
 use App\Models\Employee;
+use App\Support\CompanyScope;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
@@ -13,7 +14,7 @@ class DepartmentController extends Controller {
 
 	public function index()
 	{
-		$companies = company::select('id', 'company_name')->get();
+		$companies = CompanyScope::companiesForSelect();
 
 		if (request()->ajax())
 		{
