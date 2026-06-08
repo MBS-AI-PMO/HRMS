@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\traits\LeaveTypeDataManageTrait;
 use App\Http\traits\SendsEmployeeCredentialsTrait;
+use App\Support\CompanyScope;
 use App\Imports\UsersImport;
 use App\Models\company;
 use App\Models\DeductionType;
@@ -130,7 +131,7 @@ class EmployeeController extends Controller
     {
         $logged_user = auth()->user();
         if ($logged_user->can('view-details-employee')) {
-            $companies = company::select('id', 'company_name')->get();
+            $companies = CompanyScope::companiesForSelect();
             $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
             $locations = location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
             $currentDate = date('Y-m-d');
@@ -267,7 +268,7 @@ class EmployeeController extends Controller
                 $data['date_of_birth'] = $request->date_of_birth;
                 $data['gender'] = $request->gender;
                 $data['department_id'] = $request->department_id;
-                $data['company_id'] = $request->company_id;
+                $data['company_id'] = CompanyScope::resolveCompanyIdForInput($request->company_id);
                 $data['designation_id'] = $request->designation_id;
                 $data['office_shift_id'] = $request->office_shift_id;
 
@@ -369,7 +370,7 @@ class EmployeeController extends Controller
         }
 
         if (auth()->user()->can('view-details-employee')) {
-            $companies = company::select('id', 'company_name')->get();
+            $companies = CompanyScope::companiesForSelect();
             $departments = department::select('id', 'department_name')
                 ->where('company_id', $employee->company_id)
                 ->get();
@@ -411,7 +412,7 @@ class EmployeeController extends Controller
         $employee = Employee::find($user->id);
 
         if (! $employee) {
-            $companies = company::select('id', 'company_name')->get();
+            $companies = CompanyScope::companiesForSelect();
             $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
             $currentDate = date('Y-m-d');
 
@@ -422,7 +423,7 @@ class EmployeeController extends Controller
             return view('profile.user_profile', compact('user', 'companies', 'roles', 'currentDate'));
         }
 
-            $companies = company::select('id', 'company_name')->get();
+            $companies = CompanyScope::companiesForSelect();
             $departments = department::select('id', 'department_name')
                 ->where('company_id', $employee->company_id)
                 ->get();
@@ -666,7 +667,7 @@ class EmployeeController extends Controller
             $this->assignCnicFromRequest($data, $request);
             $data['gender'] = $request->gender;
             $data['department_id'] = $request->department_id;
-            $data['company_id'] = $request->company_id;
+            $data['company_id'] = CompanyScope::resolveCompanyIdForInput($request->company_id);
             $data['designation_id'] = $request->designation_id;
             $data['office_shift_id'] = $request->office_shift_id;
             $data['location_id'] = $request->location_id ?: null;
@@ -823,7 +824,7 @@ return response()->json([
             if (! $workReadonly) {
                 $data['staff_id'] = $request->staff_id;
                 $data['department_id'] = $request->department_id;
-                $data['company_id'] = $request->company_id;
+                $data['company_id'] = CompanyScope::resolveCompanyIdForInput($request->company_id);
                 $data['designation_id'] = $request->designation_id;
                 $data['office_shift_id'] = $request->office_shift_id;
                 $data['location_id'] = $request->location_id ?: null;

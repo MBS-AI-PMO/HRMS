@@ -148,6 +148,12 @@
                             </li>
                         @endcan
 
+                        @can('view-team')
+                            <li id="teams" class="{{ request()->is('organization/teams*') ? 'active' : '' }}">
+                                <a href="{{ route('teams.index') }}">{{ __('Team Management') }}</a>
+                            </li>
+                        @endcan
+
                         @can('view-designation')
                             <li id="designation"><a
                                     href="{{ route('designations.index') }}">{{ trans('file.Designation') }}</a>

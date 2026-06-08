@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\traits\SendsEmployeeCredentialsTrait;
 use App\Models\Employee;
 use App\Models\Client;
+use App\Support\CompanyScope;
 use App\Models\Role_User;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -20,8 +21,7 @@ class AllUserController extends Controller {
     {
         $logged_user = auth()->user();
 
-        //$users = User::with('RoleUser')->orderByDesc('is_active');
-        $users = User::orderBy('is_active','desc')->get();
+        $users = CompanyScope::scopeUsers(User::query())->orderBy('is_active', 'desc');
 
         	if ($logged_user->can('view-user')){
                 if (request()->ajax()){

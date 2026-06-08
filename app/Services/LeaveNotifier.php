@@ -7,7 +7,6 @@ use App\Models\leave;
 use App\Models\User;
 use App\Notifications\LeaveEventNotification;
 use App\Notifications\LeaveRequestNotification;
-use Illuminate\Support\Facades\DB;
 
 class LeaveNotifier
 {
@@ -15,13 +14,13 @@ class LeaveNotifier
     {
         $leave->loadMissing('employee', 'LeaveType');
 
+        $companyId = (int) $leave->company_id;
         $employee = User::find($leave->employee_id);
         $departmentHeadId = department::where('id', $leave->department_id)->value('department_head');
         $departmentHeadUser = $departmentHeadId ? User::find($departmentHeadId) : null;
 
-        $roleIds = DB::table('role_has_permissions')->where('permission_id', 294)->pluck('role_id');
-        $roleIds[] = 1;
-        $permissionUsers = User::query()->whereIn('role_users_id', $roleIds)->get();
+        $permissionUsers = NotificationRecipientResolver::usersWithPermissionInCompany('view-leave', $companyId);
+        $teamLeaders = NotificationRecipientResolver::teamLeadersForEmployee((int) $leave->employee_id, $companyId);
 
         $adminLink = route('leaves.index');
         $leaveTypeName = $leave->LeaveType->leave_type ?? __('Leave');
@@ -44,17 +43,14 @@ class LeaveNotifier
         $dateRange = trim(($leave->start_date ?? '') . ' - ' . ($leave->end_date ?? ''));
         $eventMessage = $message . ' (' . $requestorName . ' — ' . $leaveTypeName . ', ' . $dateRange . ')';
 
-        $recipients = collect()
-            ->merge($permissionUsers);
+        $recipients = NotificationRecipientResolver::uniqueUsers(
+            $permissionUsers,
+            $teamLeaders,
+            $departmentHeadUser ? collect([$departmentHeadUser]) : collect(),
+            $employee ? collect([$employee]) : collect(),
+        );
 
-        if ($departmentHeadUser) {
-            $recipients->push($departmentHeadUser);
-        }
-        if ($employee) {
-            $recipients->push($employee);
-        }
-
-        $recipients = $recipients->filter()->unique('id');
+        $recipients = NotificationRecipientResolver::filterByCompany($recipients, $companyId);
 
         foreach ($recipients as $recipient) {
             $recipientLink = (int) $recipient->id === (int) $leave->employee_id
