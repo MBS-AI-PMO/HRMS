@@ -123,6 +123,14 @@ class Team extends Model
         return static::userCanLeadAnyTeam($userId);
     }
 
+    /**
+     * Team leaders may view and approve leave/WFH for their team members without Spatie permissions.
+     */
+    public static function userCanManageTeamLeaveRequests(int $userId): bool
+    {
+        return static::userCanLeadAnyTeam($userId);
+    }
+
     public static function memberEmployeeIdsLedByUser(int $userId): array
     {
         return static::query()

@@ -292,7 +292,8 @@
                 )->pluck('id');
                 $isDepartmentManager = $managedDepartmentIds->isNotEmpty();
                 $isHrUser = $leaveManagerSidebarUser->can('view-leave');
-                $showLeaveManagementTabs = $isDepartmentManager || $isHrUser;
+                $isTeamLeaveManager = \App\Models\Team::userCanManageTeamLeaveRequests((int) $leaveManagerSidebarUser->id);
+                $showLeaveManagementTabs = $isDepartmentManager || $isHrUser || $isTeamLeaveManager;
 
                 $pendingLeaveCount = 0;
                 $pendingWfhCount = 0;
@@ -317,9 +318,19 @@
                                 ->orWhere('leave_type', 'like', '%work from home%');
                         });
 
-                    if (!$isHrUser && $isDepartmentManager) {
+                    if (! $isHrUser && $isDepartmentManager) {
                         $pendingLeaveQuery->whereIn('department_id', $managedDepartmentIds);
                         $pendingWfhQuery->whereIn('department_id', $managedDepartmentIds);
+                    } elseif (! $isHrUser && $isTeamLeaveManager) {
+                        $teamMemberIds = \App\Models\Team::memberEmployeeIdsLedByUser((int) $leaveManagerSidebarUser->id);
+
+                        if ($teamMemberIds !== []) {
+                            $pendingLeaveQuery->whereIn('employee_id', $teamMemberIds);
+                            $pendingWfhQuery->whereIn('employee_id', $teamMemberIds);
+                        } else {
+                            $pendingLeaveQuery->whereRaw('1 = 0');
+                            $pendingWfhQuery->whereRaw('1 = 0');
+                        }
                     }
 
                     $pendingLeaveCount = $pendingLeaveQuery->count();

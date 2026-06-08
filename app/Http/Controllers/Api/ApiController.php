@@ -1636,7 +1636,7 @@ class ApiController extends Controller
         $permissionUsers = NotificationRecipientResolver::usersWithPermissionInCompany('view-leave', $companyId);
         $teamLeaders = NotificationRecipientResolver::teamLeadersForEmployee((int) $leave->employee_id, $companyId);
 
-        $link = route('leaves.index');
+        $link = route('leaves.index', ['wfh' => 1]);
         if ($event === 'requested') {
             $subject = 'WFH request submitted';
             $message = 'A new WFH request has been submitted.';
