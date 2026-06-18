@@ -28,7 +28,7 @@ trait AutoUpdateTrait{
 
         $isServerConnectionOk = isset($data) && !empty($data) ? true : false;
 
-        if ($isServerConnectionOk) {
+        if ($isServerConnectionOk && isset($data->demo_version, $data->minimum_required_version)) {
             $clientVersionNumber = $this->stringToNumberConvert(env('VERSION'));
             $demoVersionNumber      = $this->stringToNumberConvert($data->demo_version);
             $minimumRequiredVersion = $this->stringToNumberConvert($data->minimum_required_version);
@@ -44,6 +44,11 @@ trait AutoUpdateTrait{
     }
 
     private function stringToNumberConvert($dataString) {
+        $dataString = (string) ($dataString ?? '');
+        if ($dataString === '') {
+            return 0;
+        }
+
         $myArray = explode(".", $dataString);
         $versionString = "";
         foreach($myArray as $element) {

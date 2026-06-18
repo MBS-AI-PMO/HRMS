@@ -2,6 +2,7 @@
 
 namespace App\Exceptions;
 
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Throwable;
 use Symfony\Component\Mailer\Exception\TransportException;
@@ -53,6 +54,18 @@ class Handler extends ExceptionHandler
         if ($exception instanceof TransportException) {
             return redirect()->back()->withErrors(['email' => 'Mail configuration error. Please check your mail settings.']);
         }
+
         return parent::render($request, $exception);
+    }
+
+    protected function unauthenticated($request, AuthenticationException $exception)
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => __('Unauthenticated. Please log in to continue.'),
+            ], 401);
+        }
+
+        return redirect()->guest(route('login'));
     }
 }

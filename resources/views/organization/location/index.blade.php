@@ -48,7 +48,7 @@
 
 
     <div id="formModal" class="modal fade" role="dialog">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
 
                 <div class="modal-header">
@@ -82,13 +82,11 @@
 
                             <div class="col-md-6 form-group">
                                 <label>{{__('Location Head')}}</label>
-                                <select name="location_head" id="location_head" class="form-control selectpicker"
-                                        data-live-search="true" data-live-search-style="contains"
+                                <select name="location_head_ids[]" id="location_head" class="form-control selectpicker"
+                                        data-live-search="true" data-live-search-style="contains" multiple
                                         title='{{__('Selecting',['key'=>trans('file.Employee')])}}...'>
-                                    @foreach($employees as $employee)
-                                        <option value="{{$employee->id}}">{{$employee->full_name}}</option>
-                                    @endforeach
                                 </select>
+                                <small class="text-muted">{{ __('Multiple location heads allowed. Shows employees from selected companies only.') }}</small>
                             </div>
 
 
@@ -173,6 +171,16 @@
                                 <small class="text-muted">{{ __('Choose company first, then employees will load.') }}</small>
                             </div>
 
+                            <div class="col-md-12 form-group" id="office_shift_wrap">
+                                <label>{{ __('Office Shift') }}</label>
+                                <small class="text-muted d-block mb-2">
+                                    {{ __('Select company first. One shift can be assigned per company for employees at this location.') }}
+                                </small>
+                                <div id="office_shift_rows" class="border rounded p-2 bg-light text-muted">
+                                    {{ __('Choose company first, then office shifts will load.') }}
+                                </div>
+                            </div>
+
 
                             <div class="form-group" align="center">
                                 <input type="hidden" name="action" id="action"/>
@@ -195,6 +203,51 @@
 
 
 
+
+    <div id="shiftAssignModal" class="modal fade" role="dialog">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ __('Assign Shift to Location Employees') }}</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <span id="shift_assign_result"></span>
+                    <p class="mb-2">
+                        <strong>{{ trans('file.Location') }}:</strong>
+                        <span id="shift_location_name">-</span>
+                    </p>
+                    <p class="text-muted mb-3" id="shift_employee_summary"></p>
+                    <form id="shift_assign_form">
+                        @csrf
+                        <input type="hidden" name="location_id" id="shift_location_id">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm mb-0">
+                                <thead>
+                                <tr>
+                                    <th>{{ trans('file.Company') }}</th>
+                                    <th>{{ __('Employees at Location') }}</th>
+                                    <th>{{ trans('file.Office_Shift') }}</th>
+                                </tr>
+                                </thead>
+                                <tbody id="shift_assign_rows"></tbody>
+                            </table>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            {{ __('Select a shift for each company. All active employees assigned to this location will be updated together.') }}
+                        </small>
+                        <div class="text-center mt-3">
+                            <button type="submit" class="btn btn-primary" id="shift_assign_submit">
+                                {{ __('Update Shifts') }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="confirmModal" class="modal fade" role="dialog">
         <div class="modal-dialog modal-dialog-centered">
@@ -401,10 +454,16 @@
             $('#sample_form')[0].reset();
             $('#company_ids').selectpicker('val', []);
             $('#employee_ids').empty().selectpicker('refresh');
+            $('#location_head').empty().selectpicker('refresh');
+            $('#office_shift_rows').html('{{ __('Choose company first, then office shifts will load.') }}');
             $('input[name="assign_scope"][value="specific"]').prop('checked', true);
             $('#employee_selection_wrap').show();
             $('#formModal').modal('show');
         });
+
+        function hidePageLoader() {
+            $('#loader').stop(true, true).fadeOut(200);
+        }
 
         $('#sample_form').on('submit', function (event) {
             event.preventDefault();
@@ -429,10 +488,16 @@
                         if (data.success) {
                             html = '<div class="alert alert-success">' + data.success + '</div>';
                             $('#sample_form')[0].reset();
-                            $('#location-table').DataTable().ajax.reload();
+                            $('#location-table').DataTable().ajax.reload(null, false);
                         }
                         $('#form_result').html(html).slideDown(300).delay(5000).slideUp(300);
-                    }
+                    },
+                    error: function () {
+                        $('#form_result').html(
+                            '<div class="alert alert-danger">{{ __('Something went wrong. Please try again.') }}</div>'
+                        ).slideDown(300).delay(5000).slideUp(300);
+                    },
+                    complete: hidePageLoader
                 })
             }
 
@@ -458,17 +523,130 @@
                             html = '<div class="alert alert-success">' + data.success + '</div>';
                             setTimeout(function () {
                                 $('#formModal').modal('hide');
-                                $('#location-table').DataTable().ajax.reload();
+                                $('#location-table').DataTable().ajax.reload(null, false);
                                 $('#sample_form')[0].reset();
                             }, 2000);
 
                         }
                         $('#form_result').html(html).slideDown(300).delay(5000).slideUp(300);
-                    }
+                    },
+                    error: function () {
+                        $('#form_result').html(
+                            '<div class="alert alert-danger">{{ __('Something went wrong. Please try again.') }}</div>'
+                        ).slideDown(300).delay(5000).slideUp(300);
+                    },
+                    complete: hidePageLoader
                 });
             }
         });
 
+
+        $(document).on('click', '.assign_shift', function () {
+            var id = $(this).attr('id');
+            $('#shift_assign_result').html('');
+            $('#shift_assign_rows').html('<tr><td colspan="3" class="text-center">{{ __('Loading...') }}</td></tr>');
+
+            $.ajax({
+                url: "{{ url('/organization/locations') }}/" + id + "/shift-assignment",
+                dataType: "json",
+                success: function (res) {
+                    $('#shift_location_id').val(res.location.id);
+                    $('#shift_location_name').text(res.location.location_name);
+                    $('#shift_employee_summary').text(
+                        '{{ __('Total active employees at this location') }}: ' + (res.total_employees || 0)
+                    );
+
+                    var rows = '';
+                    (res.companies || []).forEach(function (company, index) {
+                        var shiftOptions = '<option value="">{{ __('Select Shift') }}</option>';
+                        (company.shifts || []).forEach(function (shift) {
+                            shiftOptions += '<option value="' + shift.id + '">' + shift.shift_name + '</option>';
+                        });
+
+                        rows += '<tr>' +
+                            '<td>' + company.company_name + '</td>' +
+                            '<td>' + (company.employee_count || 0) + '</td>' +
+                            '<td>' +
+                            '<select class="form-control shift-company-select" ' +
+                            'name="shifts[' + index + '][office_shift_id]" ' +
+                            'data-company-id="' + company.id + '" required>' +
+                            shiftOptions +
+                            '</select>' +
+                            '<input type="hidden" name="shifts[' + index + '][company_id]" value="' + company.id + '">' +
+                            '</td>' +
+                            '</tr>';
+                    });
+
+                    if (!rows) {
+                        rows = '<tr><td colspan="3" class="text-center text-danger">{{ __('No companies linked to this location.') }}</td></tr>';
+                        $('#shift_assign_submit').prop('disabled', true);
+                    } else {
+                        $('#shift_assign_submit').prop('disabled', false);
+                    }
+
+                    $('#shift_assign_rows').html(rows);
+                    $('#shiftAssignModal').modal('show');
+                },
+                error: function () {
+                    $('#shift_assign_rows').html(
+                        '<tr><td colspan="3" class="text-center text-danger">{{ __('Unable to load shift assignment data.') }}</td></tr>'
+                    );
+                    $('#shiftAssignModal').modal('show');
+                }
+            });
+        });
+
+        $('#shift_assign_form').on('submit', function (event) {
+            event.preventDefault();
+
+            var shifts = [];
+            $('#shift_assign_rows .shift-company-select').each(function () {
+                var shiftId = $(this).val();
+                var companyId = $(this).data('company-id');
+                if (shiftId) {
+                    shifts.push({
+                        company_id: companyId,
+                        office_shift_id: shiftId
+                    });
+                }
+            });
+
+            if (!shifts.length) {
+                $('#shift_assign_result').html(
+                    '<div class="alert alert-danger">{{ __('Please select at least one shift.') }}</div>'
+                ).slideDown(200);
+                return;
+            }
+
+            $.ajax({
+                url: "{{ route('locations.assign_shift') }}",
+                method: "POST",
+                data: {
+                    _token: $('input[name="_token"]').val(),
+                    location_id: $('#shift_location_id').val(),
+                    shifts: shifts
+                },
+                dataType: "json",
+                success: function (data) {
+                    var html = '';
+                    if (data.errors) {
+                        html = '<div class="alert alert-danger">';
+                        (data.errors || []).forEach(function (error) {
+                            html += '<p>' + error + '</p>';
+                        });
+                        html += '</div>';
+                    }
+                    if (data.success) {
+                        html = '<div class="alert alert-success">' + data.success + '</div>';
+                        setTimeout(function () {
+                            $('#shiftAssignModal').modal('hide');
+                        }, 1500);
+                    }
+                    $('#shift_assign_result').html(html).slideDown(200).delay(5000).slideUp(200);
+                },
+                complete: hidePageLoader
+            });
+        });
 
         $(document).on('click', '.edit', function () {
 
@@ -485,7 +663,6 @@
 
 
                     $('#location_name').val(html.data.location_name);
-                    $('#location_head').selectpicker('val', html.data.location_head);
                     $('#company_ids').selectpicker('val', html.company_ids || []);
                     $('#address1').val(html.data.address1);
                     $('#address2').val(html.data.address2);
@@ -502,7 +679,7 @@
                     $('#action_button').val('{{trans('file.Edit')}}');
                     $('#action').val('{{trans('file.Edit')}}');
                     $('#formModal').modal('show');
-                    loadEmployeesByCompanies(html.company_ids || [], true);
+                    loadEmployeesByCompanies(html.company_ids || [], true, html.location_head_ids || [], {});
                 }
             })
         });
@@ -515,26 +692,89 @@
             }
         }
 
-        function loadEmployeesByCompanies(companyIds, keepSelected) {
-            if (!companyIds || !companyIds.length) {
-                $('#employee_ids').empty().selectpicker('refresh');
+        function renderOfficeShiftRows(companies, selectedShifts) {
+            selectedShifts = selectedShifts || {};
+
+            if (!companies || !companies.length) {
+                $('#office_shift_rows').html('{{ __('Choose company first, then office shifts will load.') }}');
                 return;
             }
 
-            let prev = keepSelected ? ($('#employee_ids').val() || []) : [];
+            let rows = '';
+
+            companies.forEach(function (company, index) {
+                let shiftOptions = '<option value="">{{ __('Select Shift') }}</option>';
+                let selectedShiftId = String(selectedShifts[company.id] || '');
+
+                (company.shifts || []).forEach(function (shift) {
+                    let selected = selectedShiftId === String(shift.id) ? 'selected' : '';
+                    shiftOptions += '<option value="' + shift.id + '" ' + selected + '>' + shift.shift_name + '</option>';
+                });
+
+                rows += '<div class="row align-items-center mb-2">' +
+                    '<div class="col-md-5"><strong>' + company.company_name + '</strong></div>' +
+                    '<div class="col-md-7">' +
+                    '<select class="form-control location-shift-select" ' +
+                    'name="shifts[' + index + '][office_shift_id]" ' +
+                    'data-company-id="' + company.id + '">' +
+                    shiftOptions +
+                    '</select>' +
+                    '<input type="hidden" name="shifts[' + index + '][company_id]" value="' + company.id + '">' +
+                    '</div>' +
+                    '</div>';
+            });
+
+            if (!rows) {
+                $('#office_shift_rows').html('<span class="text-danger">{{ __('No office shift found for selected companies.') }}</span>');
+                return;
+            }
+
+            $('#office_shift_rows').html(rows);
+        }
+
+        function loadEmployeesByCompanies(companyIds, keepSelected, selectedLocationHeads, selectedShifts) {
+            if (!companyIds || !companyIds.length) {
+                $('#employee_ids').empty().selectpicker('refresh');
+                $('#location_head').empty().selectpicker('refresh');
+                renderOfficeShiftRows([]);
+                return;
+            }
+
+            let prevEmployees = keepSelected ? ($('#employee_ids').val() || []) : [];
+            let prevHeads = keepSelected
+                ? (selectedLocationHeads || $('#location_head').val() || []).map(String)
+                : [];
+            let prevShifts = selectedShifts || {};
+
+            if (!keepSelected) {
+                $('.location-shift-select').each(function () {
+                    let companyId = $(this).data('company-id');
+                    if (companyId) {
+                        prevShifts[companyId] = $(this).val();
+                    }
+                });
+            }
+
             $.ajax({
                 url: "{{ route('locations.employees_by_companies') }}",
                 method: "GET",
                 data: {company_ids: companyIds},
                 dataType: "json",
                 success: function (res) {
-                    let opts = '';
+                    let employeeOpts = '';
+                    let headOpts = '';
+
                     (res.employees || []).forEach(function (emp) {
-                        let selected = prev.includes(String(emp.id)) ? 'selected' : '';
-                        opts += '<option value="' + emp.id + '" ' + selected + '>' + emp.full_name + '</option>';
+                        let employeeSelected = prevEmployees.includes(String(emp.id)) ? 'selected' : '';
+                        let headSelected = prevHeads.includes(String(emp.id)) ? 'selected' : '';
+
+                        employeeOpts += '<option value="' + emp.id + '" ' + employeeSelected + '>' + emp.full_name + '</option>';
+                        headOpts += '<option value="' + emp.id + '" ' + headSelected + '>' + emp.full_name + '</option>';
                     });
-                    $('#employee_ids').html(opts);
-                    $('#employee_ids').selectpicker('refresh');
+
+                    $('#employee_ids').html(employeeOpts).selectpicker('refresh');
+                    $('#location_head').html(headOpts).selectpicker('refresh');
+                    renderOfficeShiftRows(res.companies || [], prevShifts);
                 }
             });
         }

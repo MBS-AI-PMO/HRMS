@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\company;
+use App\Scopes\AuthCompanyScope;
 use App\Support\CompanyScope;
 use App\Models\department;
 use App\Models\Employee;
+use App\Models\location;
 use App\Models\Team;
+use App\Support\ManagedEmployeeScope;
 use App\Models\EmployeeActivityLog;
 use App\Models\leave;
 use App\Models\LeaveType;
@@ -45,6 +48,12 @@ class LeaveController extends Controller
             && Team::userCanManageTeamLeaveRequests((int) auth()->id());
     }
 
+    protected function isLocationLeaveManager(): bool
+    {
+        return (int) auth()->user()->role_users_id !== 1
+            && location::userCanManageLocationLeaveRequests((int) auth()->id());
+    }
+
     protected function isOrgDepartmentManager(): bool
     {
         return department::where('department_head', auth()->id())->exists();
@@ -59,7 +68,8 @@ class LeaveController extends Controller
     {
         return auth()->user()->can('view-leave')
             || $this->isOrgDepartmentManager()
-            || $this->isTeamLeaveManager();
+            || $this->isTeamLeaveManager()
+            || $this->isLocationLeaveManager();
     }
 
     protected function canViewLeaveRecord(leave $leave): bool
@@ -74,8 +84,12 @@ class LeaveController extends Controller
             return $managedIds->contains((int) $leave->department_id);
         }
 
-        if ($this->isTeamLeaveManager()) {
-            return in_array((int) $leave->employee_id, $this->teamMemberIdsForLeaveManagement(), true);
+        if (ManagedEmployeeScope::canManageLeaveRequests((int) auth()->id())) {
+            return in_array(
+                (int) $leave->employee_id,
+                ManagedEmployeeScope::managedEmployeeIds((int) auth()->id()),
+                true
+            );
         }
 
         return false;
@@ -94,8 +108,12 @@ class LeaveController extends Controller
             return true;
         }
 
-        if ($this->isTeamLeaveManager()) {
-            return in_array((int) $leave->employee_id, $this->teamMemberIdsForLeaveManagement(), true);
+        if (ManagedEmployeeScope::canManageLeaveRequests((int) auth()->id())) {
+            return in_array(
+                (int) $leave->employee_id,
+                ManagedEmployeeScope::managedEmployeeIds((int) auth()->id()),
+                true
+            );
         }
 
         return false;
@@ -114,34 +132,40 @@ class LeaveController extends Controller
             return;
         }
 
-        if ($this->isTeamLeaveManager()) {
-            $memberIds = $this->teamMemberIdsForLeaveManagement();
+        $memberIds = ManagedEmployeeScope::managedEmployeeIds((int) auth()->id());
 
-            if ($memberIds === []) {
-                $query->whereRaw('1 = 0');
-            } else {
-                $query->whereIn('employee_id', $memberIds);
-            }
+        if ($memberIds === []) {
+            $query->whereRaw('1 = 0');
+        } else {
+            $query->whereIn('employee_id', $memberIds);
         }
     }
 
     public function index()
     {
         $logged_user = auth()->user();
-        $companies = CompanyScope::companiesForSelect();
+        $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
+        $companies = $isLocationHead && ! $logged_user->can('view-leave')
+            ? CompanyScope::companiesForLocationHead((int) $logged_user->id)
+            : CompanyScope::companiesForSelect();
         $leave_types = LeaveType::select('id', 'leave_type', 'allocated_day')->get();
-        $teamLeaveManagerViewOnly = $this->isTeamLeaveManager()
+        $teamLeaveManagerViewOnly = ManagedEmployeeScope::canManageLeaveRequests((int) $logged_user->id)
             && ! $logged_user->can('view-leave')
             && ! $this->isOrgDepartmentManager();
         $wfhOnly = request()->boolean('wfh');
 
         if ($this->canAccessLeaveModule()) {
             if (request()->ajax()) {
-                $leaveQuery = leave::query()
+                $leaveQuery = $teamLeaveManagerViewOnly
+                    ? leave::withoutGlobalScope(AuthCompanyScope::class)
+                    : leave::query();
+                $leaveQuery = $leaveQuery
                     ->with([
                         'employee:id,first_name,last_name',
                         'department:id,department_name,department_head',
                         'LeaveType:id,leave_type',
+                        'approvedByUser:id,first_name,last_name',
+                        'approvedByEmployee:id,first_name,last_name',
                     ])
                     ->orderByDesc('id');
 
@@ -173,6 +197,9 @@ class LeaveController extends Controller
                     })
                     ->addColumn('employee', function ($row) {
                         return $row->employee->full_name ?? '';
+                    })
+                    ->addColumn('approved_by_name', function ($row) {
+                        return $row->approvedByName();
                     })
                     ->addColumn('action', function ($data) {
                         $button = '<button type="button" name="show" id="' . $data->id . '" class="show_new btn btn-success btn-sm"><i class="dripicons-preview"></i></button>';
@@ -272,6 +299,8 @@ class LeaveController extends Controller
                 }
 
                 $leave = leave::create($data);
+                $leave->refresh();
+                $leave->load(['employee', 'LeaveType', 'company', 'department']);
 
                 $this->logEmployeeActivity((int) $leave->employee_id, $isWfhLeave ? 'wfh.requested' : 'leave.requested', $isWfhLeave ? 'WFH request submitted.' : 'Leave request submitted.', [
                     'leave_id' => $leave->id,
@@ -282,18 +311,19 @@ class LeaveController extends Controller
                     'total_days' => $leave->total_days,
                 ]);
 
-                if ($isWfhLeave) {
-                    LeaveNotifier::notifyWfh($leave, 'requested');
-                } elseif ($leave->is_notify == 1) {
-                    $text = "A new leave-notification has been published";
-                    $notifiable = User::findOrFail($data['employee_id']);
-                    $notifiable->notify(new LeaveNotification($text)); //To Employee
-                } else {
-                    try {
+                try {
+                    if ($isWfhLeave) {
+                        LeaveNotifier::notifyWfh($leave, 'requested');
+                    } else {
                         LeaveNotifier::notify($leave, 'requested');
-                    } catch (\Throwable $e) {
-                        // Do not block leave submission on notification failures.
                     }
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Leave/WFH submit notification failed', [
+                        'leave_id' => $leave->id,
+                        'employee_id' => $leave->employee_id,
+                        'is_wfh' => $isWfhLeave,
+                        'message' => $e->getMessage(),
+                    ]);
                 }
 
             }
@@ -309,7 +339,7 @@ class LeaveController extends Controller
     public function show($id)
     {
         if (request()->ajax()) {
-            $data = leave::with('department:id,department_head')->findOrFail($id);
+            $data = leave::with(['department:id,department_head', 'approvedByUser:id,first_name,last_name'])->findOrFail($id);
 
             if (! $this->canViewLeaveRecord($data)) {
                 return response()->json(['error' => __('You are not authorized')], 403);
@@ -324,8 +354,14 @@ class LeaveController extends Controller
 
 
             return response()->json([
-                'data' => $data, 'employee_name' => $employee_name, 'company_name' => $company_name, 'department' => $department, 'leave_type_name' => $leave_type_name,
-                'start_date_name' => $start_date_name, 'end_date_name' => $end_date_name
+                'data' => $data,
+                'employee_name' => $employee_name,
+                'company_name' => $company_name,
+                'department' => $department,
+                'leave_type_name' => $leave_type_name,
+                'start_date_name' => $start_date_name,
+                'end_date_name' => $end_date_name,
+                'approved_by_name' => $data->approvedByName() ?: '-',
             ]);
         }
     }
@@ -422,7 +458,6 @@ class LeaveController extends Controller
                 $data['status'] = $request->status;
             }
 
-
             $leave = leave::find($id);
             $isWfhLeave = $this->isWfhLeaveTypeId((int) ($request->leave_type ?: $leave->leave_type_id));
             $previousManagerStatus = $leave->manager_approval_status;
@@ -431,6 +466,8 @@ class LeaveController extends Controller
             if ($isWfhLeave) {
                 $this->applyWfhApprovalStatus($leave, $data, $request);
             }
+
+            $this->applyLeaveDecisionMeta($data, $request->status, $previousStatus);
 
             //Employee Remaining Leave Manage
             $isEmplyoeeRemaingLeaveRestore = null;
@@ -522,6 +559,10 @@ class LeaveController extends Controller
 
         $leave = leave::findOrFail($id);
 
+        if (strtolower((string) $leave->status) === $status) {
+            return response()->json(['success' => __('Data is successfully updated')]);
+        }
+
         $proxyRequest = new Request([
             'hidden_id' => $leave->id,
             'leave_type' => $leave->leave_type_id,
@@ -542,6 +583,18 @@ class LeaveController extends Controller
         return $this->update($proxyRequest);
     }
 
+
+    private function applyLeaveDecisionMeta(array &$data, ?string $newStatus, ?string $previousStatus): void
+    {
+        $newStatus = strtolower((string) ($newStatus ?? ''));
+        $previousStatus = strtolower((string) ($previousStatus ?? ''));
+
+        if (! in_array($newStatus, ['approved', 'rejected'], true) || $newStatus === $previousStatus) {
+            return;
+        }
+
+        $data['approved_by'] = auth()->id();
+    }
 
     private function isWfhLeaveTypeId(int $leaveTypeId): bool
     {

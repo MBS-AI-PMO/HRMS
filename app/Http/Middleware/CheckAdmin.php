@@ -16,17 +16,14 @@ class CheckAdmin
      */
     public function handle($request, Closure $next)
     {
-		if(Auth::check() && Auth::user()->role_users_id==1){
+        if (! Auth::check()) {
+            return redirect()->route('login');
+        }
 
-			return $next($request);
-		}
-		/*if(Auth::check() && Auth::user()->role_id==2){
+        if ((int) Auth::user()->role_users_id === 1) {
+            return $next($request);
+        }
 
-			return redirect("/employee/dashboard");
-		}
-		*/
-
-
-        return redirect("/");
+        return redirect('/employee/dashboard');
     }
 }

@@ -17,7 +17,7 @@ class EmployeeLeaveController extends Controller {
 			if (request()->ajax())
 			{
 				$isWfhView = request()->boolean('wfh');
-				$leaves = leave::with('department', 'LeaveType')
+				$leaves = leave::with('department', 'LeaveType', 'approvedByUser:id,first_name,last_name', 'approvedByEmployee:id,first_name,last_name')
 					->where('employee_id', $employee)
 					->when($isWfhView, function ($query) {
 						$query->whereHas('LeaveType', function ($q) {
@@ -48,6 +48,10 @@ class EmployeeLeaveController extends Controller {
 					{
 						return empty($row->department->department_name) ? '' : $row->department->department_name;
 					})
+					->addColumn('approved_by_name', function ($row)
+					{
+						return $row->approvedByName();
+					})
 					->addColumn('action', function ($data) use ($employee, $logged_user, $isWfhView)
 					{
 						$button = '';
@@ -69,7 +73,7 @@ class EmployeeLeaveController extends Controller {
 	{
 		if (request()->ajax())
 		{
-			$data = leave::findOrFail($id);
+			$data = leave::with('approvedByUser:id,first_name,last_name')->findOrFail($id);
 			$company_name = $data->company->company_name ?? '';
 			$department = $data->department->department_name ?? '';
 			$leave_type_name = $data->LeaveType->leave_type ?? '';
@@ -77,8 +81,16 @@ class EmployeeLeaveController extends Controller {
 			$start_date_name = $data->start_date;
 			$end_date_name = $data->end_date;
 
-			return response()->json(['data' => $data, 'company_name' => $company_name, 'employee_name' => $employee_name, 'department' => $department, 'leave_type_name' => $leave_type_name,
-				'start_date_name' => $start_date_name, 'end_date_name' => $end_date_name]);
+			return response()->json([
+				'data' => $data,
+				'company_name' => $company_name,
+				'employee_name' => $employee_name,
+				'department' => $department,
+				'leave_type_name' => $leave_type_name,
+				'start_date_name' => $start_date_name,
+				'end_date_name' => $end_date_name,
+				'approved_by_name' => $data->approvedByName() ?: '-',
+			]);
 		}
 	}
 

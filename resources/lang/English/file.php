@@ -496,7 +496,7 @@ return array (
   'Years' => 'Years',
   'Yes' => 'Yes',
   'ZIP' => 'ZIP',
-  'action' => 'action',
+  'action' => 'Action',
   'category' => 'category',
   'company' => 'company',
   'delete' => 'delete',

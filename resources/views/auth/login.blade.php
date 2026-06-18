@@ -61,6 +61,14 @@
                 <div class="logo"><span>{{$general_setting->site_title}}</span></div>
                 @include('shared.errors')
                 @include('shared.flash_message')
+                @if (session('error'))
+                    <div class="alert alert-danger alert-dismissible text-center" role="alert">
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                        {{ session('error') }}
+                    </div>
+                @endif
                 <div id="registration_success_alert" class="alert alert-success" style="display:none;"></div>
                 <form method="POST" action="{{ route('login') }}" id="login-form">
                     @csrf

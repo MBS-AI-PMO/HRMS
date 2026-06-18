@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\NotificationRecipientResolver;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
@@ -63,6 +64,11 @@ class Employee extends Model
         'pension_type',
         'pension_amount',
     ];
+
+    public function routeNotificationForMail($notification = null): ?string
+    {
+        return NotificationRecipientResolver::resolveUserEmailAddress((int) $this->id);
+    }
 
     public function getFullNameAttribute()
     {

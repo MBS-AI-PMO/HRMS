@@ -21,12 +21,36 @@ class AllUserController extends Controller {
     {
         $logged_user = auth()->user();
 
-        $users = CompanyScope::scopeUsers(User::query())->orderBy('is_active', 'desc');
+        $users = CompanyScope::scopeUsers(
+            User::query()->with('RoleUser')
+        )->orderBy('is_active', 'desc');
 
         	if ($logged_user->can('view-user')){
                 if (request()->ajax()){
 
                     return datatables()->of($users)
+                    ->filterColumn('username', function ($query, $keyword) {
+                        $query->where(function ($q) use ($keyword) {
+                            $q->where('first_name', 'like', "%{$keyword}%")
+                                ->orWhere('last_name', 'like', "%{$keyword}%")
+                                ->orWhere('username', 'like', "%{$keyword}%")
+                                ->orWhereHas('RoleUser', function ($roleQuery) use ($keyword) {
+                                    $roleQuery->where('name', 'like', "%{$keyword}%");
+                                });
+                        });
+                    })
+                    ->filterColumn('contacts', function ($query, $keyword) {
+                        $query->where(function ($q) use ($keyword) {
+                            $q->where('email', 'like', "%{$keyword}%")
+                                ->orWhere('contact_no', 'like', "%{$keyword}%");
+                        });
+                    })
+                    ->filterColumn('login_info', function ($query, $keyword) {
+                        $query->where(function ($q) use ($keyword) {
+                            $q->where('last_login_date', 'like', "%{$keyword}%")
+                                ->orWhere('last_login_ip', 'like', "%{$keyword}%");
+                        });
+                    })
                     ->setRowId(function ($user)
                         {
                             return $user->id;
@@ -391,6 +415,12 @@ else
 		if ($logged_user->can('delete-user'))
 		{
 			$user = User::findOrFail($id);
+
+			$locationHeadBlock = \App\Models\location::deletionBlockReasonForLocationHead((int) $user->id);
+			if ($locationHeadBlock !== null) {
+				return response()->json(['error' => $locationHeadBlock]);
+			}
+
 			$file_path = $user->profile_photo;
 
 			if ($file_path)

@@ -3,9 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
-use App\Models\Employee;
 use App\Models\department;
 use App\Models\EmployeeDocument;
+use App\Services\NotificationRecipientResolver;
 use App\Notifications\DocumentExpiry;
 use App\Notifications\EmployeeDocumentExpiryNotifyToAdmin;
 use App\Notifications\EmployeeDocumentExpiryNotifyToDeptartmentHead;
@@ -71,25 +71,33 @@ class DocumentExpiryReminder extends Command
 		{
 			foreach ($document_employee as $key=> $document)
 			{
-				$when = now()->addSeconds(30);
-				Notification::route('mail', $document->employee->email)
-					->notify((new DocumentExpiry(
-						$document->document_title,
-						$document->expiry_date,
-						$document->DocumentType->document_type))->delay(($when)));
+                $employeeEmail = NotificationRecipientResolver::resolveUserEmailAddress((int) $document->employee_id);
+
+                if ($employeeEmail) {
+                    Notification::route('mail', $employeeEmail)
+                        ->notify(new DocumentExpiry(
+                            $document->document_title,
+                            $document->expiry_date,
+                            $document->DocumentType->document_type));
+                }
 
                 //Send to department-head
-                $department = department::with('DepartmentHead:id,email')->where('id',$document->employee->department_id)->first();
+                $department = department::with('DepartmentHead:id')->where('id',$document->employee->department_id)->first();
                 $data[$key]['document_title'] = $document->document_title;
                 $data[$key]['expiry_date']     = $document->expiry_date;
                 $data[$key]['document_type']   = $document->DocumentType->document_type;
-                $data[$key]['department_head-email'] = $department->DepartmentHead->email;
+                $departmentHeadEmail = $department?->DepartmentHead
+                    ? NotificationRecipientResolver::resolveUserEmailAddress((int) $department->DepartmentHead->id)
+                    : null;
+                $data[$key]['department_head-email'] = $departmentHeadEmail;
 
-                Notification::route('mail', $data[$key]['department_head-email'])
-					->notify((new EmployeeDocumentExpiryNotifyToDeptartmentHead(
+                if ($departmentHeadEmail) {
+                Notification::route('mail', $departmentHeadEmail)
+					->notify(new EmployeeDocumentExpiryNotifyToDeptartmentHead(
 						$data[$key]['document_title'],
                         $data[$key]['expiry_date'],
-                        $data[$key]['document_type']))->delay(($when)));
+                        $data[$key]['document_type']));
+                }
 
 
                 //New

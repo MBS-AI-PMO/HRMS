@@ -26,6 +26,8 @@
         <div class="container-fluid">
             <div class="card">
                 <div class="card-body">
+                    @include('shared.errors')
+                    @include('shared.flash_message')
                     <div class="text-center">
                         <h2>{{ $employee->user->username }}</h2>
                     </div>
@@ -75,6 +77,11 @@
                         <li class="nav-item">
                             <a class="nav-link" id="activity-log-tab" data-toggle="tab" href="#ActivityLog" role="tab"
                                 aria-controls="ActivityLog" aria-selected="false">{{ __('Activity Log') }}</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" id="change-password-tab" data-toggle="tab" href="#ChangePassword"
+                                role="tab" aria-controls="ChangePassword"
+                                aria-selected="false">{{ __('Change Password') }}</a>
                         </li>
                     </ul>
                     <div class="row">
@@ -684,6 +691,11 @@
                                             </thead>
                                         </table>
                                     </div>
+                                </div>
+
+                                <div class="tab-pane fade" id="ChangePassword" role="tabpanel"
+                                    aria-labelledby="change-password-tab">
+                                    @include('profile.employee_related.change_password')
                                 </div>
                             </div>
                         </div>

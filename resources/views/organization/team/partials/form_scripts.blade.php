@@ -6,14 +6,23 @@
     const tableSelector = '{{ $tableSelector }}';
     const defaultCompanyId = @json($singleCompanyId ?? null);
 
+    function resolveCompanyId() {
+        let companyId = $('#company_id').val();
+        if (!companyId && defaultCompanyId) {
+            companyId = String(defaultCompanyId);
+            $('#company_id').val(companyId);
+        }
+        return companyId;
+    }
+
     function fillSelect($select, items, selectedValue, placeholder) {
         $select.empty();
         $select.append('<option value="">' + placeholder + '</option>');
         items.forEach(function (item) {
-            const selected = String(selectedValue) === String(item.id) ? 'selected' : '';
-            $select.append('<option value="' + item.id + '" ' + selected + '>' + item.name + '</option>');
+            $select.append('<option value="' + item.id + '">' + item.name + '</option>');
         });
         $select.selectpicker('refresh');
+        $select.selectpicker('val', selectedValue ? String(selectedValue) : '');
     }
 
     function fillDepartmentSelect(departments, selectedValue) {
@@ -21,49 +30,80 @@
         $select.empty();
         $select.append('<option value="">{{ __('Select Department') }}</option>');
         departments.forEach(function (item) {
-            const selected = String(selectedValue) === String(item.id) ? 'selected' : '';
-            $select.append('<option value="' + item.id + '" ' + selected + '>' + item.department_name + '</option>');
+            $select.append('<option value="' + item.id + '">' + item.department_name + '</option>');
         });
         $select.selectpicker('refresh');
+        $select.selectpicker('val', selectedValue ? String(selectedValue) : '');
     }
 
     function fillDepartmentHeadsSelect(employees, selectedIds) {
         const $select = $('#department_head_ids');
         $select.empty();
         employees.forEach(function (item) {
-            const selected = (selectedIds || []).map(String).includes(String(item.id)) ? 'selected' : '';
-            $select.append('<option value="' + item.id + '" ' + selected + '>' + item.name + '</option>');
+            $select.append('<option value="' + item.id + '">' + item.name + '</option>');
         });
         $select.selectpicker('refresh');
+        $select.selectpicker('val', selectedIds && selectedIds.length ? selectedIds.map(String) : []);
     }
 
     function fillMembersSelect(employees, selectedIds) {
         const $select = $('#member_ids');
         $select.empty();
         employees.forEach(function (item) {
-            const selected = (selectedIds || []).map(String).includes(String(item.id)) ? 'selected' : '';
-            $select.append('<option value="' + item.id + '" ' + selected + '>' + item.name + '</option>');
+            $select.append('<option value="' + item.id + '">' + item.name + '</option>');
         });
         $select.selectpicker('refresh');
+        $select.selectpicker('val', selectedIds && selectedIds.length ? selectedIds.map(String) : []);
     }
 
-    function loadCompanyOptions(selectedPm, selectedAssistant, selectedMembers, selectedDepartment, selectedDeptHeads) {
-        let companyId = $('#company_id').val();
-        if (!companyId && defaultCompanyId) {
-            companyId = defaultCompanyId;
+    function clearDynamicTeamSelects() {
+        ['#department_id', '#project_manager_id', '#assistant_hr_id', '#department_head_ids', '#member_ids'].forEach(function (selector) {
+            const $select = $(selector);
+            $select.empty();
+            $select.selectpicker('refresh');
+            $select.selectpicker('val', $select.prop('multiple') ? [] : '');
+        });
+    }
+
+    window.resetTeamFormForCreate = function () {
+        $('#form_result').html('');
+        $('#sample_form')[0].reset();
+        $('#hidden_id').val('');
+        $('#team_name').val('');
+        $('#description').val('');
+        $('#action').val('{{ trans('file.Add') }}');
+        $('#action_button').val('{{ trans('file.Add') }}');
+        $('#exampleModalLabel').text('{{ __('Add Team') }}');
+        clearDynamicTeamSelects();
+
+        if (defaultCompanyId) {
+            $('#company_id').val(defaultCompanyId);
+            if ($('#company_id').is('select')) {
+                $('#company_id').selectpicker('refresh');
+            }
+        } else if ($('#company_id').is('select')) {
+            $('#company_id').val('').selectpicker('refresh');
         }
+    };
+
+    function loadCompanyOptions(selectedPm, selectedAssistant, selectedMembers, selectedDepartment, selectedDeptHeads) {
+        const companyId = resolveCompanyId();
         if (!companyId) {
             return;
         }
 
         $.get("{{ route('teams.employees_options') }}", { company_id: companyId }, function (res) {
-            fillDepartmentHeadsSelect(res.employees, selectedDeptHeads);
-            fillSelect($('#project_manager_id'), res.employees, selectedPm, '{{ __('Select Project Manager') }}');
-            fillSelect($('#assistant_hr_id'), res.employees, selectedAssistant, '{{ __('Select Assistant HR') }}');
-            fillDepartmentSelect(res.departments, selectedDepartment);
-            fillMembersSelect(res.employees, selectedMembers);
+            fillDepartmentHeadsSelect(res.employees || [], selectedDeptHeads);
+            fillSelect($('#project_manager_id'), res.employees || [], selectedPm, '{{ __('Select Project Manager') }}');
+            fillSelect($('#assistant_hr_id'), res.employees || [], selectedAssistant, '{{ __('Select Assistant HR') }}');
+            fillDepartmentSelect(res.departments || [], selectedDepartment);
+            fillMembersSelect(res.employees || [], selectedMembers);
         });
     }
+
+    window.loadTeamFormCompanyOptions = function (selectedPm, selectedAssistant, selectedMembers, selectedDepartment, selectedDeptHeads) {
+        loadCompanyOptions(selectedPm, selectedAssistant, selectedMembers, selectedDepartment, selectedDeptHeads);
+    };
 
     window.openTeamEditModal = function (id) {
         $('#form_result').html('');
@@ -78,35 +118,59 @@
                 $('#team_name').val(data.data.team_name);
                 if ($('#company_id').is('select')) {
                     $('#company_id').val(data.data.company_id).selectpicker('refresh');
+                } else {
+                    $('#company_id').val(data.data.company_id);
                 }
                 $('#description').val(data.data.description);
                 $('#hidden_id').val(data.data.id);
                 $('#action').val('{{ __('Edit') }}');
                 $('#action_button').val('{{ __('Edit') }}');
                 $('#exampleModalLabel').text('{{ __('Edit Team') }}');
-                loadCompanyOptions(
-                    data.data.project_manager_id,
-                    data.data.assistant_hr_id,
-                    data.member_ids,
-                    data.data.department_id,
-                    data.department_head_ids
-                );
+                $('#formModal').one('shown.bs.modal', function () {
+                    loadCompanyOptions(
+                        data.data.project_manager_id,
+                        data.data.assistant_hr_id,
+                        data.member_ids,
+                        data.data.department_id,
+                        data.department_head_ids
+                    );
+                });
                 $('#formModal').modal('show');
             }
         });
     };
 
     $(document).ready(function () {
-        if (defaultCompanyId && allowCreate) {
-            loadCompanyOptions();
+        if (defaultCompanyId) {
+            $('#company_id').val(defaultCompanyId);
         }
 
         $('#company_id').on('change', function () {
             loadCompanyOptions();
         });
 
+        $('#formModal').on('hidden.bs.modal', function () {
+            if (!$('#hidden_id').val()) {
+                clearDynamicTeamSelects();
+            }
+        });
+
+        $('#formModal').on('shown.bs.modal', function () {
+            if ($('#hidden_id').val()) {
+                return;
+            }
+            if (resolveCompanyId()) {
+                loadCompanyOptions();
+            } else {
+                clearDynamicTeamSelects();
+            }
+        });
+
         $('#sample_form').on('submit', function (event) {
             event.preventDefault();
+            if (defaultCompanyId) {
+                $('#company_id').val(defaultCompanyId);
+            }
             const isCreate = $('#action').val() === '{{ trans('file.Add') }}';
             const actionUrl = isCreate ? "{{ route('teams.store') }}" : "{{ route('teams.update') }}";
 

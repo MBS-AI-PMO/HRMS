@@ -48,6 +48,7 @@
                     <th>{{trans('file.Department')}}</th>
                     <th>{{trans('file.Duration')}}</th>
                     <th>{{__('Applied Date')}}</th>
+                    <th>{{ __('Approved By') }}</th>
                     <th class="not-exported">{{trans('file.action')}}</th>
                 </tr>
                 </thead>
@@ -195,100 +196,84 @@
     </div>
 
 
-    <div class="modal fade" id="leave_model" tabindex="-1" role="dialog" aria-labelledby="basicModal" aria-hidden="true">
+    <div class="modal fade hrms-leave-info-modal" id="leave_model" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h4 class="modal-title" id="myModalLabel">{{ $infoLabel }}</h4>
-                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <div class="hrms-info-header">
+                    <div class="hrms-info-header-text">
+                        <span class="hrms-info-eyebrow" id="leave_info_type_label">{{ $typeLabel }}</span>
+                        <h4 class="modal-title" id="myModalLabel">{{ $infoLabel }}</h4>
+                    </div>
+                    <button type="button" class="close hrms-info-close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
-                <div class="modal-body">
 
-                    <div class="row">
-                        <div class="col-md-12">
-
-                            <div class="table-responsive">
-
-                                <table class="table  table-bordered">
-
-                                    <tr>
-                                        <th>{{trans('file.Company')}}</th>
-                                        <td id="company_id_show"></td>
-                                    </tr>
-
-                                    <tr>
-                                        <th>{{ $forLabel }}</th>
-                                        <td id="employee_id_show"></td>
-                                    </tr>
-
-                                    <tr>
-                                        <th>{{trans('file.Department')}}</th>
-                                        <td id="department_id_show"></td>
-                                    </tr>
-
-                                    <tr>
-                                        <th>{{ $typeLabel }}</th>
-                                        <td id="leave_type_id"></td>
-                                    </tr>
-
-                                    <tr>
-                                        <th>{{ $reasonLabel }}</th>
-                                        <td id="leave_reason_id"></td>
-                                    </tr>
-
-                                    <tr>
-                                        <th>{{trans('file.Remarks')}}</th>
-                                        <td id="remarks_id"></td>
-                                    </tr>
-
-                                    <tr>
-                                        <th>{{trans('file.Status')}}</th>
-                                        <td id="status_id"></td>
-                                    </tr>
-
-                                    <tr>
-                                        <th>{{__('Start Date')}}</th>
-                                        <td id="start_date_id"></td>
-                                    </tr>
-
-                                    <tr>
-                                        <th>{{__('End Date')}}</th>
-                                        <td id="end_date_id"></td>
-                                    </tr>
-
-
-                                    <tr>
-                                        <th>{{__('Applied Date')}}</th>
-                                        <td id="applied_date_id"></td>
-                                    </tr>
-
-                                    <tr>
-                                        <th>{{__('Total Days')}}</th>
-                                        <td id="total_days_id"></td>
-                                    </tr>
-
-                                    <tr>
-                                        <th>{{__('Half Day')}}</th>
-                                        <td id="is_half_id"></td>
-                                    </tr>
-
-                                    <tr>
-                                        <th>{{trans('file.Notification')}}</th>
-                                        <td id="is_notify_id"></td>
-                                    </tr>
-
-                                </table>
-
+                <div class="modal-body p-0">
+                    <div class="hrms-info-hero">
+                        <div class="hrms-info-person">
+                            <div class="hrms-info-avatar" id="leave_info_avatar">—</div>
+                            <div>
+                                <h5 class="hrms-info-name" id="employee_id_show">—</h5>
+                                <p class="hrms-info-meta mb-0">
+                                    <span id="department_id_show">—</span>
+                                    <span class="hrms-info-dot">·</span>
+                                    <span id="company_id_show">—</span>
+                                </p>
                             </div>
+                        </div>
+                        <div id="status_id"></div>
+                    </div>
 
+                    <div class="hrms-info-section">
+                        <h6 class="hrms-info-section-title">{{ __('Request Details') }}</h6>
+                        <div class="hrms-info-grid">
+                            <div class="hrms-info-card">
+                                <span class="hrms-info-label">{{ $typeLabel }}</span>
+                                <span class="hrms-info-value" id="leave_type_id">—</span>
+                            </div>
+                            <div class="hrms-info-card">
+                                <span class="hrms-info-label">{{ __('Total Days') }}</span>
+                                <span class="hrms-info-value" id="total_days_id">—</span>
+                            </div>
+                            <div class="hrms-info-card">
+                                <span class="hrms-info-label">{{ __('Start Date') }}</span>
+                                <span class="hrms-info-value" id="start_date_id">—</span>
+                            </div>
+                            <div class="hrms-info-card">
+                                <span class="hrms-info-label">{{ __('End Date') }}</span>
+                                <span class="hrms-info-value" id="end_date_id">—</span>
+                            </div>
+                            <div class="hrms-info-card">
+                                <span class="hrms-info-label">{{ __('Applied Date') }}</span>
+                                <span class="hrms-info-value" id="applied_date_id">—</span>
+                            </div>
+                            <div class="hrms-info-card" id="approved_by_row" style="display:none;">
+                                <span class="hrms-info-label" id="approved_by_label">{{ __('Approved By') }}</span>
+                                <span class="hrms-info-value" id="approved_by_id">—</span>
+                            </div>
                         </div>
                     </div>
 
+                    <div class="hrms-info-section">
+                        <h6 class="hrms-info-section-title">{{ $reasonLabel }}</h6>
+                        <p class="hrms-info-text-block" id="leave_reason_id">—</p>
+                    </div>
 
+                    <div class="hrms-info-section" id="remarks_section">
+                        <h6 class="hrms-info-section-title">{{ trans('file.Remarks') }}</h6>
+                        <p class="hrms-info-text-block" id="remarks_id">—</p>
+                    </div>
+
+                    <div class="hrms-info-footer-meta">
+                        <span class="hrms-info-chip"><i class="fa fa-adjust"></i> {{ __('Half Day') }}: <span id="is_half_id">—</span></span>
+                        <span class="hrms-info-chip"><i class="fa fa-bell"></i> {{ trans('file.Notification') }}: <span id="is_notify_id">—</span></span>
+                    </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">{{trans('file.Close')}}</button>
+
+                <div class="modal-footer hrms-info-modal-footer">
+                    <button type="button" class="btn hrms-info-close-btn" data-dismiss="modal">{{ trans('file.Close') }}</button>
+                </div>
             </div>
         </div>
     </div>
@@ -435,13 +420,15 @@
                     {
                         data: null,
                         render: function (data) {
-                            if (data.status=='pending') {
-                                return data.leave_type + "<br><td><div class = 'badge badge-warning'> " + data.status + "</div></td><br>";
-                            }else if(data.status=='rejected') {
-                                return data.leave_type + "<br><td><div class = 'badge badge-danger'> (" + data.status + ")</div></td><br>";
-                            }else{
-                                return data.leave_type + "<br><td><div class = 'badge badge-success'> (" + data.status + ")</div></td><br>";
+                            let html = data.leave_type + '<br>';
+                            if (data.status == 'pending') {
+                                html += '<div class="badge badge-warning">' + data.status + '</div>';
+                            } else if (data.status == 'rejected') {
+                                html += '<div class="badge badge-danger">' + data.status + '</div>';
+                            } else {
+                                html += '<div class="badge badge-success">' + data.status + '</div>';
                             }
+                            return html;
                         }
                     },
                     {
@@ -465,6 +452,20 @@
                         name: 'created_at',
                     },
                     {
+                        data: 'approved_by_name',
+                        name: 'approved_by_name',
+                        orderable: false,
+                        searchable: false,
+                        render: function (data, type, row) {
+                            if (!data || row.status === 'pending') {
+                                return '-';
+                            }
+
+                            let label = row.status === 'rejected' ? '{{ __('Rejected by') }}' : '{{ __('Approved by') }}';
+                            return '<span class="text-muted small d-block">' + label + '</span>' + data;
+                        }
+                    },
+                    {
                         data: 'action',
                         name: 'action',
                         orderable: false
@@ -486,7 +487,7 @@
                     {
                         "orderable": false,
                         // 'targets': [0, 6],
-                        'targets': [0, 5],
+                        'targets': [0, 7],
                     },
                     {
                         'render': function (data, type, row, meta) {
@@ -665,32 +666,36 @@
                 dataType: "json",
                 success: function (result) {
 
-                    $('#leave_type_id').html(result.leave_type_name);
-                    $('#company_id_show').html(result.company_name);
-                    $('#employee_id_show').html(result.employee_name);
-                    $('#department_id_show').html(result.department);
-                    $('#start_date_id').html(result.start_date_name);
-                    $('#end_date_id').html(result.end_date_name);
-                    $('#applied_date_id').html(result.data.created_at);
-                    $('#total_days_id').html(result.data.total_days);
-                    $('#status_id').html(result.data.status);
-                    $('#leave_reason_id').html(result.data.leave_reason);
-                    $('#remarks_id').html(result.data.remarks);
-
-                    if (result.data.is_half == 1)
-                        $('#is_half_id').html('Yes');
-                    else {
-                        $('#is_half_id').html('No');
-                    }
-                    if (result.data.is_notify == 1)
-                        $('#is_notify_id').html('On');
-                    else {
-                        $('#is_notify_id').html('Off');
-                    }
-
+                    hrmsFillLeaveInfoModal(result, {
+                        avatar: '#leave_info_avatar',
+                        employee: '#employee_id_show',
+                        department: '#department_id_show',
+                        company: '#company_id_show',
+                        type: '#leave_type_id',
+                        startDate: '#start_date_id',
+                        endDate: '#end_date_id',
+                        appliedDate: '#applied_date_id',
+                        totalDays: '#total_days_id',
+                        status: '#status_id',
+                        reason: '#leave_reason_id',
+                        remarksSection: '#remarks_section',
+                        remarks: '#remarks_id',
+                        approvedByRow: '#approved_by_row',
+                        approvedByLabel: '#approved_by_label',
+                        approvedById: '#approved_by_id',
+                        halfDay: '#is_half_id',
+                        notify: '#is_notify_id'
+                    }, {
+                        approvedBy: '{{ __('Approved By') }}',
+                        rejectedBy: '{{ __('Rejected By') }}',
+                        yes: '{{ __('Yes') }}',
+                        no: '{{ __('No') }}',
+                        on: '{{ __('On') }}',
+                        off: '{{ __('Off') }}'
+                    });
 
                     $('#leave_model').modal('show');
-                    $('.modal-title').text(infoLabel);
+                    $('#leave_model .modal-title').text(infoLabel);
                 }
             });
         });
@@ -764,10 +769,20 @@
             })
         });
 
+        let leaveDecisionPending = false;
+
         $(document).on('click', '.approve-leave, .reject-leave', function () {
-            let id = $(this).attr('id');
-            let status = $(this).hasClass('approve-leave') ? 'approved' : 'rejected';
+            if (leaveDecisionPending) {
+                return;
+            }
+
+            let $btn = $(this);
+            let id = $btn.attr('id');
+            let status = $btn.hasClass('approve-leave') ? 'approved' : 'rejected';
             let actionLabel = status === 'approved' ? '{{__("Approve")}}' : '{{__("Reject")}}';
+
+            leaveDecisionPending = true;
+
             Swal.fire({
                 title: '{{__("Are you sure?")}}',
                 text: actionLabel + '?',
@@ -778,8 +793,24 @@
                 reverseButtons: true
             }).then((result) => {
                 if (!result.isConfirmed) {
+                    leaveDecisionPending = false;
                     return;
                 }
+
+                $('.approve-leave, .reject-leave').prop('disabled', true);
+
+                Swal.fire({
+                    title: '{{ __("Please wait...") }}',
+                    text: actionLabel + ' {{ __("in progress") }}',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: function () {
+                        Swal.showLoading();
+                    }
+                });
+
+                $('#loader').stop(true, true).fadeIn(100);
 
                 $.ajax({
                     url: "{{ route('leaves.index') }}/" + id + "/decision",
@@ -820,6 +851,17 @@
                         }
                         $('#general_result').html(html).slideDown(300).delay(5000).slideUp(300);
                         $('#leave-table').DataTable().ajax.reload();
+                    },
+                    error: function () {
+                        Swal.fire({
+                            icon: 'error',
+                            title: '{{ __("Something went wrong. Please try again.") }}'
+                        });
+                        $('.approve-leave, .reject-leave').prop('disabled', false);
+                    },
+                    complete: function () {
+                        $('#loader').fadeOut(200);
+                        leaveDecisionPending = false;
                     }
                 });
             });

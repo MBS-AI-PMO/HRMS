@@ -11,7 +11,13 @@
             @if (session('success'))
                 <div class="alert alert-success">{{ session('success') }}</div>
             @endif
+            @if (!empty($filterLocationId) && !empty($filterLocationName))
+                <div class="alert alert-info mb-0">
+                    {{ __('Showing employees for location: :location', ['location' => $filterLocationName]) }}
+                </div>
+            @endif
             <span id="general_result"></span>
+            
         </div>
 
 
@@ -133,7 +139,7 @@
 
                 <div class="modal-body">
                     <span id="form_result"></span>
-                    <form method="post" id="sample_form" class="form-horizontal" enctype="multipart/form-data">
+                    <form method="post" id="sample_form" class="form-horizontal" enctype="multipart/form-data" data-hrms-no-refresh>
 
                         @csrf
                         <div class="row">
@@ -375,6 +381,9 @@
             $('#formModal').modal('show');
         }
 
+        const urlParams = new URLSearchParams(window.location.search);
+        const lockedLocationId = @json($filterLocationId ?? null) || urlParams.get('location_id');
+
         var date = $('.date');
         date.datepicker({
             format: '{{ env('Date_Format_JS')}}',
@@ -421,6 +430,9 @@
                     d.department_id  = $('#department_id_filter').val();
                     d.designation_id = $('#designation_id_filter').val();
                     d.office_shift_id = $('#office_shift_id_filter').val();
+                    if (lockedLocationId) {
+                        d.location_id = lockedLocationId;
+                    }
                 }
             },
 
@@ -584,30 +596,27 @@
             processData: false,
             dataType: "json",
             success: function (data) {
-                console.log(data);
-                var html = '';
-                if (data.errors) {
-                    html = '<div class="alert alert-danger">';
-                    for (var count = 0; count < data.errors.length; count++) {
-                        html += '<p>' + data.errors[count] + '</p>';
-                    }
-                    html += '</div>';
-                }
-                if (data.error) {
-                    html = '<div class="alert alert-danger">' + data.error + '</div>';
-                }
-                if (data.success) {
-                    html = '<div class="alert alert-success">' + data.success;
-                    if (data.staff_id) {
-                        html += '<br><strong>{{ __('Staff Id') }}:</strong> ' + data.staff_id;
-                    }
-                    html += '</div>';
-                    $('#sample_form')[0].reset();
-                    $('select').selectpicker('refresh');
-                    $('.date').datepicker('update');
+                var result = typeof window.hrmsSwalResponse === 'function'
+                    ? window.hrmsSwalResponse(data)
+                    : null;
+
+                if (result === 'success') {
                     $('#employee-table').DataTable().ajax.reload();
+                    setTimeout(function () {
+                        $('#formModal').modal('hide');
+                        $('#sample_form')[0].reset();
+                        $('select').selectpicker('refresh');
+                        $('.date').datepicker('update');
+                        $('#form_result').html('').hide();
+                    }, 2200);
                 }
-                $('#form_result').html(html).slideDown(300).delay(5000).slideUp(300);
+            },
+            error: function () {
+                if (typeof window.hrmsSwalResponse === 'function') {
+                    window.hrmsSwalResponse(null, {
+                        fallbackError: '{{ __('Something went wrong. Please try again.') }}'
+                    });
+                }
             }
         });
     });

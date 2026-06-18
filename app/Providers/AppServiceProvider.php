@@ -78,12 +78,11 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->registerCompanyScopes();
 
-		//setting language
-		// Schema::defaultStringLength(191);
-		if(isset($_COOKIE['language'])) {
-			App::setLocale($_COOKIE['language']);
-		} else {
-			App::setLocale('English');
+		// Default application language is English.
+		App::setLocale('English');
+
+		if (($_COOKIE['language'] ?? '') !== 'English') {
+			setcookie('language', 'English', time() + (86400 * 365), '/');
 		}
 
 //		if (!isset(env('Date_Format')) && !isset($_COOKIE['date_format_js'])){

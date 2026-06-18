@@ -13,6 +13,9 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\Payslip;
 use App\Models\TrainingList;
+use App\Models\location;
+use App\Support\CompanyScope;
+use App\Support\ManagedEmployeeScope;
 use Carbon\Carbon;
 use DateInterval;
 use DatePeriod;
@@ -87,8 +90,19 @@ class ReportController extends Controller {
 	public function attendance(Request $request)
 	{
 		$logged_user = auth()->user();
+		$isLocationHead = location::userIsLocationHead((int) $logged_user->id);
+		$useManagedScope = ManagedEmployeeScope::usesScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
+		$managedEmployeeIds = $useManagedScope
+			? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
+			: [];
 
-		$companies = company::all('id', 'company_name');
+		$companies = $isLocationHead
+			? CompanyScope::companiesForLocationHead((int) $logged_user->id)
+			: CompanyScope::companiesForSelect();
+
+		if ($companies->isEmpty()) {
+			$companies = CompanyScope::companiesForSelect();
+		}
 
 		$start_date = Carbon::parse($request->filter_start_date)->format('Y-m-d') ?? '';
 		$end_date = Carbon::parse($request->filter_end_date)->format('Y-m-d') ?? '';
@@ -100,6 +114,10 @@ class ReportController extends Controller {
 			{
 				if ($request->employee_id)
 				{
+					if ($useManagedScope && ! in_array((int) $request->employee_id, $managedEmployeeIds, true)) {
+						return response()->json(['error' => __('You are not authorized to view this employee attendance.')], 403);
+					}
+
 					$employee = Employee::with(['officeShift', 'employeeAttendance' => function ($query) use ($start_date, $end_date)
 					{
 						$query->whereBetween('attendance_date', [$start_date, $end_date]);

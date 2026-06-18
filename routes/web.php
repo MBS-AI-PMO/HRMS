@@ -25,6 +25,7 @@ use App\Http\Controllers\EmployeeBankAccountController;
 use App\Http\Controllers\EmployeeComplaintController;
 use App\Http\Controllers\EmployeeContactController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeMailTestController;
 use App\Http\Controllers\EmployeeRegistrationSettingController;
 use App\Http\Controllers\PublicEmployeeRegistrationController;
 use App\Http\Controllers\EmployeeDocumentController;
@@ -224,6 +225,8 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
 
     Route::group(['prefix' => 'employee', 'as' => 'employee.', 'middleware' => ['auth']], function () {
         Route::get('/dashboard', [DashboardController::class, 'employeeDashboard'])->name('EmployeeDashboard');
+        Route::get('/mail-test', [EmployeeMailTestController::class, 'show'])->name('mail-test');
+        Route::post('/mail-test', [EmployeeMailTestController::class, 'send'])->name('mail-test.send');
     });
 
     Route::group(['prefix' => 'client', 'as' => 'client.', 'middleware' => ['auth']], function () {
@@ -516,11 +519,14 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
 
     Route::prefix('organization')->group(function () {
 
+        Route::get('locations/my', [LocationController::class, 'myLocations'])->name('locations.my');
         Route::get('locations/employees/by-companies', [LocationController::class, 'employeesByCompanies'])->name('locations.employees_by_companies');
         Route::resource('locations', LocationController::class)->except([
             'create', 'show',
         ]);
         Route::get('locations/edit/{id}', [LocationController::class, 'edit'])->name('locations.edit');
+        Route::get('locations/{id}/shift-assignment', [LocationController::class, 'shiftAssignmentForm'])->name('locations.shift_assignment');
+        Route::post('locations/assign-shift', [LocationController::class, 'assignShift'])->name('locations.assign_shift');
         Route::post('locations/update', [LocationController::class, 'update'])->name('locations.update');
         Route::get('locations/delete/{id}', [LocationController::class, 'delete']);
         Route::post('locations/delete/selected', [LocationController::class, 'delete_by_selection'])->name('mass_delete_location');

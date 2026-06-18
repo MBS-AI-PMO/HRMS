@@ -10,15 +10,11 @@ class LeaveEventNotification extends Notification
 {
     use Queueable;
 
-    private string $subjectText;
-    private string $bodyText;
-    private string $link;
+    private array $mailData;
 
-    public function __construct(string $subjectText, string $bodyText, string $link)
+    public function __construct(array $mailData)
     {
-        $this->subjectText = $subjectText;
-        $this->bodyText = $bodyText;
-        $this->link = $link;
+        $this->mailData = $mailData;
     }
 
     public function via($notifiable): array
@@ -28,18 +24,20 @@ class LeaveEventNotification extends Notification
 
     public function toMail($notifiable): MailMessage
     {
+        $recipientName = trim(($notifiable->first_name ?? '').' '.($notifiable->last_name ?? ''));
+
         return (new MailMessage)
-            ->subject($this->subjectText)
-            ->line($this->bodyText)
-            ->action(__('Open Request'), $this->link)
-            ->line(__('Thank you'));
+            ->subject($this->mailData['subject'])
+            ->view('emails.leave_event', array_merge($this->mailData, [
+                'recipientName' => $recipientName !== '' ? $recipientName : __('Team Member'),
+            ]));
     }
 
     public function toArray($notifiable): array
     {
         return [
-            'data' => $this->bodyText,
-            'link' => $this->link,
+            'data' => $this->mailData['headline'] ?? '',
+            'link' => $this->mailData['actionUrl'] ?? '',
         ];
     }
 }

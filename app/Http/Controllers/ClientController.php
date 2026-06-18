@@ -9,8 +9,22 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Spatie\Permission\Models\Role;
 
 class ClientController extends Controller {
+
+	protected function resolveClientRoleId(): int
+	{
+		$role = Role::firstOrCreate(
+			['name' => 'client', 'guard_name' => 'web'],
+			[
+				'description' => 'When you create a client, this role and associated.',
+				'is_active' => 1,
+			]
+		);
+
+		return (int) $role->id;
+	}
 
 	public function index()
 	{
@@ -89,7 +103,8 @@ class ClientController extends Controller {
 			$user_data['email'] = strtolower(trim($request->email));
 			$user_data['password'] = bcrypt($request->password);
 			$user_data['is_active'] = 1;
-			$user_data['role_users_id'] = 3;
+			$clientRoleId = $this->resolveClientRoleId();
+			$user_data['role_users_id'] = $clientRoleId;
 
 			$photo = $request->profile_photo;
 			$file_name = null;
@@ -123,13 +138,16 @@ class ClientController extends Controller {
 			$data ['email'] = $user_data['email'];
 			$data['is_active'] = 1;
 
-			$user = User::create($user_data);
-			$user->syncRoles(3);
+			try {
+				$user = User::create($user_data);
+				$user->syncRoles($clientRoleId);
 
-			$data['id'] = $user->id;
+				$data['id'] = $user->id;
 
-			client::create($data);
-
+				client::create($data);
+			} catch (Exception $e) {
+				return response()->json(['errors' => [__('Could not create client. Please ensure the Client role exists in Roles.')]]);
+			}
 
 			return response()->json(['success' => __('Data Added successfully.')]);
 		}
