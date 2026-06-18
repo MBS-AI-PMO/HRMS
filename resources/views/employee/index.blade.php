@@ -17,6 +17,7 @@
                 </div>
             @endif
             <span id="general_result"></span>
+            
         </div>
 
 
