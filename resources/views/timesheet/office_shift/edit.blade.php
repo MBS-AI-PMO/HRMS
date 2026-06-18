@@ -7,8 +7,11 @@
             <div class="row">
                 <div class="col-md-12">
                     <div class="card">
-                        <div class="card-header d-flex align-items-center">
-                            <h3>{{__('Edit Office Shift')}}</h3>
+                        <div class="card-header d-flex align-items-center justify-content-between">
+                            <h3 class="mb-0">{{__('Edit Office Shift')}}</h3>
+                            <a href="{{ route('office_shift.index') }}" class="btn btn-secondary btn-sm">
+                                <i class="dripicons-arrow-thin-left"></i> {{ __('Back to List') }}
+                            </a>
                         </div>
                         <div class="card-body">
                             <p class="italic">
@@ -39,114 +42,7 @@
                                                placeholder="shift name" value="{{$office_shift->shift_name}}">
                                     </div>
 
-                                    <div class="col-md-6">
-                                        <label>{{trans('file.Monday')}}</label>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <input type="text" name="monday_in" id="monday_in" class="form-control time mb-3"
-                                                       value="{{$office_shift->monday_in}}" placeholder="{{__('In Time')}}">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <input type="text" name="monday_out" id="monday_out"
-                                                       class="form-control time mb-3"
-                                                       value="{{$office_shift->monday_out}}" placeholder="{{__('Out Time')}}">
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label>{{trans('file.Tuesday')}}</label>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <input type="text" name="tuesday_in" id="tuesday_in"
-                                                       class="form-control time mb-3"
-                                                       value="{{$office_shift->tuesday_in}}" placeholder="{{__('In Time')}}">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <input type="text" name="tuesday_out" id="tuesday_out"
-                                                       class="form-control time mb-3"
-                                                       value="{{$office_shift->tuesday_out}}" placeholder="{{__('Out Time')}}">
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label>{{trans('file.Wednesday')}}</label>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <input type="text" name="wednesday_in" id="wednesday_in"
-                                                       class="form-control time mb-3"
-                                                       value="{{$office_shift->wednesday_in}}" placeholder="{{__('In Time')}}">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <input type="text" name="wednesday_out" id="wednesday_out"
-                                                       class="form-control time mb-3"
-                                                       value="{{$office_shift->wednesday_out}}" placeholder="{{__('Out Time')}}">
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label>{{trans('file.Thursday')}}</label>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <input type="text" name="thursday_in" id="thursday_in"
-                                                       class="form-control time mb-3"
-                                                       value="{{$office_shift->thursday_in}}" placeholder="{{__('In Time')}}">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <input type="text" name="thursday_out" id="thursday_out"
-                                                       class="form-control time mb-3"
-                                                       value="{{$office_shift->thursday_out}}" placeholder="{{__('Out Time')}}">
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label>{{trans('file.Friday')}}</label>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <input type="text" name="friday_in" id="friday_in" class="form-control time mb-3"
-                                                       value="{{$office_shift->friday_in}}" placeholder="{{__('In Time')}}">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <input type="text" name="friday_out" id="friday_out"
-                                                       class="form-control time mb-3"
-                                                       value="{{$office_shift->friday_out}}" placeholder="{{__('Out Time')}}">
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label>{{trans('file.Saturday')}}</label>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <input type="text" name="saturday_in" id="saturday_in"
-                                                       class="form-control time mb-3"
-                                                       value="{{$office_shift->saturday_in}}" placeholder="{{__('In Time')}}">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <input type="text" name="saturday_out" id="saturday_out"
-                                                       class="form-control time mb-3"
-                                                       value="{{$office_shift->saturday_out}}" placeholder="{{__('Out Time')}}">
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label>{{trans('file.Sunday')}}</label>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <input type="text" name="sunday_in" id="sunday_in" class="form-control time mb-3"
-                                                       value="{{$office_shift->sunday_in}}" placeholder="{{__('In Time')}}">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <input type="text" name="sunday_out" id="sunday_out"
-                                                       class="form-control time mb-3"
-                                                       value="{{$office_shift->sunday_out}}" placeholder="{{__('Out Time')}}">
-                                            </div>
-                                        </div>
-                                    </div>
+                                    @include('timesheet.office_shift.partials.timing_fields')
 
                                     <span id="form_result"></span>
 
@@ -178,13 +74,6 @@
     (function($) {
         "use strict";
 
-        $('.time').clockpicker({
-            placement: 'top',
-            align: 'left',
-            donetext: 'done',
-            twelvehour: true,
-        });
-
         $('#sample_form').on('submit', function (event) {
             event.preventDefault();
 
@@ -207,12 +96,11 @@
                     }
                     if (data.success) {
                         html = '<div class="alert alert-success">' + data.success + '</div>';
+                        $('#form_result').html(html).slideDown(300);
                         setTimeout(function () {
-                            $('#formModal').modal('hide');
-                            $('#office_shift-table').DataTable().ajax.reload();
-                            $('#sample_form')[0].reset();
-                        }, 2000);
-
+                            window.location.href = "{{ route('office_shift.index') }}";
+                        }, 1500);
+                        return;
                     }
                     $('#form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                 }

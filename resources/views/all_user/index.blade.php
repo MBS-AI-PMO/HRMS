@@ -317,13 +317,13 @@
                 columns: [
                     {
                         data: 'id',
-                        orderable: true,
-                        searchable: true
+                        orderable: false,
+                        searchable: false
                     },
 
                     {
                         data: 'username',
-                        name: 'username'
+                        name: 'username',
                     },
                     {
                         data: 'contacts',
@@ -331,7 +331,7 @@
                     },
                     {
                         data: 'login_info',
-                        name: 'login_info'
+                        name: 'login_info',
                     },
                     {
                         data: 'is_active',

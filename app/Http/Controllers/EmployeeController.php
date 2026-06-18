@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\traits\LeaveTypeDataManageTrait;
 use App\Http\traits\SendsEmployeeCredentialsTrait;
+use App\Scopes\AuthCompanyScope;
 use App\Support\CompanyScope;
 use App\Imports\UsersImport;
 use App\Models\company;
@@ -24,6 +25,7 @@ use App\Models\RelationType;
 use App\Models\status;
 use App\Models\User;
 use App\Models\location;
+use App\Support\ManagedEmployeeScope;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Exception;
 use Carbon\Carbon;
@@ -56,14 +58,17 @@ class EmployeeController extends Controller
 
     protected function employeeListRestrictedToTeamMembers(): bool
     {
-        return (int) auth()->user()->role_users_id !== 1
-            && Team::userCanAccessEmployeeList((int) auth()->id());
+        return ManagedEmployeeScope::usesScopedEmployeeList(
+            (int) auth()->id(),
+            (int) auth()->user()->role_users_id
+        );
     }
 
     protected function canAccessEmployeeList(): bool
     {
         return auth()->user()->can('view-details-employee')
-            || Team::userCanAccessEmployeeList((int) auth()->id());
+            || Team::userCanAccessEmployeeList((int) auth()->id())
+            || location::userCanAccessLocationEmployeeList((int) auth()->id());
     }
 
     protected function canViewEmployeeRecord(Employee $employee): bool
@@ -75,7 +80,7 @@ class EmployeeController extends Controller
         if ($this->employeeListRestrictedToTeamMembers()) {
             return in_array(
                 (int) $employee->id,
-                Team::memberEmployeeIdsLedByUser((int) auth()->id()),
+                ManagedEmployeeScope::managedEmployeeIds((int) auth()->id()),
                 true
             );
         }
@@ -90,10 +95,60 @@ class EmployeeController extends Controller
         }
     }
 
-    protected function getEmployees($request, $currentDate)
+    protected function employeeListQuery(bool $crossCompany = false)
+    {
+        if ($crossCompany) {
+            return Employee::withoutGlobalScope(AuthCompanyScope::class)
+                ->with('user:id,profile_photo,username', 'company:id,company_name', 'department:id,department_name', 'designation:id,designation_name', 'officeShift:id,shift_name');
+        }
+
+        return Employee::with('user:id,profile_photo,username', 'company:id,company_name', 'department:id,department_name', 'designation:id,designation_name', 'officeShift:id,shift_name');
+    }
+
+    protected function userCanViewEmployeesAtLocation(int $userId, int $locationId): bool
+    {
+        $user = auth()->user();
+
+        if ($user->can('view-details-employee') || $user->can('view-location')) {
+            return true;
+        }
+
+        return in_array($locationId, location::locationIdsHeadedByUser($userId), true);
+    }
+
+    /**
+     * @return array<int>|null  null = no location filter, [] = no access
+     */
+    protected function resolveLocationFilterIds(Request $request): ?array
+    {
+        if (! $request->filled('location_id')) {
+            return null;
+        }
+
+        $locationId = (int) $request->location_id;
+
+        if (! $this->userCanViewEmployeesAtLocation((int) auth()->id(), $locationId)) {
+            return [];
+        }
+
+        return [$locationId];
+    }
+
+    protected function scopedEmployeeListQuery(bool $crossCompany, ?array $locationIds = null)
+    {
+        $query = $this->employeeListQuery($crossCompany);
+
+        if ($locationIds !== null && $locationIds !== []) {
+            $query = $query->whereIn('location_id', $locationIds);
+        }
+
+        return $query;
+    }
+
+    protected function getEmployees($request, $currentDate, bool $crossCompany = false, ?array $locationIds = null)
     {
         if ($request->company_id && $request->department_id && $request->designation_id && $request->office_shift_id) {
-            $employees = Employee::with('user:id,profile_photo,username', 'company:id,company_name', 'department:id,department_name', 'designation:id,designation_name', 'officeShift:id,shift_name')
+            $employees = $this->scopedEmployeeListQuery($crossCompany, $locationIds)
                 ->where('company_id', '=', $request->company_id)
                 ->where('department_id', '=', $request->department_id)
                 ->where('designation_id', '=', $request->designation_id)
@@ -106,7 +161,7 @@ class EmployeeController extends Controller
                 })
                 ->get();
         } elseif ($request->company_id && $request->department_id && $request->designation_id) {
-            $employees = Employee::with('user:id,profile_photo,username', 'company:id,company_name', 'department:id,department_name', 'designation:id,designation_name', 'officeShift:id,shift_name')
+            $employees = $this->scopedEmployeeListQuery($crossCompany, $locationIds)
                 ->where('company_id', '=', $request->company_id)
                 ->where('department_id', '=', $request->department_id)
                 ->where('designation_id', '=', $request->designation_id)
@@ -118,7 +173,7 @@ class EmployeeController extends Controller
                 })
                 ->get();
         } elseif ($request->company_id && $request->department_id) {
-            $employees = Employee::with('user:id,profile_photo,username', 'company:id,company_name', 'department:id,department_name', 'designation:id,designation_name', 'officeShift:id,shift_name')
+            $employees = $this->scopedEmployeeListQuery($crossCompany, $locationIds)
                 ->where('company_id', '=', $request->company_id)
                 ->where('department_id', '=', $request->department_id)
                 ->where('is_active', 1)
@@ -129,7 +184,7 @@ class EmployeeController extends Controller
                 })
                 ->get();
         } elseif ($request->company_id && $request->office_shift_id) {
-            $employees = Employee::with('user:id,profile_photo,username', 'company:id,company_name', 'department:id,department_name', 'designation:id,designation_name', 'officeShift:id,shift_name')
+            $employees = $this->scopedEmployeeListQuery($crossCompany, $locationIds)
                 ->where('company_id', '=', $request->company_id)
                 ->where('office_shift_id', '=', $request->office_shift_id)
                 ->where('is_active', 1)
@@ -140,7 +195,7 @@ class EmployeeController extends Controller
                 })
                 ->get();
         } elseif ($request->company_id) {
-            $employees = Employee::with('user:id,profile_photo,username', 'company:id,company_name', 'department:id,department_name', 'designation:id,designation_name', 'officeShift:id,shift_name')
+            $employees = $this->scopedEmployeeListQuery($crossCompany, $locationIds)
                 ->where('company_id', '=', $request->company_id)
                 ->where('is_active', 1)
                 ->where(function($query) use ($currentDate) {
@@ -150,7 +205,7 @@ class EmployeeController extends Controller
                 })
                 ->get();
         } else {
-            $employees = Employee::with('user:id,profile_photo,username', 'company:id,company_name', 'department:id,department_name', 'designation:id,designation_name', 'officeShift:id,shift_name')
+            $employees = $this->scopedEmployeeListQuery($crossCompany, $locationIds)
                 ->orderBy('company_id')
                 ->where('is_active', 1)
                 ->where(function($query) use ($currentDate) {
@@ -168,19 +223,39 @@ class EmployeeController extends Controller
     {
         $logged_user = auth()->user();
         if ($this->canAccessEmployeeList()) {
-            $companies = CompanyScope::companiesForSelect();
+            $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
+            $companies = $isLocationHead && ! $logged_user->can('view-details-employee')
+                ? CompanyScope::companiesForLocationHead((int) $logged_user->id)
+                : CompanyScope::companiesForSelect();
             $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
-            $locations = location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
+            $locations = $isLocationHead && ! $logged_user->can('view-details-employee')
+                ? location::withoutGlobalScope(\App\Scopes\AuthCompanyLocationScope::class)
+                    ->with('companies:id,company_name')
+                    ->headedByUser((int) $logged_user->id)
+                    ->select('id', 'location_name', 'max_radius')
+                    ->get()
+                : location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
             $currentDate = date('Y-m-d');
             $teamLeaderViewOnly = $this->employeeListRestrictedToTeamMembers();
+            $crossCompanyList = $isLocationHead && $teamLeaderViewOnly;
+            $filterLocationId = $request->filled('location_id') ? (int) $request->location_id : null;
+            $filterLocationName = $filterLocationId
+                ? location::withoutGlobalScope(\App\Scopes\AuthCompanyLocationScope::class)
+                    ->where('id', $filterLocationId)
+                    ->value('location_name')
+                : null;
 
             if (request()->ajax()) {
+                $locationFilterIds = $this->resolveLocationFilterIds($request);
 
+                if ($locationFilterIds !== null && $locationFilterIds === []) {
+                    return datatables()->of(collect())->make(true);
+                }
 
-                $employees = $this->getEmployees($request, $currentDate);
+                $employees = $this->getEmployees($request, $currentDate, $crossCompanyList, $locationFilterIds);
 
-                if ($teamLeaderViewOnly) {
-                    $allowedIds = Team::memberEmployeeIdsLedByUser((int) auth()->id());
+                if ($teamLeaderViewOnly && $locationFilterIds === null) {
+                    $allowedIds = ManagedEmployeeScope::managedEmployeeIds((int) auth()->id());
                     $employees = $employees->whereIn('id', $allowedIds)->values();
                 }
 
@@ -272,7 +347,7 @@ class EmployeeController extends Controller
 
                         if (! $teamLeaderViewOnly && auth()->user()->can('modify-details-employee')) {
                             $button .= '&nbsp;&nbsp;&nbsp;';
-                            if ($data->role_users_id != 1) {
+                            if ($data->role_users_id != 1 && ! location::userIsLocationHead((int) $data->id)) {
                                 $button .= '<button type="button" name="delete" id="'.$data->id.'" class="delete btn btn-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Delete"><i class="dripicons-trash"></i></button>';
                                 $button .= '&nbsp;&nbsp;&nbsp;';
                             }
@@ -285,7 +360,14 @@ class EmployeeController extends Controller
                     ->rawColumns(['name', 'company', 'contacts', 'action'])
                     ->make(true);
             }
-            return view('employee.index', compact('companies', 'roles', 'locations', 'teamLeaderViewOnly'));
+            return view('employee.index', compact(
+                'companies',
+                'roles',
+                'locations',
+                'teamLeaderViewOnly',
+                'filterLocationId',
+                'filterLocationName'
+            ));
         }
 
         if (request()->ajax()) {
@@ -596,6 +678,12 @@ class EmployeeController extends Controller
                         'error' => 'This employee is linked to interviews. Please delete the related interviews first.'
                     ]);
                 }
+
+                $locationHeadBlock = location::deletionBlockReasonForLocationHead((int) $id);
+                if ($locationHeadBlock !== null) {
+                    return response()->json(['error' => $locationHeadBlock]);
+                }
+
                 Employee::whereId($id)->delete();
                 $this->unlink($id);
                 User::whereId($id)->delete();
@@ -673,6 +761,13 @@ class EmployeeController extends Controller
 
         if ($logged_user->can('modify-details-employee')) {
             $employee_id = $request['employeeIdArray'];
+
+            foreach ((array) $employee_id as $selectedId) {
+                $locationHeadBlock = location::deletionBlockReasonForLocationHead((int) $selectedId);
+                if ($locationHeadBlock !== null) {
+                    return response()->json(['error' => $locationHeadBlock]);
+                }
+            }
 
             $user = User::whereIntegerInRaw('id', $employee_id)->where('role_users_id', '!=', 1);
 

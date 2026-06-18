@@ -34,9 +34,8 @@
 @endsection
 
 @php
-    $singleCompanyId = \App\Support\CompanyScope::applies() && $companies->isNotEmpty()
-        ? $companies->first()->id
-        : null;
+    $singleCompanyId = \App\Support\CompanyScope::teamFormCompany()?->id
+        ?? (\App\Support\CompanyScope::applies() && $companies->isNotEmpty() ? $companies->first()->id : null);
 @endphp
 
 @push('scripts')

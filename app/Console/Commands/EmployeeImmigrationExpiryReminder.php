@@ -6,8 +6,8 @@ use App\Models\department;
 use App\Models\EmployeeImmigration;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Notification;
-use App\Models\Employee;
 use App\Models\User;
+use App\Services\NotificationRecipientResolver;
 use App\Notifications\EmployeeImmigrationExpiryNotify;
 use App\Notifications\EmployeeImmigrationExpiryNotifyToAdmin;
 
@@ -57,15 +57,23 @@ class EmployeeImmigrationExpiryReminder extends Command
 		{
 			foreach ($employee_immigrations as $key => $item)
 			{
-                $department = department::with('DepartmentHead:id,email')->where('id',$item->employee->department_id)->first();
+                $department = department::with('DepartmentHead:id')->where('id',$item->employee->department_id)->first();
 
                 $data[$key]['document_number'] = $item->document_number;
                 $data[$key]['document_type']   = $item->DocumentType->document_type;
                 $data[$key]['expiry_date']     = $item->expiry_date;
-                $data[$key]['department_head-email'] = $department->DepartmentHead->email;
+                $departmentHeadEmail = $department?->DepartmentHead
+                    ? NotificationRecipientResolver::resolveUserEmailAddress((int) $department->DepartmentHead->id)
+                    : null;
+                $data[$key]['department_head-email'] = $departmentHeadEmail;
 
 				$when = now()->addSeconds(30);
-				Notification::route('mail', $data[$key]['department_head-email'])
+
+                if (! $departmentHeadEmail) {
+                    continue;
+                }
+
+				Notification::route('mail', $departmentHeadEmail)
 					->notify((new EmployeeImmigrationExpiryNotify(
 						$data[$key]['document_number'],
                         $data[$key]['expiry_date'],

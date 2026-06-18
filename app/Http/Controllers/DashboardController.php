@@ -9,6 +9,9 @@ use App\Http\traits\ShiftTimingOnDay;
 use App\Models\Announcement;
 use App\Models\Attendance;
 use App\Models\Award;
+use App\Models\location;
+use App\Services\AttendanceOvertimeService;
+use App\Support\ManagedEmployeeScope;
 use App\Models\Client;
 use App\Models\company;
 use App\Models\DocumentType;
@@ -55,24 +58,37 @@ class DashboardController extends Controller {
 
     use CalendarableModelTrait, AutoUpdateTrait, ENVFilePutContent;
 
-    private $versionUpgradeInfo = [];
+    private ?array $versionUpgradeInfo = null;
 
 	public function __construct()
     {
 		$this->middleware(['auth']);
-        if(!config('database.connections.peopleprosaas_landlord')) {
-            $this->versionUpgradeInfo = $this->isUpdateAvailable();
-        }
-        else {
-            $this->versionUpgradeInfo = ['alert_version_upgrade_enable'=>false];
-        }
 	}
+
+    protected function loadVersionUpgradeInfo(): array
+    {
+        if ($this->versionUpgradeInfo !== null) {
+            return $this->versionUpgradeInfo;
+        }
+
+        try {
+            if (! config('database.connections.peopleprosaas_landlord')) {
+                $this->versionUpgradeInfo = $this->isUpdateAvailable();
+            } else {
+                $this->versionUpgradeInfo = ['alert_version_upgrade_enable' => false];
+            }
+        } catch (Throwable $e) {
+            report($e);
+            $this->versionUpgradeInfo = ['alert_version_upgrade_enable' => false];
+        }
+
+        return $this->versionUpgradeInfo;
+    }
 
 
 	public function index()
 	{
-        $versionUpgradeData = [];
-        $versionUpgradeData = $this->versionUpgradeInfo;
+        $versionUpgradeData = $this->loadVersionUpgradeInfo();
 
 		$employees = Employee::with('department:id,department_name', 'designation:id,designation_name')
 			->select('id', 'department_id', 'designation_id', 'is_active')
@@ -199,18 +215,41 @@ class DashboardController extends Controller {
 
 		$projects = Project::select('id', 'title', 'project_status')->get();
 
-		$projects_group = $projects->groupBy('project_status');
+		$normalizedProjectCounts = [
+			'completed' => 0,
+			'in_progress' => 0,
+			'not_started' => 0,
+			'deferred' => 0,
+		];
+
+		foreach ($projects as $project) {
+			$status = strtolower(trim((string) ($project->project_status ?? '')));
+
+			if (in_array($status, ['not started', 'not_started'], true)) {
+				$normalizedProjectCounts['not_started']++;
+			} elseif (isset($normalizedProjectCounts[$status])) {
+				$normalizedProjectCounts[$status]++;
+			}
+		}
+
+		$projectStatusConfig = [
+			['key' => 'completed', 'label' => __('Completed'), 'color' => '#19AED9'],
+			['key' => 'in_progress', 'label' => __('In Progress'), 'color' => '#37205B'],
+			['key' => 'not_started', 'label' => __('Not Started'), 'color' => '#BF8CFF'],
+			['key' => 'deferred', 'label' => __('Deferred'), 'color' => '#F4605B'],
+		];
 
 		$project_count_array = [];
 		$project_name_array = [];
+		$project_color_array = [];
 
-		foreach ($projects_group as $key => $item)
-		{
-			$project_count_array[] = $item->count();
-			$project_name_array[] = $key;
+		foreach ($projectStatusConfig as $statusConfig) {
+			$project_count_array[] = $normalizedProjectCounts[$statusConfig['key']];
+			$project_name_array[] = $statusConfig['label'];
+			$project_color_array[] = $statusConfig['color'];
 		}
 
-		$completed_projects = $projects->where('project_status', 'completed')->count();
+		$completed_projects = $normalizedProjectCounts['completed'];
 
 		$announcements = Announcement::where('start_date', '<=', now()->format('Y-m-d'))
 			->where('end_date', '>=', now()->format('Y-m-d'))->select('id', 'title', 'summary')->get();
@@ -223,7 +262,7 @@ class DashboardController extends Controller {
 			'desig_count_array', 'desig_name_array', 'desig_bgcolor_array', 'desig_hover_bgcolor_array',
 			'payslips', 'companies', 'leave_types',
 			'training_types', 'trainers', 'travel_types', 'clients', 'projects',
-			'project_count_array', 'project_name_array', 'completed_projects',
+			'project_count_array', 'project_name_array', 'project_color_array', 'completed_projects',
 			'announcements', 'ticket_count', 'per_month', 'per_month_payment', 'months', 'this_month_payment', 'last_six_month_payment',
             'versionUpgradeData'
         ));
@@ -235,14 +274,13 @@ class DashboardController extends Controller {
         $this->dataWriteInENVFile('APP_ENV', 'local');
 		// Below line is deprecated, this code is needed for the client version 1.5.1 and below
 
-        $versionUpgradeData = [];
-        $versionUpgradeData = $this->versionUpgradeInfo;
+        $versionUpgradeData = $this->loadVersionUpgradeInfo();
+
         return view('version_upgrade.index', compact('versionUpgradeData'));
     }
 
     public function versionUpgrade() {
-        $versionUpgradeData = [];
-        $versionUpgradeData = $this->versionUpgradeInfo;
+        $versionUpgradeData = $this->loadVersionUpgradeInfo();
         $message = 'Version Upgraded Successfully !!!';
         $version_upgrade_file_url = $versionUpgradeData['version_upgrade_file_url'];
 
@@ -391,6 +429,15 @@ class DashboardController extends Controller {
 			return redirect()->route('clientProfile');
 		}
 
+		if (Employee::whereKey($user->id)->exists()) {
+			Employee::whereKey($user->id)->update([
+				'first_name' => $request->first_name,
+				'last_name' => $request->last_name,
+				'email' => $email,
+				'contact_no' => $contact_no,
+			]);
+		}
+
 		$this->setSuccessMessage(__('User Info Updated'));
 
 		return redirect()->route('profile');
@@ -478,9 +525,16 @@ class DashboardController extends Controller {
 		);
 
 
+		if ((int) auth()->id() !== (int) $id && (int) auth()->user()->role_users_id !== 1) {
+			return redirect()->route('profile')->with([
+				'msg' => __('You are not authorized'),
+				'type' => 'danger',
+			])->withFragment('ChangePassword');
+		}
+
 		if ($validator->fails())
 		{
-			return redirect()->back()->withErrors($validator)->withInput();
+			return redirect()->route('profile')->withErrors($validator)->withInput()->withFragment('ChangePassword');
 		}
 
 
@@ -604,9 +658,24 @@ class DashboardController extends Controller {
 
 
 
-		//checking if emoloyee has attendance on current day
 		$employee_attendance = Attendance::where('attendance_date', now()->format('Y-m-d'))
 				->where('employee_id', $employee->id)->orderBy('id', 'desc')->first() ?? null;
+
+		$shift_ended = $shift_out ? AttendanceOvertimeService::isShiftEnded($shift_out) : false;
+		$can_overtime_clock_in = $shift_out && AttendanceOvertimeService::canStartOvertime($shift_out, $employee_attendance);
+		$is_on_overtime_session = AttendanceOvertimeService::isActiveOvertimeSession($employee_attendance);
+		$today_overtime_total = AttendanceOvertimeService::sumTodayOvertime($employee->id, now()->format('Y-m-d'));
+		$is_past_shift_while_clocked_in = $shift_ended
+			&& $employee_attendance
+			&& (int) $employee_attendance->clock_in_out === 1
+			&& ! $is_on_overtime_session;
+
+		$is_location_head = location::userIsLocationHead((int) $user->id);
+		$location_head_employee_count = $is_location_head
+			? count(location::employeeIdsAtLocationsHeadedByUser((int) $user->id))
+			: 0;
+		$can_manage_location_scope = $is_location_head
+			&& ManagedEmployeeScope::usesScopedEmployeeList((int) $user->id, (int) $user->role_users_id);
 
 		//IP Check
 
@@ -632,7 +701,9 @@ class DashboardController extends Controller {
 			'shift_in', 'shift_out', 'shift_name', 'announcements',
 			'employee_award_count', 'holidays', 'leave_types', 'travel_types',
 			'assigned_projects', 'assigned_projects_count',
-			'assigned_tasks', 'assigned_tasks_count', 'assigned_tickets', 'assigned_tickets_count','ipCheck','general_setting'));
+			'assigned_tasks', 'assigned_tasks_count', 'assigned_tickets', 'assigned_tickets_count', 'ipCheck', 'general_setting',
+			'shift_ended', 'can_overtime_clock_in', 'is_on_overtime_session', 'today_overtime_total', 'is_past_shift_while_clocked_in',
+			'is_location_head', 'location_head_employee_count', 'can_manage_location_scope'));
 	}
 
 

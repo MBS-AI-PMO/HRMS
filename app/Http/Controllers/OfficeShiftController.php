@@ -10,6 +10,110 @@ use Illuminate\Support\Facades\Validator;
 
 class OfficeShiftController extends Controller {
 
+	protected function shiftDayKeys(): array
+	{
+		return ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+	}
+
+	protected function buildShiftFormState(?office_shift $shift = null): array
+	{
+		$workingDays = [];
+		$dayTimes = [];
+
+		foreach ($this->shiftDayKeys() as $day) {
+			$in = $shift ? $shift->{$day.'_in'} : null;
+			$out = $shift ? $shift->{$day.'_out'} : null;
+			$dayTimes[$day] = ['in' => $in, 'out' => $out];
+
+			if ($in || $out) {
+				$workingDays[] = $day;
+			}
+		}
+
+		if ($shift === null && empty($workingDays)) {
+			$workingDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+		}
+
+		$timingMode = 'same';
+		$commonIn = '';
+		$commonOut = '';
+
+		if (! empty($workingDays)) {
+			$timePairs = [];
+
+			foreach ($workingDays as $day) {
+				$timePairs[] = trim((string) ($dayTimes[$day]['in'] ?? '')).'|'.trim((string) ($dayTimes[$day]['out'] ?? ''));
+			}
+
+			$timingMode = count(array_unique($timePairs)) === 1 ? 'same' : 'different';
+			$commonIn = $dayTimes[$workingDays[0]]['in'] ?? '';
+			$commonOut = $dayTimes[$workingDays[0]]['out'] ?? '';
+		}
+
+		return [
+			'workingDays' => $workingDays,
+			'dayTimes' => $dayTimes,
+			'timingMode' => $timingMode,
+			'commonIn' => $commonIn,
+			'commonOut' => $commonOut,
+		];
+	}
+
+	protected function normalizeShiftTiming(Request $request): array
+	{
+		$allowedDays = $this->shiftDayKeys();
+		$workingDays = array_values(array_intersect(
+			$allowedDays,
+			array_map('strtolower', (array) $request->input('working_days', []))
+		));
+		$timingMode = $request->input('timing_mode', 'same') === 'different' ? 'different' : 'same';
+		$errors = [];
+
+		if (empty($workingDays)) {
+			$errors[] = __('Please select at least one working day.');
+		}
+
+		$data = [];
+
+		foreach ($allowedDays as $day) {
+			$data[$day.'_in'] = null;
+			$data[$day.'_out'] = null;
+		}
+
+		if ($timingMode === 'same') {
+			$commonIn = trim((string) $request->input('common_in', ''));
+			$commonOut = trim((string) $request->input('common_out', ''));
+
+			if ($commonIn === '' || $commonOut === '') {
+				$errors[] = __('Please enter in and out time for the selected working days.');
+			} else {
+				foreach ($workingDays as $day) {
+					$data[$day.'_in'] = $commonIn;
+					$data[$day.'_out'] = $commonOut;
+				}
+			}
+		} else {
+			foreach ($workingDays as $day) {
+				$in = trim((string) $request->input($day.'_in', ''));
+				$out = trim((string) $request->input($day.'_out', ''));
+
+				if ($in === '' || $out === '') {
+					$errors[] = __('Please enter in and out time for each selected working day.');
+					break;
+				}
+
+				$data[$day.'_in'] = $in;
+				$data[$day.'_out'] = $out;
+			}
+		}
+
+		if (! empty($errors)) {
+			return ['errors' => array_values(array_unique($errors))];
+		}
+
+		return ['data' => $data];
+	}
+
 	/**
 	 * Display a listing of the resource.
 	 *
@@ -71,7 +175,9 @@ class OfficeShiftController extends Controller {
 
 		if ($logged_user->can('store-office_shift'))
 		{
-			return view('timesheet.office_shift.create', compact('companies'));
+			$shiftFormState = $this->buildShiftFormState();
+
+			return view('timesheet.office_shift.create', compact('companies', 'shiftFormState'));
 		}
 
 		return abort('403', __('You are not authorized'));
@@ -89,40 +195,26 @@ class OfficeShiftController extends Controller {
 
 		if ($logged_user->can('store-office_shift'))
 		{
-			$validator = Validator::make($request->only('shift_name', 'company_id', 'default_shift', 'monday_in', 'monday_out', 'tuesday_in', 'tuesday_out', 'wednesday_in', 'wednesday_out', 'thursday_in', 'thursday_out', 'friday_in', 'friday_out', 'saturday_in', 'saturday_out', 'sunday_in', 'sunday_out'
-			),
-				[
-					'shift_name' => 'required',
-
-				]
-			);
-
+			$validator = Validator::make($request->only('shift_name', 'company_id'), [
+				'shift_name' => 'required',
+				'company_id' => 'required|exists:companies,id',
+			]);
 
 			if ($validator->fails())
 			{
 				return response()->json(['errors' => $validator->errors()->all()]);
 			}
 
+			$timing = $this->normalizeShiftTiming($request);
 
-			$data = [];
+			if (isset($timing['errors'])) {
+				return response()->json(['errors' => $timing['errors']]);
+			}
 
-			$data['shift_name'] = $request->shift_name;
-			$data['monday_in'] = $request->monday_in;
-			$data['monday_out'] = $request->monday_out;
-			$data['tuesday_in'] = $request->tuesday_in;
-			$data['tuesday_out'] = $request->tuesday_out;
-			$data['wednesday_in'] = $request->wednesday_in;
-			$data['wednesday_out'] = $request->wednesday_out;
-			$data['thursday_in'] = $request->thursday_in;
-			$data['thursday_out'] = $request->thursday_out;
-			$data['friday_in'] = $request->friday_in;
-			$data['friday_out'] = $request->friday_out;
-			$data['saturday_in'] = $request->saturday_in;
-			$data['saturday_out'] = $request->saturday_out;
-			$data['sunday_in'] = $request->sunday_in;
-			$data['sunday_out'] = $request->sunday_out;
-			$data['company_id'] = $request->company_id;
-
+			$data = array_merge($timing['data'], [
+				'shift_name' => $request->shift_name,
+				'company_id' => $request->company_id,
+			]);
 
 			office_shift::create($data);
 
@@ -157,10 +249,11 @@ class OfficeShiftController extends Controller {
 		if ($logged_user->can('edit-office_shift'))
 		{
 			$office_shift = office_shift::findOrFail($id);
-			$company_name = $data->company->company_name ?? '';
+			$company_name = $office_shift->company->company_name ?? '';
 			$companies = company::select('id', 'company_name')->get();
+			$shiftFormState = $this->buildShiftFormState($office_shift);
 
-			return view('timesheet.office_shift.edit', compact('office_shift', 'company_name', 'companies'));
+			return view('timesheet.office_shift.edit', compact('office_shift', 'company_name', 'companies', 'shiftFormState'));
 		}
 		return response()->json(['success' => __('You are not authorized')]);
 	}
@@ -181,42 +274,26 @@ class OfficeShiftController extends Controller {
 		{
 			$id = $request->hidden_id;
 
-			$validator = Validator::make($request->only('shift_name', 'company_id', 'default_shift', 'monday_in', 'monday_out', 'tuesday_in', 'tuesday_out', 'wednesday_in', 'wednesday_out', 'thursday_in', 'thursday_out', 'friday_in', 'friday_out', 'saturday_in', 'saturday_out', 'sunday_in', 'sunday_out'
-			),
-				[
-					'shift_name' => 'required',
-
-				]
-			);
-
+			$validator = Validator::make($request->only('shift_name', 'company_id'), [
+				'shift_name' => 'required',
+				'company_id' => 'required|exists:companies,id',
+			]);
 
 			if ($validator->fails())
 			{
 				return response()->json(['errors' => $validator->errors()->all()]);
 			}
 
+			$timing = $this->normalizeShiftTiming($request);
 
-			$data = [];
-
-			$data['shift_name'] = $request->shift_name;
-			$data['monday_in'] = $request->monday_in;
-			$data['monday_out'] = $request->monday_out;
-			$data['tuesday_in'] = $request->tuesday_in;
-			$data['tuesday_out'] = $request->tuesday_out;
-			$data['wednesday_in'] = $request->wednesday_in;
-			$data['wednesday_out'] = $request->wednesday_out;
-			$data['thursday_in'] = $request->thursday_in;
-			$data['thursday_out'] = $request->thursday_out;
-			$data['friday_in'] = $request->friday_in;
-			$data['friday_out'] = $request->friday_out;
-			$data['saturday_in'] = $request->saturday_in;
-			$data['saturday_out'] = $request->saturday_out;
-			$data['sunday_in'] = $request->sunday_in;
-			$data['sunday_out'] = $request->sunday_out;
-			if ($request->company_id)
-			{
-				$data['company_id'] = $request->company_id;
+			if (isset($timing['errors'])) {
+				return response()->json(['errors' => $timing['errors']]);
 			}
+
+			$data = array_merge($timing['data'], [
+				'shift_name' => $request->shift_name,
+				'company_id' => $request->company_id,
+			]);
 
 			office_shift::whereId($id)->update($data);
 

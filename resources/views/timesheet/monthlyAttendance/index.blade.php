@@ -22,7 +22,7 @@
                                     </div>
 
                                     {{-- if (Au@th::user()->role_users_id==1) --}}
-                                    @if ((Auth::user()->can('monthly-attendances')))
+                                    @if ((Auth::user()->can('monthly-attendances') || !empty($canManageScopedAttendance)))
                                         <div class="col-md-3">
                                             <div class="form-group">
                                                 <select name="company_id" id="company_id" class="form-control selectpicker dynamic"

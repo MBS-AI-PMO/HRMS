@@ -4,7 +4,9 @@ namespace App\Support;
 
 use App\Models\Employee;
 use App\Models\company;
+use App\Models\location;
 use App\Scopes\AuthCompanyScope;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 
@@ -70,13 +72,79 @@ class CompanyScope
         return $query->get();
     }
 
+    /**
+     * All companies linked to locations headed by this user (cross-company location heads).
+     */
+    public static function companiesForLocationHead(int $userId)
+    {
+        $locationIds = location::locationIdsHeadedByUser($userId);
+
+        if ($locationIds === []) {
+            return collect();
+        }
+
+        $companyIds = DB::table('company_location')
+            ->whereIn('location_id', $locationIds)
+            ->pluck('company_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($companyIds === []) {
+            return collect();
+        }
+
+        return company::withoutGlobalScopes()
+            ->select('id', 'company_name')
+            ->whereIn('id', $companyIds)
+            ->orderBy('company_name')
+            ->get();
+    }
+
+    /**
+     * Logged-in user's own company (from employees.company_id), for locking team forms.
+     */
+    public static function teamFormCompany(): ?company
+    {
+        $user = Auth::user();
+
+        if (! $user) {
+            return null;
+        }
+
+        $employee = Employee::withoutGlobalScope(AuthCompanyScope::class)->find($user->id);
+        $companyId = $employee?->company_id ? (int) $employee->company_id : null;
+
+        if (! $companyId) {
+            return null;
+        }
+
+        return company::select('id', 'company_name')->find($companyId);
+    }
+
+    public static function resolveCompanyIdForTeamInput($requested): int
+    {
+        $lockedCompany = static::teamFormCompany();
+
+        if ($lockedCompany) {
+            return (int) $lockedCompany->id;
+        }
+
+        return static::resolveCompanyIdForInput($requested);
+    }
+
     public static function employeesForCompany(int $companyId)
     {
-        return Employee::query()
+        return Employee::withoutGlobalScopes()
             ->select('id', 'first_name', 'last_name')
             ->where('company_id', $companyId)
             ->where('is_active', 1)
-            ->whereNull('exit_date')
+            ->where(function ($query) {
+                $query->whereNull('exit_date')
+                    ->orWhere('exit_date', '>=', date('Y-m-d'))
+                    ->orWhere('exit_date', '0000-00-00');
+            })
             ->orderBy('first_name')
             ->get()
             ->map(fn ($employee) => [

@@ -1,6 +1,6 @@
 @php
-    $companyScoped = \App\Support\CompanyScope::applies();
-    $singleCompany = $companyScoped && $companies->isNotEmpty() ? $companies->first() : null;
+    $singleCompany = \App\Support\CompanyScope::teamFormCompany()
+        ?? (\App\Support\CompanyScope::applies() && $companies->isNotEmpty() ? $companies->first() : null);
 @endphp
 
 <div id="formModal" class="modal fade" role="dialog">

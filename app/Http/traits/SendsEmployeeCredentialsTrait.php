@@ -4,6 +4,7 @@ namespace App\Http\traits;
 
 use App\Models\Employee;
 use App\Models\User;
+use App\Services\NotificationRecipientResolver;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
@@ -23,7 +24,8 @@ trait SendsEmployeeCredentialsTrait
         ]);
 
         return [
-            'registered_email' => strtolower(trim((string) $employee->email)),
+            'registered_email' => NotificationRecipientResolver::resolveUserEmailAddress((int) $employee->id)
+                ?? strtolower(trim((string) $employee->email)),
             'company_name' => $employee->company->company_name ?? '—',
             'department_name' => $employee->department->department_name ?? '—',
             'designation_name' => $employee->designation->designation_name ?? '—',
@@ -38,9 +40,13 @@ trait SendsEmployeeCredentialsTrait
      */
     protected function sendEmployeeCredentialsEmail(User $user, string $plainPassword, string $staffId, array $details = []): bool
     {
-        $email = strtolower(trim((string) $user->email));
-        if ($email === '') {
-            Log::warning('Employee credentials email skipped: empty email', ['user_id' => $user->id]);
+        $email = NotificationRecipientResolver::resolveUserEmailAddress((int) $user->id);
+
+        if ($email === null) {
+            Log::warning('Employee credentials email skipped: no valid email on user or employee record', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+            ]);
 
             return false;
         }

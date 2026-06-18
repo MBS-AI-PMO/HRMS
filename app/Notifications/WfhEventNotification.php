@@ -10,59 +10,34 @@ class WfhEventNotification extends Notification
 {
     use Queueable;
 
-    private $subjectText;
-    private $bodyText;
-    private $link;
+    private array $mailData;
 
-    /**
-     * Create a new notification instance.
-     *
-     * @return void
-     */
-    public function __construct(string $subjectText, string $bodyText, string $link)
+    public function __construct(array $mailData)
     {
-        $this->subjectText = $subjectText;
-        $this->bodyText = $bodyText;
-        $this->link = $link;
+        $this->mailData = $mailData;
     }
 
-    /**
-     * Get the notification's delivery channels.
-     *
-     * @param  mixed  $notifiable
-     * @return array
-     */
     public function via($notifiable)
     {
         return ['mail'];
     }
 
-    /**
-     * Get the mail representation of the notification.
-     *
-     * @param  mixed  $notifiable
-     * @return \Illuminate\Notifications\Messages\MailMessage
-     */
     public function toMail($notifiable)
     {
+        $recipientName = trim(($notifiable->first_name ?? '').' '.($notifiable->last_name ?? ''));
+
         return (new MailMessage)
-            ->subject($this->subjectText)
-            ->line($this->bodyText)
-            ->action('Open Request', $this->link)
-            ->line('Thank you');
+            ->subject($this->mailData['subject'])
+            ->view('emails.leave_event', array_merge($this->mailData, [
+                'recipientName' => $recipientName !== '' ? $recipientName : __('Team Member'),
+            ]));
     }
 
-    /**
-     * Get the array representation of the notification.
-     *
-     * @param  mixed  $notifiable
-     * @return array
-     */
     public function toArray($notifiable)
     {
         return [
-            'data' => $this->bodyText,
-            'link' => $this->link,
+            'data' => $this->mailData['headline'] ?? '',
+            'link' => $this->mailData['actionUrl'] ?? '',
         ];
     }
 }

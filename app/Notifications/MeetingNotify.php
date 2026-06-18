@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Notifications\Concerns\DeliversMailToEmployee;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -9,7 +10,7 @@ use Illuminate\Notifications\Notification;
 
 class MeetingNotify extends Notification {
 
-	use Queueable;
+	use DeliversMailToEmployee, Queueable;
 	public $meeting;
 
 	/**
@@ -31,9 +32,13 @@ class MeetingNotify extends Notification {
 	 */
 	public function via($notifiable)
 	{
-		return ['database'];
+		return $this->channelsForEmployee($notifiable);
 	}
 
+	public function toMail($notifiable)
+	{
+		return $this->employeeMailFromPayload($notifiable, $this->toArray($notifiable), __('Meeting notification'));
+	}
 
 	/**
 	 * Get the array representation of the notification.

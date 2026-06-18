@@ -128,11 +128,12 @@ class TeamController extends Controller
             return response()->json(['employees' => [], 'departments' => []], 403);
         }
 
-        $companyId = CompanyScope::resolveCompanyIdForInput((int) $request->get('company_id'));
+        $companyId = CompanyScope::resolveCompanyIdForTeamInput((int) $request->get('company_id'));
 
         return response()->json([
             'employees' => CompanyScope::employeesForCompany($companyId),
-            'departments' => department::select('id', 'department_name')
+            'departments' => department::withoutGlobalScopes()
+                ->select('id', 'department_name')
                 ->where('company_id', $companyId)
                 ->orderBy('department_name')
                 ->get(),
@@ -145,7 +146,7 @@ class TeamController extends Controller
             return response()->json(['error' => __('You are not authorized')]);
         }
 
-        $companyId = CompanyScope::resolveCompanyIdForInput((int) $request->company_id);
+        $companyId = CompanyScope::resolveCompanyIdForTeamInput((int) $request->company_id);
         $departmentHeadIds = $this->departmentHeadIdsFromRequest($request);
 
         $validator = Validator::make($request->all(), [
@@ -260,7 +261,7 @@ class TeamController extends Controller
             return response()->json(['error' => __('You are not authorized')]);
         }
 
-        $companyId = CompanyScope::resolveCompanyIdForInput((int) $request->company_id);
+        $companyId = CompanyScope::resolveCompanyIdForTeamInput((int) $request->company_id);
         $departmentHeadIds = $this->departmentHeadIdsFromRequest($request);
 
         $validator = Validator::make($request->all(), [

@@ -87,6 +87,8 @@
     @endif
 
     @stack('css')
+
+    @include('layout.partials.hrms_modal_theme')
 </head>
 
 <body>
@@ -126,18 +128,6 @@
                             @foreach(auth()->user()->notifications as $notification)
                                 <li><a class="unread-notification"
                                        href={{$notification->data['link']}}>{{$notification->data['data']}}</a></li>
-                            @endforeach
-                        </ul>
-                    </li>
-                    <li class="nav-item">
-                        <a rel="nofollow" href="#" class="nav-link dropdown-item" data-toggle="tooltip" title="{{__('Language')}}">
-                            <i class="dripicons-web"></i>
-                        </a>
-                        <ul class="right-sidebar">
-                            @foreach($languages as $lang)
-                                <li>
-                                    <a href="{{route('language.switch',$lang)}}">{{$lang}}</a>
-                                </li>
                             @endforeach
                         </ul>
                     </li>
@@ -270,6 +260,7 @@
 </script>
 
 @stack('scripts')
+<script type="text/javascript" src="{{ asset('js/modal-forms.js') }}"></script>
 
 </body>
 </html>

@@ -55,9 +55,8 @@
 @endsection
 
 @php
-    $singleCompanyId = \App\Support\CompanyScope::applies() && $companies->isNotEmpty()
-        ? $companies->first()->id
-        : null;
+    $singleCompanyId = \App\Support\CompanyScope::teamFormCompany()?->id
+        ?? (\App\Support\CompanyScope::applies() && $companies->isNotEmpty() ? $companies->first()->id : null);
 @endphp
 
 @push('scripts')
@@ -66,6 +65,7 @@
     "use strict";
 
     let deleteId = null;
+    const defaultCompanyId = @json($singleCompanyId ?? null);
 
     $(document).ready(function () {
         const table = $('#team-table').DataTable({
@@ -101,18 +101,10 @@
         });
 
         $('#create_record').on('click', function () {
-            $('#sample_form')[0].reset();
-            $('#member_ids').selectpicker('refresh');
-            $('.selectpicker').selectpicker('refresh');
-            $('#hidden_id').val('');
-            $('#action').val('{{ trans('file.Add') }}');
-            $('#action_button').val('{{ trans('file.Add') }}');
-            $('#exampleModalLabel').text('{{ __('Add Team') }}');
-            $('#formModal').modal('show');
-            if ($('#company_id').is('select') && $('#company_id option').length === 1) {
-                $('#company_id').val($('#company_id option:first').val()).selectpicker('refresh');
+            if (typeof window.resetTeamFormForCreate === 'function') {
+                window.resetTeamFormForCreate();
             }
-            $('#company_id').trigger('change');
+            $('#formModal').modal('show');
         });
 
         $(document).on('click', '.delete', function () {

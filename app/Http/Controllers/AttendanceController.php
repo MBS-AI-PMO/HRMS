@@ -21,7 +21,12 @@ use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Validators\ValidationException;
 
 use App\Http\traits\MonthlyWorkedHours;
+use App\Services\AttendanceOvertimeService;
+use App\Support\AttendanceLocationCapture;
+use App\Support\CompanyScope;
+use App\Support\ManagedEmployeeScope;
 use Illuminate\Support\Facades\DB;
+use App\Models\location;
 
 class AttendanceController extends Controller {
 
@@ -139,9 +144,23 @@ class AttendanceController extends Controller {
         return null;
     }
 
+    protected function mergeClockInLocation(array &$data, Request $request): void
+    {
+        $data = array_merge($data, AttendanceLocationCapture::clockInFields($request));
+    }
+
+    protected function mergeClockOutLocation(array &$data, Request $request): void
+    {
+        $data = array_merge($data, AttendanceLocationCapture::clockOutFields($request));
+    }
+
 	public function index(Request $request)
 	{
 		$logged_user = auth()->user();
+		$canManageScopedAttendance = ManagedEmployeeScope::usesScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
+		$managedEmployeeIds = $canManageScopedAttendance
+			? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
+			: [];
 		//checking if date is selected else date is current
 		// if ($logged_user->can('view-attendance'))
 		// {
@@ -170,10 +189,20 @@ class AttendanceController extends Controller {
 					)
 					->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id')
 					->where('joining_date', '<=', $selected_date)
-					->where('id', '=', $logged_user->id)
                     ->where('is_active',1)
-                    ->where('exit_date',NULL)
-					->get();
+                    ->where(function ($query) use ($selected_date) {
+						$query->whereNull('exit_date')
+							->orWhere('exit_date', '>=', $selected_date)
+							->orWhere('exit_date', '0000-00-00');
+					});
+
+					if ($canManageScopedAttendance) {
+						$employee = $employee->whereIn('id', $managedEmployeeIds);
+					} else {
+						$employee = $employee->where('id', '=', $logged_user->id);
+					}
+
+					$employee = $employee->get();
 				}
 				else{
 					$employee = Employee::with(['officeShift', 'employeeAttendance' => function ($query) use ($selected_date)
@@ -191,7 +220,11 @@ class AttendanceController extends Controller {
 					->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id')
 					->where('joining_date', '<=', $selected_date)
                     ->where('is_active',1)
-                    ->where('exit_date',NULL)
+                    ->where(function ($query) use ($selected_date) {
+						$query->whereNull('exit_date')
+							->orWhere('exit_date', '>=', $selected_date)
+							->orWhere('exit_date', '0000-00-00');
+					})
 					->get();
 				}
 
@@ -404,134 +437,164 @@ class AttendanceController extends Controller {
             return redirect()->back()->withErrors([$locationError]);
         }
 
-		//current day
 		$current_day = now()->format(env('Date_Format'));
 
-		//getting the latest instance of employee_attendance
 		$employee_attendance_last = Attendance::where('attendance_date', now()->format('Y-m-d'))
 				->where('employee_id', $id)->orderBy('id', 'desc')->first() ?? null;
 
-		//shift in-shift out timing
 		try
 		{
 			$shift_in = new DateTime($request->office_shift_in);
 			$shift_out = new DateTime($request->office_shift_out);
-			$current_time = new DateTime(now());
+			$current_time = new DateTime(now()->format('H:i'));
 
 		} catch (Exception $e)
 		{
-			return $e;
+			return redirect()->back()->withErrors([__('Invalid shift timing.')]);
 		}
-
 
 		$data['employee_id'] = $id;
 		$data['attendance_date'] = $current_day;
 
+		$clockInAsOvertime = AttendanceOvertimeService::shouldClockInAsOvertime(
+			$shift_out,
+			$current_time,
+			$employee_attendance_last
+		);
 
-		//if employee attendance record was not found
-		// FOR CLOCK IN
-		if (!$employee_attendance_last)
-		{
-            $late_cutoff_time = $this->getLateCutoffTime($shift_in);
-			// if employee is late
-			if ($current_time > $late_cutoff_time)
-			{
-				$data['clock_in'] = $current_time->format('H:i');
-                $timeDifference = $late_cutoff_time->diff(new DateTime($data['clock_in']))->format('%H:%I');
-				$data['time_late'] = $timeDifference;
-			} // if employee is early or on time
-			else
-			{
-                if(env('ENABLE_EARLY_CLOCKIN')!=NULL) {
-                    $data['clock_in'] = $current_time->format('H:i');
-                }
-                else {
-				    $data['clock_in'] = $shift_in->format('H:i');
-                }
+		if (! $employee_attendance_last || (int) $employee_attendance_last->clock_in_out === 0) {
+			if ($clockInAsOvertime) {
+				$data = AttendanceOvertimeService::applyOvertimeClockInDefaults($data, $current_time);
+				$data['attendance_status'] = 'present';
+				$data['clock_in_out'] = 1;
+				$data['clock_in_ip'] = $request->ip();
+				$this->mergeClockInLocation($data, $request);
+
+				$attendance = Attendance::create($data);
+				$this->logEmployeeActivity($id, 'attendance.overtime_clock_in', 'Employee started overtime.', array_merge([
+					'attendance_id' => $attendance->id,
+					'attendance_date' => $data['attendance_date'] ?? null,
+					'clock_in' => $data['clock_in'] ?? null,
+				], AttendanceLocationCapture::metaFromRequest($request)));
+				$this->setSuccessMessage(__('Overtime Clocked In Successfully'));
+
+				return redirect()->back();
 			}
 
-			$data['attendance_status'] = 'present';
+			if (! $employee_attendance_last) {
+				$late_cutoff_time = $this->getLateCutoffTime($shift_in);
+
+				if ($current_time > $late_cutoff_time) {
+					$data['clock_in'] = $current_time->format('H:i');
+					$data['time_late'] = $late_cutoff_time->diff(new DateTime($data['clock_in']))->format('%H:%I');
+				} else {
+					if (env('ENABLE_EARLY_CLOCKIN') != null) {
+						$data['clock_in'] = $current_time->format('H:i');
+					} else {
+						$data['clock_in'] = $shift_in->format('H:i');
+					}
+				}
+
+				$data['attendance_status'] = 'present';
+				$data['clock_in_out'] = 1;
+				$data['clock_in_ip'] = $request->ip();
+				$data['is_overtime'] = 0;
+				$this->mergeClockInLocation($data, $request);
+
+				$attendance = Attendance::create($data);
+				$this->logEmployeeActivity($id, 'attendance.clock_in', 'Employee clocked in.', array_merge([
+					'attendance_id' => $attendance->id,
+					'attendance_date' => $data['attendance_date'] ?? null,
+					'clock_in' => $data['clock_in'] ?? null,
+					'time_late' => $data['time_late'] ?? '00:00',
+				], AttendanceLocationCapture::metaFromRequest($request)));
+				$this->setSuccessMessage(__('Clocked In Successfully'));
+
+				return redirect()->back();
+			}
+
+			$data['clock_in'] = $current_time->format('H:i');
+			$employee_last_clock_out = new DateTime($employee_attendance_last->clock_out);
+			$data['total_rest'] = $employee_last_clock_out->diff(new DateTime($data['clock_in']))->format('%H:%I');
+			$data['total_work'] = $employee_attendance_last->total_work;
+			$data['overtime'] = $employee_attendance_last->overtime;
 			$data['clock_in_out'] = 1;
 			$data['clock_in_ip'] = $request->ip();
+			$data['is_overtime'] = 0;
+			$this->mergeClockInLocation($data, $request);
 
-			//creating new attendance record
-            $attendance = Attendance::create($data);
-            $this->logEmployeeActivity($id, 'attendance.clock_in', 'Employee clocked in.', [
-                'attendance_id' => $attendance->id,
-                'attendance_date' => $data['attendance_date'] ?? null,
-                'clock_in' => $data['clock_in'] ?? null,
-                'time_late' => $data['time_late'] ?? '00:00',
-            ]);
+			Attendance::whereId($employee_attendance_last->id)->update(['total_work' => '00:00', 'overtime' => '00:00']);
+			$attendance = Attendance::create($data);
+			$this->logEmployeeActivity($id, 'attendance.re_clock_in', 'Employee clocked in again after break.', array_merge([
+				'attendance_id' => $attendance->id,
+				'attendance_date' => $data['attendance_date'] ?? null,
+				'clock_in' => $data['clock_in'] ?? null,
+				'total_rest' => $data['total_rest'] ?? null,
+			], AttendanceLocationCapture::metaFromRequest($request)));
 			$this->setSuccessMessage(__('Clocked In Successfully'));
+
 			return redirect()->back();
 		}
-		// if there is a record of employee attendance
-		//FOR CLOCK OUT
-		//if ($employee_attendance_last)
-        else {
-			//checking if the employee is not both clocked in + out (1)
-			if ($employee_attendance_last->clock_in_out == 1) {
-                if ($current_time > $shift_in || env('ENABLE_EARLY_CLOCKIN')!=NULL) {
-					$employee_last_clock_in = new DateTime($employee_attendance_last->clock_in);
-                    $data['clock_out'] = $current_time->format('H:i');
-                    // if employee is early leaving
-                    if ($current_time < $shift_out) {
-                        $timeDifference = $shift_out->diff(new DateTime($data['clock_out']))->format('%H:%I');
-                        $data['early_leaving'] = $timeDifference;
-                    }
-                    // calculating total work
-                    $prev_work = new DateTime($employee_attendance_last->total_work);
-                    $total_work = $prev_work->add($employee_last_clock_in->diff(new DateTime($data['clock_out'])));
-                    $data['total_work'] = $total_work->format('H:i');
 
-                    // Overtime calculation
-                    $duty_time = new DateTime($shift_in->diff($shift_out)->format('%H:%I'));
-                    if ($total_work > $duty_time) {
-                        $data['overtime'] = $total_work->diff($duty_time)->format('%H:%I');
-                    }
-                    $data['clock_out_ip'] = $request->ip();
-                    $data['clock_in_out'] = 0;
-                    //updating record
-                    $attendance = Attendance::findOrFail($employee_attendance_last->id);
-                    $attendance->update($data);
-                    $this->logEmployeeActivity($id, 'attendance.clock_out', 'Employee clocked out.', [
-                        'attendance_id' => $attendance->id,
-                        'attendance_date' => $attendance->attendance_date,
-                        'clock_out' => $data['clock_out'] ?? null,
-                        'total_work' => $data['total_work'] ?? null,
-                    ]);
-                }
-                else {
-                    Attendance::whereId($employee_attendance_last->id)->delete();
-                }
+		if ((int) $employee_attendance_last->clock_in_out === 1) {
+			if (AttendanceOvertimeService::isActiveOvertimeSession($employee_attendance_last)) {
+				$data = AttendanceOvertimeService::buildOvertimeClockOutUpdate(
+					$employee_attendance_last,
+					$current_time,
+					$request->ip()
+				);
+				$this->mergeClockOutLocation($data, $request);
 
-				$this->setSuccessMessage(__('Clocked Out Successfully'));
+				$attendance = Attendance::findOrFail($employee_attendance_last->id);
+				$attendance->update($data);
+				$this->logEmployeeActivity($id, 'attendance.overtime_clock_out', 'Employee ended overtime.', array_merge([
+					'attendance_id' => $attendance->id,
+					'attendance_date' => $attendance->attendance_date,
+					'clock_out' => $data['clock_out'] ?? null,
+					'overtime' => $data['overtime'] ?? null,
+				], AttendanceLocationCapture::metaFromRequest($request)));
+				$this->setSuccessMessage(__('Overtime Clocked Out Successfully'));
+
 				return redirect()->back();
 			}
-			// if employee is both clocked in + out
-			// if ($employee_attendance_last->clock_in_out == 0)
-            else {
-				$data['clock_in'] = $current_time->format('H:i');
-				// last clock out (needed for calculation rest time)
-				$employee_last_clock_out = new DateTime($employee_attendance_last->clock_out);
-				$data['total_rest'] = $employee_last_clock_out->diff(new DateTime($data['clock_in']))->format('%H:%I');
-				$data['total_work'] = $employee_attendance_last->total_work;
-				$data['overtime'] = $employee_attendance_last->overtime;
-				$data['clock_in_out'] = 1;
-                $data['clock_in_ip'] = $request->ip();
 
-				Attendance::whereId($employee_attendance_last->id)->update(['total_work'=> '00:00', 'overtime'=> '00:00']);
-				// creating new attendance
-                $attendance = Attendance::create($data);
-                $this->logEmployeeActivity($id, 'attendance.re_clock_in', 'Employee clocked in again after break.', [
-                    'attendance_id' => $attendance->id,
-                    'attendance_date' => $data['attendance_date'] ?? null,
-                    'clock_in' => $data['clock_in'] ?? null,
-                    'total_rest' => $data['total_rest'] ?? null,
-                ]);
-				$this->setSuccessMessage(__('Clocked In Successfully'));
-				return redirect()->back();
+			if ($current_time > $shift_in || env('ENABLE_EARLY_CLOCKIN') != null) {
+				$employee_last_clock_in = new DateTime($employee_attendance_last->clock_in);
+				$data['clock_out'] = $current_time->format('H:i');
+
+				if ($current_time < $shift_out) {
+					$data['early_leaving'] = $shift_out->diff(new DateTime($data['clock_out']))->format('%H:%I');
+				}
+
+				$prev_work = new DateTime($employee_attendance_last->total_work);
+				$total_work = $prev_work->add($employee_last_clock_in->diff(new DateTime($data['clock_out'])));
+				$data['total_work'] = $total_work->format('H:i');
+
+				$duty_time = new DateTime($shift_in->diff($shift_out)->format('%H:%I'));
+				if ($total_work > $duty_time) {
+					$data['overtime'] = $total_work->diff($duty_time)->format('%H:%I');
+				}
+
+				$data['clock_out_ip'] = $request->ip();
+				$data['clock_in_out'] = 0;
+				$this->mergeClockOutLocation($data, $request);
+
+				$attendance = Attendance::findOrFail($employee_attendance_last->id);
+				$attendance->update($data);
+				$this->logEmployeeActivity($id, 'attendance.clock_out', 'Employee clocked out.', array_merge([
+					'attendance_id' => $attendance->id,
+					'attendance_date' => $attendance->attendance_date,
+					'clock_out' => $data['clock_out'] ?? null,
+					'total_work' => $data['total_work'] ?? null,
+					'overtime' => $data['overtime'] ?? null,
+				], AttendanceLocationCapture::metaFromRequest($request)));
+			} else {
+				Attendance::whereId($employee_attendance_last->id)->delete();
 			}
+
+			$this->setSuccessMessage(__('Clocked Out Successfully'));
+
+			return redirect()->back();
 		}
 
 		return response()->json(trans('file.Success'));
@@ -1036,8 +1099,18 @@ class AttendanceController extends Controller {
 	public function dateWiseAttendance(Request $request)
 	{
 		$logged_user = auth()->user();
+        $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
+        $canManageScopedAttendance = ManagedEmployeeScope::usesScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
+        $managedEmployeeIds = $canManageScopedAttendance
+            ? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
+            : [];
 
-        $companies = company::all('id', 'company_name');
+        $companies = $isLocationHead
+            ? CompanyScope::companiesForLocationHead((int) $logged_user->id)
+            : CompanyScope::companiesForSelect();
+        if ($companies->isEmpty()) {
+            $companies = company::all('id', 'company_name');
+        }
         $start_date = Carbon::parse($request->filter_start_date)->format('Y-m-d') ?? '';
         $end_date = Carbon::parse($request->filter_end_date)->format('Y-m-d') ?? '';
         // $start_date = Carbon::parse('2023-02-18')->format('Y-m-d') ?? '';
@@ -1066,6 +1139,10 @@ class AttendanceController extends Controller {
                 ])
                 ->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id', 'joining_date')
                 ->where('is_active', '=', 1);
+
+                if ($canManageScopedAttendance) {
+                    $employee->whereIn('id', $managedEmployeeIds);
+                }
 
                 if ($request->employee_id) {
                     $employee = $employee->where('id', '=', $request->employee_id)->get();
@@ -1303,7 +1380,7 @@ class AttendanceController extends Controller {
                 ->make(true);
         }
 
-        return view('timesheet.dateWiseAttendance.index', compact('companies'));
+        return view('timesheet.dateWiseAttendance.index', compact('companies', 'canManageScopedAttendance'));
 
 	}
 
@@ -1311,7 +1388,18 @@ class AttendanceController extends Controller {
 	public function monthlyAttendance(Request $request)
 	{
 		$logged_user = auth()->user();
-		$companies = company::all('id', 'company_name');
+        $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
+        $canManageScopedAttendance = ManagedEmployeeScope::usesScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
+        $managedEmployeeIds = $canManageScopedAttendance
+            ? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
+            : [];
+
+		$companies = $isLocationHead
+            ? CompanyScope::companiesForLocationHead((int) $logged_user->id)
+            : CompanyScope::companiesForSelect();
+        if ($companies->isEmpty()) {
+            $companies = company::all('id', 'company_name');
+        }
 
 
 		$month_year = $request->filter_month_year;
@@ -1353,9 +1441,19 @@ class AttendanceController extends Controller {
 					])
 					->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id')
                     ->where('is_active',1)
-                    ->where('exit_date',NULL)
-                    ->whereId($logged_user->id)
-                    ->get();
+                    ->where(function ($query) use ($last_date) {
+						$query->whereNull('exit_date')
+							->orWhere('exit_date', '>=', $last_date)
+							->orWhere('exit_date', '0000-00-00');
+					});
+
+					if ($canManageScopedAttendance) {
+						$employee = $employee->whereIn('id', $managedEmployeeIds);
+					} else {
+						$employee = $employee->whereId($logged_user->id);
+					}
+
+					$employee = $employee->get();
 				}
 				else
 				{
@@ -1386,7 +1484,11 @@ class AttendanceController extends Controller {
 						])
 							->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id')
 							->where('company_id', $request->filter_company)->where('is_active',1)
-                            ->where('exit_date',NULL)->get();
+                            ->where(function ($query) use ($last_date) {
+								$query->whereNull('exit_date')
+									->orWhere('exit_date', '>=', $last_date)
+									->orWhere('exit_date', '0000-00-00');
+							})->get();
 					}
 					else
 					{
@@ -1400,10 +1502,18 @@ class AttendanceController extends Controller {
 						])
 							->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id')
                             ->where('is_active',1)
-                            ->where('exit_date',NULL)
+                            ->where(function ($query) use ($last_date) {
+								$query->whereNull('exit_date')
+									->orWhere('exit_date', '>=', $last_date)
+									->orWhere('exit_date', '0000-00-00');
+							})
 							->get();
 					}
 				}
+
+                if ($canManageScopedAttendance) {
+                    $employee = $employee->whereIn('id', $managedEmployeeIds)->values();
+                }
 
 				return datatables()->of($employee)
 					->setRowId(function ($row)
@@ -1567,7 +1677,7 @@ class AttendanceController extends Controller {
 					->make(true);
 			}
 
-			return view('timesheet.monthlyAttendance.index', compact('companies'));
+			return view('timesheet.monthlyAttendance.index', compact('companies', 'canManageScopedAttendance'));
 		// }
 		// return response()->json(['success' => __('You are not authorized')]);
 	}

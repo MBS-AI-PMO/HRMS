@@ -224,7 +224,7 @@
             width: 45px;
             height: 45px;
             border: 5px solid #ddd;
-            border-top-color: #007bff;
+            border-top-color: #7c5cc4;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
@@ -234,7 +234,23 @@
                 transform: rotate(360deg);
             }
         }
+
+        .side-navbar li ul li.active > a {
+            color: #7c5cc4;
+            font-weight: 600;
+            background: rgba(124, 92, 196, 0.08);
+            border-radius: 4px;
+        }
+
+        table.dataTable thead th.not-exported:last-of-type,
+        table.dataTable tbody td:last-child {
+            text-align: center !important;
+            white-space: nowrap;
+        }
+
     </style>
+
+    @include('layout.partials.hrms_modal_theme')
 
 </head>
 
@@ -369,22 +385,32 @@
                     $('#loader').fadeIn(100);
                 });
 
-            // Form submit loader
+            // Form submit loader (skip modal popup forms — handled by modal-forms.js)
             $(document).on('submit', 'form', function() {
+                if ($(this).closest('.modal').length) {
+                    return;
+                }
                 $('#loader').fadeIn(100);
             });
 
-            // AJAX global loader
-            $(document).ajaxStart(function() {
-                $('#loader').fadeIn(100);
+            // AJAX global loader (counter avoids stuck loader when parallel requests finish out of order)
+            var hrmsAjaxRequests = 0;
+
+            $(document).ajaxSend(function() {
+                hrmsAjaxRequests++;
+                $('#loader').stop(true, true).fadeIn(100);
             });
 
-            $(document).ajaxStop(function() {
-                $('#loader').fadeOut(200);
+            $(document).ajaxComplete(function() {
+                hrmsAjaxRequests = Math.max(0, hrmsAjaxRequests - 1);
+                if (hrmsAjaxRequests === 0) {
+                    $('#loader').fadeOut(200);
+                }
             });
         });
     </script>
     @stack('scripts')
+    <script type="text/javascript" src="{{ asset('js/modal-forms.js') }}"></script>
 
 
 </body>

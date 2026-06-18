@@ -14,7 +14,9 @@ use App\Models\IpSetting;
 use App\Models\leave;
 use App\Models\LeaveType;
 use App\Models\User;
+use App\Services\AttendanceOvertimeService;
 use App\Services\LeaveNotifier;
+use App\Support\AttendanceLocationCapture;
 use App\Notifications\LeaveNotificationToAdmin;
 use Carbon\Carbon;
 use DateTime;
@@ -609,41 +611,53 @@ class ApiController extends Controller
             }
 
             $shiftIn = new \DateTime($shiftInValue);
+            $shiftOut = new \DateTime($shiftOutValue);
             $currentTime = new \DateTime(now()->format('H:i'));
+
+            $clockInAsOvertime = AttendanceOvertimeService::shouldClockInAsOvertime($shiftOut, $currentTime, $last);
 
             $data = [
                 'employee_id' => $employee->id,
                 'attendance_date' => $attendanceDateForMutator,
-                'clock_in' => $currentTime->format('H:i'),
                 'clock_in_out' => 1,
                 'clock_in_ip' => $request->ip(),
                 'attendance_status' => 'present',
-                'time_late' => '00:00',
-                'total_rest' => '00:00',
-                'total_work' => '00:00',
-                'overtime' => '00:00',
-                'early_leaving' => '00:00',
             ];
 
-            if ($currentTime > $shiftIn) {
-                $data['time_late'] = $shiftIn->diff(new \DateTime($data['clock_in']))->format('%H:%I');
-            } elseif (env('ENABLE_EARLY_CLOCKIN') === null) {
-                $data['clock_in'] = $shiftIn->format('H:i');
-            }
+            if ($clockInAsOvertime) {
+                $data = AttendanceOvertimeService::applyOvertimeClockInDefaults($data, $currentTime);
+                $data = array_merge($data, AttendanceLocationCapture::clockInFields($request));
+            } else {
+                $data['clock_in'] = $currentTime->format('H:i');
+                $data['time_late'] = '00:00';
+                $data['total_rest'] = '00:00';
+                $data['total_work'] = '00:00';
+                $data['overtime'] = '00:00';
+                $data['early_leaving'] = '00:00';
+                $data['is_overtime'] = 0;
 
-            if ($last && (int) $last->clock_in_out === 0 && ! empty($last->clock_out)) {
-                $lastClockOut = new \DateTime($last->clock_out);
-                $data['total_rest'] = $lastClockOut->diff(new \DateTime($data['clock_in']))->format('%H:%I');
-                $data['total_work'] = $last->total_work;
-                $data['overtime'] = $last->overtime;
-                Attendance::whereKey($last->id)->update(['total_work' => '00:00', 'overtime' => '00:00']);
+                if ($currentTime > $shiftIn) {
+                    $data['time_late'] = $shiftIn->diff(new \DateTime($data['clock_in']))->format('%H:%I');
+                } elseif (env('ENABLE_EARLY_CLOCKIN') === null) {
+                    $data['clock_in'] = $shiftIn->format('H:i');
+                }
+
+                if ($last && (int) $last->clock_in_out === 0 && ! empty($last->clock_out)) {
+                    $lastClockOut = new \DateTime($last->clock_out);
+                    $data['total_rest'] = $lastClockOut->diff(new \DateTime($data['clock_in']))->format('%H:%I');
+                    $data['total_work'] = $last->total_work;
+                    $data['overtime'] = $last->overtime;
+                    Attendance::whereKey($last->id)->update(['total_work' => '00:00', 'overtime' => '00:00']);
+                }
+
+                $data = array_merge($data, AttendanceLocationCapture::clockInFields($request));
             }
 
             $attendance = Attendance::create($data);
 
             return response()->json([
                 'status' => true,
-                'message' => 'Clocked in successfully.',
+                'message' => $clockInAsOvertime ? 'Overtime clocked in successfully.' : 'Clocked in successfully.',
                 'data' => $attendance,
             ]);
         } catch (ValidationException $e) {
@@ -713,6 +727,23 @@ class ApiController extends Controller
             $shiftOut = new \DateTime($shiftOutValue);
             $currentTime = new \DateTime(now()->format('H:i'));
 
+            if (AttendanceOvertimeService::isActiveOvertimeSession($attendance)) {
+                $updateData = AttendanceOvertimeService::buildOvertimeClockOutUpdate(
+                    $attendance,
+                    $currentTime,
+                    $request->ip()
+                );
+                $updateData = array_merge($updateData, AttendanceLocationCapture::clockOutFields($request));
+                $attendance->update($updateData);
+                $attendance->refresh();
+
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Overtime clocked out successfully.',
+                    'data' => $attendance,
+                ]);
+            }
+
             if ($currentTime <= $shiftIn && env('ENABLE_EARLY_CLOCKIN') === null) {
                 Attendance::whereKey($attendance->id)->delete();
                 return response()->json([
@@ -742,6 +773,7 @@ class ApiController extends Controller
                 $updateData['overtime'] = $totalWork->diff($dutyTime)->format('%H:%I');
             }
 
+            $updateData = array_merge($updateData, AttendanceLocationCapture::clockOutFields($request));
             $attendance->update($updateData);
             $attendance->refresh();
 
@@ -1214,6 +1246,8 @@ class ApiController extends Controller
             }
 
             $leave = leave::create($data);
+            $leave->refresh();
+            $leave->load(['employee', 'LeaveType', 'company', 'department']);
 
             EmployeeActivityLog::write(
                 (int) $leave->employee_id,

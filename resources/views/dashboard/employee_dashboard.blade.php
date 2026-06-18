@@ -58,6 +58,22 @@
                         @endif
                         ({{ $shift_name }})
                     </p>
+                    @if (!empty($shift_out) && ($today_overtime_total ?? '00:00') !== '00:00')
+                        <p class="text-muted mb-1">
+                            <i class="dripicons-clock"></i> {{ __('Today Overtime') }}:
+                            <strong class="text-warning">{{ $today_overtime_total }}</strong>
+                        </p>
+                    @endif
+                    @if (!empty($is_past_shift_while_clocked_in))
+                        <p class="mb-2">
+                            <span class="badge badge-warning">{{ __('Overtime in progress (regular shift)') }}</span>
+                        </p>
+                    @endif
+                    @if (!empty($is_on_overtime_session))
+                        <p class="mb-2">
+                            <span class="badge badge-warning">{{ __('Overtime session active') }}</span>
+                        </p>
+                    @endif
                     <a class="btn btn-default btn-sm" id="my_profile" href="{{ route('profile') }}">
                         <i class="dripicons-user"></i> {{ trans('file.Profile') }}
                     </a>
@@ -77,42 +93,76 @@
                             <input type="hidden" name="longitude" id="user_lng">
 
                             @if (!$employee_attendance || $employee_attendance->clock_in_out == 0)
-                                {{-- CLOCK IN --}}
-
-                                @if ($employee->attendance_type == 'ip_based')
-                                    <button class="btn btn-success btn-sm" @if ($ipCheck != true) disabled @endif
-                                        type="submit" id="clock_in_btn">
-                                        <i class="dripicons-enter"></i> {{ __('Clock IN') }}
-                                    </button>
-                                @elseif ($employee->attendance_type == 'location_based')
-                                    <button class="btn btn-success btn-sm" type="button" id="clock_in_btn"
-                                        onclick="handleLocationSubmit()">
-                                        <i class="dripicons-enter"></i> {{ __('Clock IN') }}
-                                    </button>
-                                @else
-                                    {{-- GENERAL --}}
-                                    <button class="btn btn-success btn-sm" type="submit" id="clock_in_btn">
-                                        <i class="dripicons-enter"></i> {{ __('Clock IN') }}
-                                    </button>
+                                @if (!empty($can_overtime_clock_in))
+                                    @if ($employee->attendance_type == 'ip_based')
+                                        <button class="btn btn-warning btn-sm" @if ($ipCheck != true) disabled @endif
+                                            type="submit" id="overtime_clock_in_btn">
+                                            <i class="dripicons-hourglass"></i> {{ __('Overtime Clock IN') }}
+                                        </button>
+                                    @elseif ($employee->attendance_type == 'location_based')
+                                        <button class="btn btn-warning btn-sm" type="button" id="overtime_clock_in_btn"
+                                            onclick="handleLocationSubmit()">
+                                            <i class="dripicons-hourglass"></i> {{ __('Overtime Clock IN') }}
+                                        </button>
+                                    @else
+                                        <button class="btn btn-warning btn-sm" type="button" id="overtime_clock_in_btn"
+                                            onclick="handleGeneralLocationCapture()">
+                                            <i class="dripicons-hourglass"></i> {{ __('Overtime Clock IN') }}
+                                        </button>
+                                    @endif
+                                @elseif ($shift_in)
+                                    @if ($employee->attendance_type == 'ip_based')
+                                        <button class="btn btn-success btn-sm" @if ($ipCheck != true) disabled @endif
+                                            type="submit" id="clock_in_btn">
+                                            <i class="dripicons-enter"></i> {{ __('Clock IN') }}
+                                        </button>
+                                    @elseif ($employee->attendance_type == 'location_based')
+                                        <button class="btn btn-success btn-sm" type="button" id="clock_in_btn"
+                                            onclick="handleLocationSubmit()">
+                                            <i class="dripicons-enter"></i> {{ __('Clock IN') }}
+                                        </button>
+                                    @else
+                                        <button class="btn btn-success btn-sm" type="button" id="clock_in_btn"
+                                            onclick="handleGeneralLocationCapture()">
+                                            <i class="dripicons-enter"></i> {{ __('Clock IN') }}
+                                        </button>
+                                    @endif
                                 @endif
                             @else
-                                {{-- CLOCK OUT --}}
-
-                                @if ($employee->attendance_type == 'ip_based')
-                                    <button class="btn btn-danger btn-sm" @if ($ipCheck != true) disabled @endif
-                                        type="submit" id="clock_out_btn">
-                                        <i class="dripicons-exit"></i> {{ __('Clock OUT') }}
-                                    </button>
-                                @elseif ($employee->attendance_type == 'location_based')
-                                    <button class="btn btn-danger btn-sm" type="button" id="clock_out_btn"
-                                        onclick="handleLocationSubmit()">
-                                        <i class="dripicons-exit"></i> {{ __('Clock OUT') }}
-                                    </button>
+                                @if (!empty($is_on_overtime_session))
+                                    @if ($employee->attendance_type == 'ip_based')
+                                        <button class="btn btn-warning btn-sm" @if ($ipCheck != true) disabled @endif
+                                            type="submit" id="overtime_clock_out_btn">
+                                            <i class="dripicons-exit"></i> {{ __('Overtime Clock OUT') }}
+                                        </button>
+                                    @elseif ($employee->attendance_type == 'location_based')
+                                        <button class="btn btn-warning btn-sm" type="button" id="overtime_clock_out_btn"
+                                            onclick="handleLocationSubmit()">
+                                            <i class="dripicons-exit"></i> {{ __('Overtime Clock OUT') }}
+                                        </button>
+                                    @else
+                                        <button class="btn btn-warning btn-sm" type="button" id="overtime_clock_out_btn"
+                                            onclick="handleGeneralLocationCapture()">
+                                            <i class="dripicons-exit"></i> {{ __('Overtime Clock OUT') }}
+                                        </button>
+                                    @endif
                                 @else
-                                    {{-- GENERAL --}}
-                                    <button class="btn btn-danger btn-sm" type="submit" id="clock_out_btn">
-                                        <i class="dripicons-exit"></i> {{ __('Clock OUT') }}
-                                    </button>
+                                    @if ($employee->attendance_type == 'ip_based')
+                                        <button class="btn btn-danger btn-sm" @if ($ipCheck != true) disabled @endif
+                                            type="submit" id="clock_out_btn">
+                                            <i class="dripicons-exit"></i> {{ __('Clock OUT') }}
+                                        </button>
+                                    @elseif ($employee->attendance_type == 'location_based')
+                                        <button class="btn btn-danger btn-sm" type="button" id="clock_out_btn"
+                                            onclick="handleLocationSubmit()">
+                                            <i class="dripicons-exit"></i> {{ __('Clock OUT') }}
+                                        </button>
+                                    @else
+                                        <button class="btn btn-danger btn-sm" type="button" id="clock_out_btn"
+                                            onclick="handleGeneralLocationCapture()">
+                                            <i class="dripicons-exit"></i> {{ __('Clock OUT') }}
+                                        </button>
+                                    @endif
                                 @endif
                             @endif
 
@@ -130,6 +180,35 @@
                 </div>
             </div>
         </div>
+
+        @if (!empty($is_location_head))
+            <div class="container-fluid mt-3">
+                <div class="card border-primary">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">{{ __('Location Head Panel') }}</h5>
+                        <div class="row">
+                            <div class="col-md-4 mb-2">
+                                <a href="{{ route('employees.index') }}" class="btn btn-outline-primary btn-block text-left">
+                                    <i class="dripicons-user"></i> {{ __('Users / Employees') }}
+                                    <span class="badge badge-primary float-right">{{ $location_head_employee_count ?? 0 }}</span>
+                                </a>
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <a href="{{ route('leaves.index') }}" class="btn btn-outline-primary btn-block text-left">
+                                    <i class="dripicons-archive"></i> {{ __('L/ WFH Requests') }}
+                                </a>
+                            </div>
+                            <div class="col-md-4 mb-2">
+                                <a href="{{ route('locations.my') }}" class="btn btn-outline-primary btn-block text-left">
+                                    <i class="dripicons-location"></i> {{ __('Location Management Report') }}
+                                </a>
+                            </div>
+                        </div>
+                        <small class="text-muted">{{ __('Only employees assigned to your location(s) are shown in these sections.') }}</small>
+                    </div>
+                </div>
+            </div>
+        @endif
 
         <div class="container-fluid">
             <div class="row">
@@ -951,6 +1030,35 @@
     </script>
 
     <script>
+        function handleGeneralLocationCapture() {
+            if (!navigator.geolocation) {
+                document.getElementById('set_clocking').submit();
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    document.getElementById('user_lat').value = position.coords.latitude;
+                    document.getElementById('user_lng').value = position.coords.longitude;
+                    document.getElementById('set_clocking').submit();
+                },
+                function() {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '{{ __('Location not captured') }}',
+                        text: '{{ __('Attendance will be saved without GPS. Allow location access to record where you clocked in/out.') }}',
+                        confirmButtonText: 'OK'
+                    }).then(function() {
+                        document.getElementById('set_clocking').submit();
+                    });
+                }, {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 0
+                }
+            );
+        }
+
         function handleLocationSubmit() {
             if (!navigator.geolocation) {
                 Swal.fire({

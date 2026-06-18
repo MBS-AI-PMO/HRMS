@@ -146,7 +146,8 @@
                         </div>
                         <div class="pie-chart mb-2">
                             <canvas id="project_chart" data-project_status='@json($project_count_array)'
-                                    data-project_label='@json($project_name_array)' width="100" height="95"></canvas>
+                                    data-project_label='@json($project_name_array)'
+                                    data-project_color='@json($project_color_array)' width="100" height="95"></canvas>
                         </div>
                     </div>
                     

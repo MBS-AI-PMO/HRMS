@@ -101,20 +101,6 @@
                         </ul>
                     </li>
                     <li class="nav-item">
-                        <a rel="nofollow" href="#" class="nav-link dropdown-item" data-toggle="tooltip"
-                            title="{{ __('Language') }}">
-                            <i class="dripicons-web"></i>
-                        </a>
-                        <ul class="right-sidebar">
-                            @foreach ($languages as $lang)
-                                <li>
-                                    <a href="{{ route('language.switch', $lang) }}">{{ $lang }}</a>
-                                </li>
-                            @endforeach
-                        </ul>
-                    </li>
-
-                    <li class="nav-item">
                         <a rel="nofollow" href="#" class="nav-link dropdown-item">
                             @if (!empty(auth()->user()->profile_photo))
                                 <img class="profile-photo sm mr-1"

@@ -11,6 +11,7 @@ use App\Models\JobCandidate;
 use App\Models\office_shift;
 use App\Models\SupportTicket;
 use App\Models\TaxType;
+use App\Support\ManagedEmployeeScope;
 use Illuminate\Http\Request;
 
 class DynamicDependent extends Controller {
@@ -45,14 +46,29 @@ class DynamicDependent extends Controller {
 
 	public function fetchEmployee(Request $request)
 	{
-		$value = CompanyScope::resolveCompanyIdForInput((int) $request->get('value'));
+		$loggedUser = auth()->user();
+		$useManagedScope = $loggedUser
+			&& ManagedEmployeeScope::usesScopedEmployeeList((int) $loggedUser->id, (int) $loggedUser->role_users_id);
+		$value = $useManagedScope
+			? (int) $request->get('value')
+			: CompanyScope::resolveCompanyIdForInput((int) $request->get('value'));
 		$first_name = $request->get('first_name');
 		$last_name = $request->get('last_name');
-        
-		$data = Employee::whereCompany_id($value)
+
+		$dataQuery = Employee::whereCompany_id($value)
                             ->where('is_active',1)
-                            ->where('exit_date',NULL)
-                            ->get();
+                            ->where(function ($query) {
+								$query->whereNull('exit_date')
+									->orWhere('exit_date', '>=', date('Y-m-d'))
+									->orWhere('exit_date', '0000-00-00');
+							});
+
+		if ($useManagedScope) {
+			$managedEmployeeIds = ManagedEmployeeScope::managedEmployeeIds((int) $loggedUser->id);
+			$dataQuery->whereIn('id', $managedEmployeeIds);
+		}
+
+		$data = $dataQuery->get();
 
 		$output = '';
 		foreach ($data as $row)
@@ -68,10 +84,21 @@ class DynamicDependent extends Controller {
 		$value = $request->get('value');
 		$first_name = $request->get('first_name');
 		$last_name = $request->get('last_name');
+		$loggedUser = auth()->user();
+		$useManagedScope = $loggedUser
+			&& ManagedEmployeeScope::usesScopedEmployeeList((int) $loggedUser->id, (int) $loggedUser->role_users_id);
+
 		$data = Employee::wheredepartment_id($value)
                     ->where('is_active',1)
-                    ->where('exit_date',NULL)
-                    ->get();
+                    ->where(function ($query) {
+						$query->whereNull('exit_date')
+							->orWhere('exit_date', '>=', date('Y-m-d'))
+							->orWhere('exit_date', '0000-00-00');
+					});
+		if ($useManagedScope) {
+			$data->whereIn('id', ManagedEmployeeScope::managedEmployeeIds((int) $loggedUser->id));
+		}
+		$data = $data->get();
 		$output = '';
 		foreach ($data as $row)
 		{

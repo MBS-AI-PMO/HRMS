@@ -4,12 +4,14 @@ namespace App\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
 
 class leave extends Model
 {
 	protected $fillable = [
 		'leave_type_id','company_id','department_id','employee_id','start_date','end_date',
-		'leave_reason','remarks','status','hr_approval_status','manager_approval_status','is_notify','total_days'
+		'leave_reason','remarks','status','hr_approval_status','manager_approval_status',
+		'approved_by','is_notify','total_days',
 	];
 
 	public function company(){
@@ -26,6 +28,27 @@ class leave extends Model
 
 	public function employee(){
 		return $this->hasOne('App\Models\Employee','id','employee_id');
+	}
+
+	public function approvedByUser(){
+		return $this->belongsTo(User::class, 'approved_by');
+	}
+
+	public function approvedByEmployee(){
+		return $this->belongsTo(Employee::class, 'approved_by');
+	}
+
+	public function approvedByName(): string
+	{
+		if (! $this->approved_by) {
+			return '';
+		}
+
+		if ($this->approvedByUser) {
+			return trim(($this->approvedByUser->first_name ?? '').' '.($this->approvedByUser->last_name ?? ''));
+		}
+
+		return $this->approvedByEmployee->full_name ?? '';
 	}
 
 	// public function employeeLeaveTypeDetail(){

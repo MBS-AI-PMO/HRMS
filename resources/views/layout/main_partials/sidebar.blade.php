@@ -26,11 +26,20 @@
                     </li>
                 @endif
 
-                @if (\App\Models\Team::userCanAccessEmployeeList((int) auth()->id()) && ! auth()->user()->can('view-details-employee'))
+                @if ((\App\Models\Team::userCanAccessEmployeeList((int) auth()->id()) || \App\Models\location::userCanAccessLocationEmployeeList((int) auth()->id())) && ! auth()->user()->can('view-details-employee'))
                     <li class="{{ request()->is('staff/employees*') ? 'active' : '' }}">
                         <a href="{{ route('employees.index') }}">
                             <i class="dripicons-view-list"></i>
                             <span>{{ __('Employee List') }}</span>
+                        </a>
+                    </li>
+                @endif
+
+                @if (\App\Models\location::userIsLocationHead((int) auth()->id()))
+                    <li class="{{ request()->is('organization/locations/my*') ? 'active' : '' }}">
+                        <a href="{{ route('locations.my') }}">
+                            <i class="dripicons-location"></i>
+                            <span>{{ __('Location  Report') }}</span>
                         </a>
                     </li>
                 @endif
@@ -89,7 +98,6 @@
 
                         @if (auth()->user()->can('view-role') ||
                                 auth()->user()->can('view-general-setting') ||
-                                auth()->user()->can('access-language') ||
                                 auth()->user()->can('access-variable_type') ||
                                 auth()->user()->can('access-variable_method') ||
                                 auth()->user()->can('view-general-setting'))
@@ -118,12 +126,6 @@
 
                             @can('view-mail-setting')
                                 <li id="mail_setting"><a href="{{ route('setting.mail') }}">{{ __('Mail Setting') }}</a>
-                                </li>
-                            @endcan
-
-                            @can('access-language')
-                                <li id="language_switch"><a
-                                        href="{{ route('languages.translations.index', 'English') }}">{{ __('Language Settings') }}</a>
                                 </li>
                             @endcan
 
@@ -293,13 +295,18 @@
                 $isDepartmentManager = $managedDepartmentIds->isNotEmpty();
                 $isHrUser = $leaveManagerSidebarUser->can('view-leave');
                 $isTeamLeaveManager = \App\Models\Team::userCanManageTeamLeaveRequests((int) $leaveManagerSidebarUser->id);
-                $showLeaveManagementTabs = $isDepartmentManager || $isHrUser || $isTeamLeaveManager;
+                $isLocationLeaveManager = \App\Models\location::userCanManageLocationLeaveRequests((int) $leaveManagerSidebarUser->id);
+                $showLeaveManagementTabs = $isDepartmentManager || $isHrUser || $isTeamLeaveManager || $isLocationLeaveManager;
 
                 $pendingLeaveCount = 0;
                 $pendingWfhCount = 0;
 
                 if ($showLeaveManagementTabs) {
-                    $pendingLeaveQuery = \App\Models\leave::query()
+                    $scopedLeaveQuery = (! $isHrUser && ($isTeamLeaveManager || $isLocationLeaveManager))
+                        ? \App\Models\leave::withoutGlobalScope(\App\Scopes\AuthCompanyScope::class)
+                        : \App\Models\leave::query();
+
+                    $pendingLeaveQuery = (clone $scopedLeaveQuery)
                         ->where('status', 'pending')
                         ->where(function ($query) {
                             $query
@@ -310,7 +317,7 @@
                                 })
                                 ->orWhereNull('leave_type_id');
                         });
-                    $pendingWfhQuery = \App\Models\leave::query()
+                    $pendingWfhQuery = (clone $scopedLeaveQuery)
                         ->where('status', 'pending')
                         ->whereHas('LeaveType', function ($query) {
                             $query
@@ -321,12 +328,12 @@
                     if (! $isHrUser && $isDepartmentManager) {
                         $pendingLeaveQuery->whereIn('department_id', $managedDepartmentIds);
                         $pendingWfhQuery->whereIn('department_id', $managedDepartmentIds);
-                    } elseif (! $isHrUser && $isTeamLeaveManager) {
-                        $teamMemberIds = \App\Models\Team::memberEmployeeIdsLedByUser((int) $leaveManagerSidebarUser->id);
+                    } elseif (! $isHrUser && ($isTeamLeaveManager || $isLocationLeaveManager)) {
+                        $scopedMemberIds = \App\Support\ManagedEmployeeScope::managedEmployeeIds((int) $leaveManagerSidebarUser->id);
 
-                        if ($teamMemberIds !== []) {
-                            $pendingLeaveQuery->whereIn('employee_id', $teamMemberIds);
-                            $pendingWfhQuery->whereIn('employee_id', $teamMemberIds);
+                        if ($scopedMemberIds !== []) {
+                            $pendingLeaveQuery->whereIn('employee_id', $scopedMemberIds);
+                            $pendingWfhQuery->whereIn('employee_id', $scopedMemberIds);
                         } else {
                             $pendingLeaveQuery->whereRaw('1 = 0');
                             $pendingWfhQuery->whereRaw('1 = 0');

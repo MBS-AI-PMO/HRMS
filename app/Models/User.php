@@ -7,6 +7,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\NotificationRecipientResolver;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\HasApiTokens;
 use RuntimeException;
@@ -43,6 +44,14 @@ class User extends Authenticatable
     public function RoleUser()
     {
         return $this->hasone('Spatie\Permission\Models\Role', 'id', 'role_users_id');
+    }
+
+    /**
+     * Laravel mail notifications read email from here — resolve users + employees tables.
+     */
+    public function routeNotificationForMail($notification = null): ?string
+    {
+        return NotificationRecipientResolver::resolveUserEmailAddress((int) $this->id);
     }
 
     public function getLastLoginDateAttribute($value)
