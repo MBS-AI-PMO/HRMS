@@ -194,10 +194,11 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::get('/jobs/search/job_type/{job_type}', [JobController::class, 'searchByJobType'])->name('jobs.searchByJobType');
     Route::post('/jobs/apply/{job}', [JobController::class, 'applyForJob'])->name('jobs.apply');
 
-    Route::get('markAsRead', [RouteClosureHandlerController::class, 'markAsReadNotification'])->name('markAsRead');
-    Route::get('/all/notifications', [RouteClosureHandlerController::class, 'allNotifications'])->name('seeAllNoti');
-    Route::get('clearAll', [RouteClosureHandlerController::class, 'clearAll'])->name('clearAll');
+    Route::get('markAsRead', [RouteClosureHandlerController::class, 'markAsReadNotification'])->name('markAsRead')->middleware(['auth', 'secure.app']);
+    Route::get('/all/notifications', [RouteClosureHandlerController::class, 'allNotifications'])->name('seeAllNoti')->middleware(['auth', 'secure.app']);
+    Route::get('clearAll', [RouteClosureHandlerController::class, 'clearAll'])->name('clearAll')->middleware(['auth', 'secure.app']);
 
+    Route::middleware(['auth', 'secure.app'])->group(function () {
     Route::get('/profile', [EmployeeController::class, 'profile'])->name('profile');
      Route::post('/profile-Update/{id}', [EmployeeController::class, 'profileUpdate'])->name('profile.Update');
     Route::get('/profile/activity-logs', [EmployeeController::class, 'profileActivityLogs'])->name('profile.activity_logs');
@@ -207,6 +208,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::put('/profile/{id}', [DashboardController::class, 'profile_update'])->name('profile_update');
     Route::post('/profile/employee/{id}', [DashboardController::class, 'employeeProfileUpdate'])->name('employee_profile_update');
     Route::post('/profile/change_password/{id}', [DashboardController::class, 'change_password'])->name('change_password');
+    });
 
     // Languages Section
     Route::prefix('languages')->group(function () {
@@ -234,6 +236,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     });
 
 
+    Route::middleware(['auth', 'secure.app'])->group(function () {
     Route::get('/users-list', [AllUserController::class, 'index'])->name('users-list');
     Route::post('/user-add', [AllUserController::class, 'add_user_process'])->name('add-user');
     Route::get('/user-login-info', [AllUserController::class, 'login_info'])->name('login-info');
@@ -244,8 +247,9 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::post('/user-mass-delete', [AllUserController::class, 'delete_by_selection'])->name('delete_by_selection');
     Route::post('/assign_role/{user}', [AssignRoleController::class, 'update'])->name('assign_role');
     Route::post('/mass_assign', [AssignRoleController::class, 'mass_update'])->name('mass_assign_role');
+    });
 
-    Route::prefix('staff')->group(function () {
+    Route::prefix('staff')->middleware(['auth', 'secure.app'])->group(function () {
 
         Route::prefix('employees')->group(function () {
             Route::resource('/', EmployeeController::class)->names([
@@ -497,7 +501,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::get('terminations/{termination}/restore', [TerminationController::class, 'restore'])->name('terminations.restore');
     });
 
-    Route::prefix('report')->group(function () {
+    Route::prefix('report')->middleware(['auth', 'secure.app'])->group(function () {
         //New Added
         Route::get('attendances', [AttendanceController::class, 'index'])->name('attendances.index');
         Route::get('date_wise_attendances', [AttendanceController::class, 'dateWiseAttendance'])->name('date_wise_attendances.index');
@@ -517,7 +521,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::get('pension', [ReportController::class, 'pension'])->name('report.pension');
     });
 
-    Route::prefix('organization')->group(function () {
+    Route::prefix('organization')->middleware(['auth', 'secure.app'])->group(function () {
 
         Route::get('locations/my', [LocationController::class, 'myLocations'])->name('locations.my');
         Route::get('locations/employees/by-companies', [LocationController::class, 'employeesByCompanies'])->name('locations.employees_by_companies');
@@ -580,7 +584,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::post('policy/delete/selected', [PolicyController::class, 'delete_by_selection'])->name('mass_delete_policy');
     });
 
-    Route::prefix('timesheet')->group(function () {
+    Route::prefix('timesheet')->middleware(['auth', 'secure.app'])->group(function () {
         // Route::get('attendances', 'AttendanceController@index')->name('attendances.index');
         // Route::get('date_wise_attendances', 'AttendanceController@dateWiseAttendance')->name('date_wise_attendances.index');
         // Route::get('monthly_attendances', 'AttendanceController@monthlyAttendance')->name('monthly_attendances.index');
@@ -814,7 +818,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::post('dynamic_dependent/get_tax_rate', [DynamicDependent::class, 'getTaxRate'])->name('dynamic_tax_rate');
     Route::post('dynamic_dependent/fetch_candidate', [DynamicDependent::class, 'fetchCandidate'])->name('dynamic_candidate');
 
-    Route::prefix('settings')->group(function () {
+    Route::prefix('settings')->middleware(['auth', 'secure.app'])->group(function () {
         Route::resource('roles', RoleController::class);
         Route::get('/roles/{id}/delete', [RoleController::class, 'destroy'])->name('roles.destroy');
 
@@ -1022,4 +1026,4 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::post('version-upgrade', [DashboardController::class, 'versionUpgrade'])->name('version-upgrade');
 });
 
-Route::get('/update-attendance-type', [EmployeeController::class, 'updateAttendanceType']);
+Route::get('/update-attendance-type', [EmployeeController::class, 'updateAttendanceType'])->middleware('cron.token');

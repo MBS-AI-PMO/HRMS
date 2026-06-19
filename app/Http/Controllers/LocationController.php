@@ -18,6 +18,18 @@ use Spatie\Permission\Models\Role;
 
 class LocationController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(['auth', 'secure.app']);
+        $this->middleware('throttle:90,1')->only([
+            'store',
+            'update',
+            'assignShift',
+            'delete',
+            'delete_by_selection',
+        ]);
+    }
+
     protected function canEditLocation(int $locationId): bool
     {
         $user = auth()->user();
@@ -49,6 +61,10 @@ class LocationController extends Controller
 
 	public function index()
 	{
+        if (! auth()->user()->can('view-location')) {
+            abort(403, __('You are not authorized'));
+        }
+
 		$countries = \DB::table('countries')->select('id','name')->get();
         $companies = CompanyScope::companiesForSelect();
 
@@ -93,11 +109,11 @@ class LocationController extends Controller
 
 	public function store(Request $request)
 	{
-
 		$logged_user = auth()->user();
 
-		if ($logged_user->can('store-location'))
-		{
+		if (! $logged_user || ! $logged_user->can('store-location')) {
+            return response()->json(['errors' => [__('You are not authorized')]], 403);
+        }
 
 			$validator = Validator::make($request->only('location_name', 'location_head', 'address1', 'address2', 'city',
 				'state', 'country', 'zip', 'latitude', 'longitude', 'max_radius', 'company_ids'),
@@ -171,8 +187,6 @@ class LocationController extends Controller
             }
 
 			return response()->json(['success' => __('Data Added successfully.')]);
-		}
-		return response()->json(['success' => __('You are not authorized')]);
 	}
 
 
@@ -214,6 +228,10 @@ class LocationController extends Controller
                 'company_ids' => $location->companies()->pluck('companies.id')->toArray(),
                 'location_head_ids' => $location->locationHeads()->pluck('employees.id')->toArray(),
             ]);
+        }
+
+        if ($this->isHeadOnlyLocationManager() && ! location::userHeadsLocation((int) auth()->id(), $id)) {
+            return response()->json(['errors' => [__('You are not authorized')]], 403);
         }
 
 			$data = $request->only('location_name', 'location_head', 'address1', 'address2', 'city',

@@ -54,6 +54,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'cron_secret' => env('CRON_SECRET'),
+
     'asset_url' => env('ASSET_URL', null),
 
     /*
