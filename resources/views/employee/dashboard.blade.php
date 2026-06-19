@@ -192,6 +192,23 @@
                                                             </div>
 
                                                             <div class="col-md-4 form-group">
+                                                                <label>{{ trans('file.Password') }}</label>
+                                                                <input type="password" name="password" id="password"
+                                                                    class="form-control"
+                                                                    placeholder="{{ __('Leave blank to keep current password') }}"
+                                                                    autocomplete="new-password">
+                                                            </div>
+
+                                                            <div class="col-md-4 form-group">
+                                                                <label>{{ __('Confirm Password') }}</label>
+                                                                <input type="password" name="password_confirmation"
+                                                                    id="confirm_pass" class="form-control"
+                                                                    placeholder="{{ __('Re-type Password') }}"
+                                                                    autocomplete="new-password">
+                                                                <div class="registrationFormAlert" id="divCheckPasswordMatch"></div>
+                                                            </div>
+
+                                                            <div class="col-md-4 form-group">
                                                                 <label>{{ trans('file.Email') }}</label>
                                                                 <input type="text" name="email" id="email"
                                                                     placeholder="{{ trans('file.Email') }}" class="form-control"
@@ -824,6 +841,22 @@
         });
 
 
+        $('#confirm_pass').on('input', function () {
+            var password = $('input[name="password"]').val();
+            var confirm = $('input[name="password_confirmation"]').val();
+
+            if (!password && !confirm) {
+                $('#divCheckPasswordMatch').html('');
+                return;
+            }
+
+            if (password !== confirm) {
+                $('#divCheckPasswordMatch').html('{{ __('Password does not match! please type again') }}');
+            } else {
+                $('#divCheckPasswordMatch').html('{{ __('Password matches!') }}');
+            }
+        });
+
         $('#basic_sample_form').on('submit', function(event) {
             event.preventDefault();
             var attendance_type = $("#attendance_type").val();
@@ -850,7 +883,8 @@
                     if (data.success) {
                         $('#remaining_leave').val(data.remaining_leave)
                         html = '<div class="alert alert-success">' + data.success + '</div>';
-                        html = '<div class="alert alert-success">' + data.success + '</div>';
+                        $('#password, #confirm_pass').val('');
+                        $('#divCheckPasswordMatch').html('');
                     }
                     $('#form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                 }

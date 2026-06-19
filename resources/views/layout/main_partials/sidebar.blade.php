@@ -39,7 +39,7 @@
                     <li class="{{ request()->is('organization/locations/my*') ? 'active' : '' }}">
                         <a href="{{ route('locations.my') }}">
                             <i class="dripicons-location"></i>
-                            <span>{{ __('Location  Report') }}</span>
+                            <span>{{ __('My Locations') }}</span>
                         </a>
                     </li>
                 @endif

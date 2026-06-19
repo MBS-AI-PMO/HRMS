@@ -790,9 +790,10 @@ class EmployeeController extends Controller
             $validator = Validator::make(
                 $request->only(
                     'first_name', 'last_name', 'staff_id', 'email', 'contact_no', 'cnic', 'date_of_birth', 'gender',
-                    'username', 'role_users_id', 'company_id', 'department_id', 'designation_id', 'office_shift_id',
-                    'location_id', 'status_id', 'marital_status', 'joining_date', 'permission_role_id', 'address',
-                    'city', 'state', 'country', 'zip_code', 'attendance_type', 'total_leave'
+                    'username', 'password', 'password_confirmation', 'role_users_id', 'company_id', 'department_id',
+                    'designation_id', 'office_shift_id', 'location_id', 'status_id', 'marital_status', 'joining_date',
+                    'permission_role_id', 'address', 'city', 'state', 'country', 'zip_code', 'attendance_type',
+                    'total_leave'
                 ),
                 array_merge([
                     'first_name'      => 'required',
@@ -801,6 +802,7 @@ class EmployeeController extends Controller
                     'staff_id'        => 'required|string|max:191|unique:employees,staff_id,' . $employee,
                     'email'           => 'nullable|email|unique:users,email,' . $employee,
                     'contact_no'      => 'required|numeric|unique:users,contact_no,' . $employee,
+                    'password'        => 'nullable|min:4|confirmed',
                     'date_of_birth'   => 'required',
                     'company_id'      => 'required',
                     'department_id'   => 'required',
@@ -873,6 +875,10 @@ class EmployeeController extends Controller
             $user['role_users_id'] = $request->role_users_id;
             $user['contact_no'] = $request->contact_no;
             $user['is_active'] = 1;
+
+            if ($request->filled('password')) {
+                $user['password'] = bcrypt($request->password);
+            }
 
             DB::beginTransaction();
             try {

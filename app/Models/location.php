@@ -45,6 +45,16 @@ class location extends Model
         return $this->locationHeads->pluck('full_name')->filter()->implode(', ') ?: '-';
     }
 
+    public static function userHeadsLocation(int $userId, int $locationId): bool
+    {
+        return in_array($locationId, static::locationIdsHeadedByUser($userId), true);
+    }
+
+    public static function userCanManageHeadedLocation(int $userId, int $locationId): bool
+    {
+        return static::userHeadsLocation($userId, $locationId);
+    }
+
     public static function userIsLocationHead(int $userId): bool
     {
         if (DB::table('location_heads')->where('employee_id', $userId)->exists()) {
