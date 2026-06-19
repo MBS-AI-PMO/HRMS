@@ -3,9 +3,9 @@
 
     <section>
         <div class="container-fluid mb-3">
-            <h4 class="mb-1">{{ __('Location Management Report') }}</h4>
+            <h4 class="mb-1">{{ __('My Locations') }}</h4>
             <p class="text-muted mb-0">
-                {{ __('Locations you head. Only employees assigned to these locations appear in your lists.') }}
+                {{ __('Manage your center locations: update address, GPS radius, assign employees, and office shifts.') }}
             </p>
         </div>
 
@@ -23,6 +23,8 @@
             </table>
         </div>
     </section>
+
+    @include('organization.location.partials.manage_modals')
 
 @endsection
 
@@ -59,4 +61,5 @@
     });
 })(jQuery);
 </script>
+@include('organization.location.partials.manage_scripts', ['tableSelector' => '#my-location-table'])
 @endpush

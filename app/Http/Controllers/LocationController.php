@@ -18,6 +18,35 @@ use Spatie\Permission\Models\Role;
 
 class LocationController extends Controller
 {
+    protected function canEditLocation(int $locationId): bool
+    {
+        $user = auth()->user();
+
+        if ($user->can('edit-location')) {
+            return true;
+        }
+
+        return location::userHeadsLocation((int) $user->id, $locationId);
+    }
+
+    protected function canAssignShiftAtLocation(int $locationId): bool
+    {
+        $user = auth()->user();
+
+        if ($user->can('view-location')) {
+            return true;
+        }
+
+        return location::userHeadsLocation((int) $user->id, $locationId);
+    }
+
+    protected function isHeadOnlyLocationManager(): bool
+    {
+        $user = auth()->user();
+
+        return location::userIsLocationHead((int) $user->id) && ! $user->can('edit-location');
+    }
+
 	public function index()
 	{
 		$countries = \DB::table('countries')->select('id','name')->get();
@@ -152,7 +181,11 @@ class LocationController extends Controller
 
 		if(request()->ajax())
 		{
-			$data = location::findOrFail($id);
+            if (! $this->canEditLocation((int) $id)) {
+                return response()->json(['errors' => [__('You are not authorized')]], 403);
+            }
+
+			$data = location::withoutGlobalScope(AuthCompanyLocationScope::class)->findOrFail($id);
 			return response()->json([
                 'data' => $data,
                 'company_ids' => $data->companies()->pluck('companies.id')->toArray(),
@@ -168,12 +201,20 @@ class LocationController extends Controller
 
 	public function update(Request $request)
 	{
+        $id = (int) $request->hidden_id;
 
-		$logged_user = auth()->user();
+        if (! $this->canEditLocation($id)) {
+            return response()->json(['success' => __('You are not authorized')]);
+        }
 
-		if ($logged_user->can('edit-location'))
-		{
-           $id = $request->hidden_id;
+        $location = location::withoutGlobalScope(AuthCompanyLocationScope::class)->findOrFail($id);
+
+        if ($this->isHeadOnlyLocationManager()) {
+            $request->merge([
+                'company_ids' => $location->companies()->pluck('companies.id')->toArray(),
+                'location_head_ids' => $location->locationHeads()->pluck('employees.id')->toArray(),
+            ]);
+        }
 
 			$data = $request->only('location_name', 'location_head', 'address1', 'address2', 'city',
 				'state', 'country', 'zip', 'latitude', 'longitude', 'max_radius');
@@ -236,8 +277,8 @@ class LocationController extends Controller
 
             DB::beginTransaction();
             try {
-                location::whereId($id)->update($data);
-                $location = location::findOrFail($id);
+                location::withoutGlobalScope(AuthCompanyLocationScope::class)->whereId($id)->update($data);
+                $location = location::withoutGlobalScope(AuthCompanyLocationScope::class)->findOrFail($id);
                 $location->companies()->sync($request->company_ids);
                 $location->locationHeads()->sync($locationHeadIds);
                 $this->assignEmployeesToLocation($id, $request);
@@ -249,13 +290,14 @@ class LocationController extends Controller
             }
 
 			return response()->json(['success' => __('Data is successfully updated')]);
-
-		}
-		return response()->json(['success' => __('You are not authorized')]);
 	}
 
     public function employeesByCompanies(Request $request)
     {
+        if (! auth()->user()->can('view-location') && ! location::userIsLocationHead((int) auth()->id())) {
+            return response()->json(['employees' => [], 'companies' => []], 403);
+        }
+
         $companyIds = $request->input('company_ids', []);
         if (is_string($companyIds)) {
             $companyIds = array_filter(array_map('intval', explode(',', $companyIds)));
@@ -263,6 +305,18 @@ class LocationController extends Controller
 
         if (empty($companyIds)) {
             return response()->json(['employees' => []]);
+        }
+
+        if ($this->isHeadOnlyLocationManager()) {
+            $allowedCompanyIds = CompanyScope::companiesForLocationHead((int) auth()->id())
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+            $companyIds = array_values(array_intersect($companyIds, $allowedCompanyIds));
+
+            if ($companyIds === []) {
+                return response()->json(['employees' => [], 'companies' => []]);
+            }
         }
 
         $employees = Employee::query()
@@ -317,11 +371,13 @@ class LocationController extends Controller
             abort(404);
         }
 
-        if (! auth()->user()->can('view-location')) {
+        if (! $this->canAssignShiftAtLocation((int) $id)) {
             return response()->json(['errors' => [__('You are not authorized')]], 403);
         }
 
-        $location = location::with('companies:id,company_name')->findOrFail($id);
+        $location = location::withoutGlobalScope(AuthCompanyLocationScope::class)
+            ->with('companies:id,company_name')
+            ->findOrFail($id);
         $companyIds = $location->companies->pluck('id');
 
         $employeesByCompany = Employee::query()
@@ -368,9 +424,9 @@ class LocationController extends Controller
 
     public function assignShift(Request $request)
     {
-        $logged_user = auth()->user();
+        $locationId = (int) $request->location_id;
 
-        if (! $logged_user->can('view-location')) {
+        if (! $this->canAssignShiftAtLocation($locationId)) {
             return response()->json(['errors' => [__('You are not authorized')]]);
         }
 
@@ -386,7 +442,9 @@ class LocationController extends Controller
         }
 
         $locationId = (int) $request->location_id;
-        $location = location::with('companies:id')->findOrFail($locationId);
+        $location = location::withoutGlobalScope(AuthCompanyLocationScope::class)
+            ->with('companies:id')
+            ->findOrFail($locationId);
         $locationCompanyIds = $location->companies->pluck('id')->map(fn ($id) => (int) $id)->all();
         $totalUpdated = 0;
 
@@ -442,15 +500,36 @@ class LocationController extends Controller
                 ->addColumn('location_heads', function ($row) {
                     return $row->locationHeadsLabel();
                 })
-                ->addColumn('action', function ($row) {
-                    return '<a href="'.route('employees.index', ['location_id' => $row->id]).'" class="btn btn-primary btn-sm">'
+                ->addColumn('action', function ($row) use ($userId) {
+                    $canEdit = auth()->user()->can('edit-location')
+                        || location::userHeadsLocation($userId, (int) $row->id);
+                    $canAssignShift = auth()->user()->can('view-location')
+                        || location::userHeadsLocation($userId, (int) $row->id);
+
+                    $button = '<a href="'.route('employees.index', ['location_id' => $row->id]).'" class="btn btn-primary btn-sm">'
                         .__('View Employees').'</a>';
+
+                    if ($canEdit) {
+                        $button .= '&nbsp;&nbsp;<button type="button" name="edit" id="'.$row->id.'" class="edit btn btn-info btn-sm" title="'.__('Edit').'"><i class="dripicons-pencil"></i></button>';
+                    }
+
+                    if ($canAssignShift) {
+                        $button .= '&nbsp;&nbsp;<button type="button" name="assign_shift" id="'.$row->id.'" class="assign_shift btn btn-warning btn-sm" title="'.__('Assign Shift').'"><i class="fa fa-clock-o"></i></button>';
+                    }
+
+                    return $button;
                 })
                 ->rawColumns(['action'])
                 ->make(true);
         }
 
-        return view('organization.location.my');
+        $countries = \DB::table('countries')->select('id', 'name')->get();
+        $companies = auth()->user()->can('view-location')
+            ? CompanyScope::companiesForSelect()
+            : CompanyScope::companiesForLocationHead($userId);
+        $locationHeadManage = ! auth()->user()->can('edit-location');
+
+        return view('organization.location.my', compact('countries', 'companies', 'locationHeadManage'));
     }
 
     private function normalizeLocationHeadIds(Request $request): array
