@@ -516,6 +516,10 @@ class DashboardController extends Controller {
 			return redirect()->back()->with('msg', 'This feature is disabled for demo!');
 		}
 
+        if (! auth()->check()) {
+            abort(401, __('Unauthenticated.'));
+        }
+
 		$user = User::findOrFail($id);
 
 		$validator = Validator::make($request->all(),
@@ -525,7 +529,7 @@ class DashboardController extends Controller {
 		);
 
 
-		if ((int) auth()->id() !== (int) $id && (int) auth()->user()->role_users_id !== 1) {
+		if ((int) auth()->id() !== (int) $id && (int) auth()->user()->role_users_id !== 1 && ! auth()->user()->can('modify-details-employee')) {
 			return redirect()->route('profile')->with([
 				'msg' => __('You are not authorized'),
 				'type' => 'danger',

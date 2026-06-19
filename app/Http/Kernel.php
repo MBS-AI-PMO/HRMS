@@ -68,6 +68,8 @@ class Kernel extends HttpKernel
 		'admin' => \App\Http\Middleware\CheckAdmin::class,
 		'checkDataTable' => \App\Http\Middleware\CheckDataTable::class,
         'demoCheck' => \App\Http\Middleware\DemoCheck::class,
+        'secure.app' => \App\Http\Middleware\EnsureAuthenticatedAppRequest::class,
+        'cron.token' => \App\Http\Middleware\EnsureCronToken::class,
     ];
 
 

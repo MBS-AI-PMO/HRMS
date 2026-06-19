@@ -17,6 +17,11 @@ class AllUserController extends Controller {
 
     use SendsEmployeeCredentialsTrait;
 
+    public function __construct()
+    {
+        $this->middleware(['auth', 'secure.app']);
+    }
+
     public function index()
     {
         $logged_user = auth()->user();
@@ -158,6 +163,16 @@ else
 
 		if (request()->ajax())
 		{
+            $logged_user = auth()->user();
+
+            if (! $logged_user || ! $logged_user->can('edit-user')) {
+                return response()->json(['errors' => [__('You are not authorized')]], 403);
+            }
+
+            if (! CompanyScope::scopeUsers(User::query()->where('id', (int) $id))->exists()) {
+                return response()->json(['errors' => [__('You are not authorized')]], 403);
+            }
+
 			$data = User::findOrFail($id);
 			return response()->json(['data' => $data]);
 		}

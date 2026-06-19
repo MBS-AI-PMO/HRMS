@@ -914,7 +914,27 @@ return response()->json([
    public function profileUpdate(Request $request, $employee)
 {
     $logged_user = auth()->user();
-    $workReadonly = $this->employeeSelfProfileWorkReadonly($logged_user, (int) $employee);
+
+    if (! $logged_user) {
+        abort(401, __('Unauthenticated.'));
+    }
+
+    $employeeId = (int) $employee;
+    $isSelf = (int) $logged_user->id === $employeeId;
+
+    if (! $isSelf) {
+        if (! $logged_user->can('modify-details-employee')) {
+            return response()->json(['errors' => [__('You are not authorized')]], 403);
+        }
+
+        $employeeModel = Employee::find($employeeId);
+
+        if (! $employeeModel || ! $this->canViewEmployeeRecord($employeeModel)) {
+            return response()->json(['errors' => [__('You are not authorized')]], 403);
+        }
+    }
+
+    $workReadonly = $this->employeeSelfProfileWorkReadonly($logged_user, $employeeId);
 
         if (request()->ajax()) {
             if ($workReadonly) {
