@@ -7,6 +7,7 @@ use App\Http\traits\SendsEmployeeCredentialsTrait;
 use App\Scopes\AuthCompanyScope;
 use App\Support\CompanyScope;
 use App\Imports\UsersImport;
+use App\Models\Client;
 use App\Models\company;
 use App\Models\DeductionType;
 use App\Models\department;
@@ -58,7 +59,7 @@ class EmployeeController extends Controller
 
     protected function employeeListRestrictedToTeamMembers(): bool
     {
-        return ManagedEmployeeScope::usesScopedEmployeeList(
+        return ManagedEmployeeScope::canAccessScopedEmployeeList(
             (int) auth()->id(),
             (int) auth()->user()->role_users_id
         );
@@ -66,9 +67,14 @@ class EmployeeController extends Controller
 
     protected function canAccessEmployeeList(): bool
     {
-        return auth()->user()->can('view-details-employee')
-            || Team::userCanAccessEmployeeList((int) auth()->id())
-            || location::userCanAccessLocationEmployeeList((int) auth()->id());
+        if (auth()->user()->can('view-details-employee')) {
+            return true;
+        }
+
+        return ManagedEmployeeScope::canAccessScopedEmployeeList(
+            (int) auth()->id(),
+            (int) auth()->user()->role_users_id
+        );
     }
 
     protected function canViewEmployeeRecord(Employee $employee): bool
@@ -85,11 +91,26 @@ class EmployeeController extends Controller
             );
         }
 
+        if (ManagedEmployeeScope::canViewScopedEmployeeDetails(
+            (int) auth()->id(),
+            (int) auth()->user()->role_users_id
+        )) {
+            return in_array(
+                (int) $employee->id,
+                ManagedEmployeeScope::managedEmployeeIds((int) auth()->id()),
+                true
+            );
+        }
+
         return auth()->user()->can('view-details-employee');
     }
 
     protected function assertCanModifyEmployees(): void
     {
+        if (auth()->user()->can('modify-details-employee')) {
+            return;
+        }
+
         if ($this->employeeListRestrictedToTeamMembers()) {
             abort(403, __('You are not authorized'));
         }
@@ -227,6 +248,7 @@ class EmployeeController extends Controller
             $companies = $isLocationHead && ! $logged_user->can('view-details-employee')
                 ? CompanyScope::companiesForLocationHead((int) $logged_user->id)
                 : CompanyScope::companiesForSelect();
+            $clients = $this->clientsForEmployeeSelect();
             $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
             $locations = $isLocationHead && ! $logged_user->can('view-details-employee')
                 ? location::withoutGlobalScope(\App\Scopes\AuthCompanyLocationScope::class)
@@ -362,6 +384,7 @@ class EmployeeController extends Controller
             }
             return view('employee.index', compact(
                 'companies',
+                'clients',
                 'roles',
                 'locations',
                 'teamLeaderViewOnly',
@@ -381,6 +404,10 @@ class EmployeeController extends Controller
     {
         $logged_user = auth()->user();
 
+        if (request()->ajax() && $this->employeeListRestrictedToTeamMembers()) {
+            return response()->json(['errors' => [__('You are not authorized')]]);
+        }
+
         $this->assertCanModifyEmployees();
 
         if ($logged_user->can('store-details-employee')) {
@@ -391,7 +418,9 @@ class EmployeeController extends Controller
                     'email' => 'nullable|email|unique:users',
                     'contact_no' => 'required|numeric|unique:users',
                     'date_of_birth' => 'required',
-                    'company_id' => 'required',
+                    'employee_owner_type' => 'required|in:company,client',
+                    'company_id' => 'required_if:employee_owner_type,company|nullable|exists:companies,id',
+                    'client_id' => 'required_if:employee_owner_type,client|nullable|exists:clients,id',
                     'department_id' => 'required',
                     'designation_id' => 'required',
                     'office_shift_id' => 'required',
@@ -410,7 +439,8 @@ class EmployeeController extends Controller
                 $validator = Validator::make(
                     $request->only(
                         'first_name', 'last_name', 'email', 'contact_no', 'cnic', 'address', 'date_of_birth', 'gender',
-                        'username', 'role_users_id', 'password', 'password_confirmation', 'company_id', 'department_id',
+                        'username', 'role_users_id', 'password', 'password_confirmation', 'employee_owner_type',
+                        'company_id', 'client_id', 'department_id',
                         'designation_id', 'office_shift_id', 'attendance_type', 'joining_date', 'location_id'
                     ),
                     $rules
@@ -426,7 +456,11 @@ class EmployeeController extends Controller
                 $data['date_of_birth'] = $request->date_of_birth;
                 $data['gender'] = $request->gender;
                 $data['department_id'] = $request->department_id;
-                $data['company_id'] = CompanyScope::resolveCompanyIdForInput($request->company_id);
+                try {
+                    $this->assignEmployeeOwnerFromRequest($data, $request);
+                } catch (Throwable $e) {
+                    return response()->json(['errors' => [$e->getMessage()]]);
+                }
                 $data['designation_id'] = $request->designation_id;
                 $data['office_shift_id'] = $request->office_shift_id;
 
@@ -439,6 +473,7 @@ class EmployeeController extends Controller
                 $data['joining_date'] = $request->joining_date; //new
                 $data['location_id'] = $request->location_id ?: null;
                 $data['is_active'] = 1;
+                $data = $this->filterEmployeeAttributesForSchema($data);
 
                 $user = [];
                 $user['first_name'] = $request->first_name;
@@ -492,12 +527,24 @@ class EmployeeController extends Controller
                 }
 
                 $plainPassword = (string) $request->password;
-                $emailSent = $this->sendEmployeeCredentialsEmail(
-                    $created_user,
-                    $plainPassword,
-                    $employee->staff_id,
-                    $this->credentialsDetailsFromEmployee($employee)
-                );
+
+                try {
+                    $emailSent = $this->sendEmployeeCredentialsEmail(
+                        $created_user,
+                        $plainPassword,
+                        $employee->staff_id,
+                        $this->credentialsDetailsFromEmployee($employee)
+                    );
+                } catch (Throwable $e) {
+                    return response()->json([
+                        'success' => __('Data Added successfully.'),
+                        'staff_id' => $employee->staff_id,
+                        'email_sent' => false,
+                        'warning' => __('Employee created but login email could not be prepared: :message', [
+                            'message' => $e->getMessage(),
+                        ]),
+                    ]);
+                }
 
                 $message = __('Data Added successfully.');
                 if (! $emailSent && $created_user->email) {
@@ -519,7 +566,7 @@ class EmployeeController extends Controller
 
     public function show(Employee $employee)
     {
-        $employee->loadMissing(['user', 'company', 'department', 'designation', 'officeShift']);
+        $employee->loadMissing(['user', 'company', 'client', 'department', 'designation', 'officeShift']);
 
         if (! $employee->user) {
             return redirect()
@@ -555,9 +602,9 @@ class EmployeeController extends Controller
             $deductionTypes = DeductionType::select('id','type_name')->get();
             $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
             $locations = location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
-         
+            $clients = $this->clientsForEmployeeSelect();
 
-            return view('employee.dashboard', compact('employee', 'countries', 'companies',
+            return view('employee.dashboard', compact('employee', 'countries', 'companies', 'clients',
                 'departments', 'designations', 'statuses', 'office_shifts', 'document_types',
                 'education_levels', 'language_skills', 'general_skills', 'roles','relationTypes','loanTypes','deductionTypes', 'locations', 'employeeViewOnly'));
         }
@@ -568,7 +615,7 @@ class EmployeeController extends Controller
      public function profile()
     {
         $user = Auth::user();
-        $employee = Employee::find($user->id);
+        $employee = Employee::with('client')->find($user->id);
 
         if (! $employee) {
             $companies = CompanyScope::companiesForSelect();
@@ -608,11 +655,11 @@ class EmployeeController extends Controller
             $deductionTypes = DeductionType::select('id','type_name')->get();
             $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
             $locations = location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
-         
+            $clients = $this->clientsForEmployeeSelect();
 
             $workFieldsReadonly = $this->employeeSelfProfileWorkReadonly($user, (int) $employee->id);
 
-            return view('employee.profile', compact('employee', 'countries', 'companies',
+            return view('employee.profile', compact('employee', 'countries', 'companies', 'clients',
                 'departments', 'designations', 'statuses', 'office_shifts', 'document_types',
                 'education_levels', 'language_skills', 'general_skills', 'roles','relationTypes','loanTypes','deductionTypes', 'locations', 'workFieldsReadonly'));
        
@@ -781,16 +828,31 @@ class EmployeeController extends Controller
 
    public function infoUpdate(Request $request, $employee)
 {
-    $this->assertCanModifyEmployees();
-
     $logged_user = auth()->user();
+    $employeeId = (int) $employee;
+    $employeeModel = Employee::findOrFail($employeeId);
+
+    if ($employeeId !== (int) $logged_user->id) {
+        $this->assertCanModifyEmployees();
+
+        if (! $logged_user->can('modify-details-employee')) {
+            return response()->json(['errors' => [__('You are not authorized')]], 403);
+        }
+
+        if (! $this->canViewEmployeeRecord($employeeModel)) {
+            return response()->json(['errors' => [__('You are not authorized')]], 403);
+        }
+    } elseif (! $logged_user->can('modify-details-employee')) {
+        return $this->profileUpdate($request, $employee);
+    }
 
     if ($logged_user->can('modify-details-employee')) {
         if (request()->ajax()) {
             $validator = Validator::make(
                 $request->only(
                     'first_name', 'last_name', 'staff_id', 'email', 'contact_no', 'cnic', 'date_of_birth', 'gender',
-                    'username', 'password', 'password_confirmation', 'role_users_id', 'company_id', 'department_id',
+                    'username', 'password', 'password_confirmation', 'role_users_id', 'employee_owner_type',
+                    'company_id', 'client_id', 'department_id',
                     'designation_id', 'office_shift_id', 'location_id', 'status_id', 'marital_status', 'joining_date',
                     'permission_role_id', 'address', 'city', 'state', 'country', 'zip_code', 'attendance_type',
                     'total_leave'
@@ -804,7 +866,6 @@ class EmployeeController extends Controller
                     'contact_no'      => 'required|numeric|unique:users,contact_no,' . $employee,
                     'password'        => 'nullable|min:4|confirmed',
                     'date_of_birth'   => 'required',
-                    'company_id'      => 'required',
                     'department_id'   => 'required',
                     'designation_id'  => 'required',
                     'office_shift_id' => 'required',
@@ -814,7 +875,7 @@ class EmployeeController extends Controller
                     'joining_date'    => 'required',
                     'exit_date'       => 'nullable',
                     'location_id'     => 'nullable|exists:locations,id|required_if:attendance_type,location_based',
-                ], $this->cnicRulesForEmployee((int) $employee))
+                ], $this->employeeOwnerValidationRules(), $this->cnicRulesForEmployee((int) $employee))
             );
 
             if ($validator->fails()) {
@@ -847,7 +908,12 @@ class EmployeeController extends Controller
             $this->assignCnicFromRequest($data, $request);
             $data['gender'] = $request->gender;
             $data['department_id'] = $request->department_id;
-            $data['company_id'] = CompanyScope::resolveCompanyIdForInput($request->company_id);
+            try {
+                $this->assignEmployeeOwnerFromRequest($data, $request);
+            } catch (Throwable $e) {
+                return response()->json(['errors' => [$e->getMessage()]]);
+            }
+            $data = $this->filterEmployeeAttributesForSchema($data);
             $data['designation_id'] = $request->designation_id;
             $data['office_shift_id'] = $request->office_shift_id;
             $data['location_id'] = $request->location_id ?: null;
@@ -956,7 +1022,8 @@ return response()->json([
                 $validator = Validator::make(
                     $request->only(
                         'first_name', 'last_name', 'staff_id', 'email', 'contact_no', 'cnic', 'date_of_birth', 'gender',
-                        'username', 'role_users_id', 'company_id', 'department_id', 'designation_id', 'office_shift_id',
+                        'username', 'role_users_id', 'employee_owner_type', 'company_id', 'client_id', 'department_id',
+                        'designation_id', 'office_shift_id',
                         'location_id', 'status_id', 'marital_status', 'joining_date', 'permission_role_id', 'address',
                         'city', 'state', 'country', 'zip_code', 'attendance_type', 'total_leave'
                     ),
@@ -968,7 +1035,6 @@ return response()->json([
                         'email'           => 'nullable|email|unique:users,email,' . $employee,
                         'contact_no'      => 'required|numeric|unique:users,contact_no,' . $employee,
                         'date_of_birth'   => 'required',
-                        'company_id'      => 'required',
                         'department_id'   => 'required',
                         'designation_id'  => 'required',
                         'office_shift_id' => 'required',
@@ -978,7 +1044,7 @@ return response()->json([
                         'joining_date'    => 'required',
                         'exit_date'       => 'nullable',
                         'location_id'     => 'nullable|exists:locations,id|required_if:attendance_type,location_based',
-                    ], $this->cnicRulesForEmployee((int) $employee))
+                    ], $this->employeeOwnerValidationRules(), $this->cnicRulesForEmployee((int) $employee))
                 );
             }
 
@@ -1028,7 +1094,12 @@ return response()->json([
             if (! $workReadonly) {
                 $data['staff_id'] = $request->staff_id;
                 $data['department_id'] = $request->department_id;
-                $data['company_id'] = CompanyScope::resolveCompanyIdForInput($request->company_id);
+                try {
+                    $this->assignEmployeeOwnerFromRequest($data, $request);
+                } catch (Throwable $e) {
+                    return response()->json(['errors' => [$e->getMessage()]]);
+                }
+                $data = $this->filterEmployeeAttributesForSchema($data);
                 $data['designation_id'] = $request->designation_id;
                 $data['office_shift_id'] = $request->office_shift_id;
                 $data['location_id'] = $request->location_id ?: null;
@@ -1320,5 +1391,76 @@ return response()->json([
         ]);
     }
 }
+
+    private function employeeOwnerValidationRules(): array
+    {
+        return [
+            'employee_owner_type' => 'required|in:company,client',
+            'company_id' => 'required_if:employee_owner_type,company|nullable|exists:companies,id',
+            'client_id' => 'required_if:employee_owner_type,client|nullable|exists:clients,id',
+        ];
+    }
+
+    private function assignEmployeeOwnerFromRequest(array &$data, Request $request): void
+    {
+        if ($request->input('employee_owner_type') === 'client') {
+            if (! Schema::hasColumn('employees', 'client_id')) {
+                throw new Exception(__('Client employees are not enabled yet. Please run database migrations first.'));
+            }
+
+            $data['client_id'] = (int) $request->client_id;
+            $data['company_id'] = $this->resolveCompanyIdFromClient((int) $request->client_id);
+        } else {
+            if (Schema::hasColumn('employees', 'client_id')) {
+                $data['client_id'] = null;
+            } else {
+                unset($data['client_id']);
+            }
+
+            $data['company_id'] = CompanyScope::resolveCompanyIdForInput($request->company_id);
+        }
+    }
+
+    private function filterEmployeeAttributesForSchema(array $data): array
+    {
+        if (! Schema::hasColumn('employees', 'client_id')) {
+            unset($data['client_id']);
+        }
+
+        return $data;
+    }
+
+    private function clientsForEmployeeSelect()
+    {
+        return Client::query()
+            ->select('id', 'company_name', 'first_name', 'last_name')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->orderBy('company_name')
+            ->get()
+            ->map(function ($client) {
+                $companyId = company::query()
+                    ->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower(trim((string) $client->company_name))])
+                    ->value('id');
+
+                $client->resolved_company_id = $companyId ? (int) $companyId : null;
+
+                return $client;
+            });
+    }
+
+    private function resolveCompanyIdFromClient(int $clientId): int
+    {
+        $client = Client::query()->findOrFail($clientId);
+        $companyId = company::query()
+            ->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower(trim((string) $client->company_name))])
+            ->value('id');
+
+        if (! $companyId) {
+            throw new Exception(__('No company found for the selected client.'));
+        }
+
+        return (int) $companyId;
+    }
 
 }

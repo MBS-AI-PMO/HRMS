@@ -1,6 +1,10 @@
 @extends('layout.main')
 @section('content')
 
+@php
+    $general_setting = $general_setting ?? \App\Models\GeneralSetting::latest()->first();
+@endphp
+
 <section>
 
     @include('shared.errors')
@@ -29,28 +33,35 @@
                                         <p class="text-muted pb-0-5">My Office Shift: {{$shift_in}} To
                                             {{$shift_out}}</p>
                                     </div>
-                                    <!-- /.description-block -->
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-sm-12">
                                     <div class="text-xs-center">
                                         <div class="text-xs-center pb-0-5">
-                                            <form action="{{route('employee_attendance.post',$employee->id)}}" name="set_clocking" id="set_clocking" autocomplete="off" class="form" method="post" accept-charset="utf-8">
+                                            <form action="{{route('employee_attendance.post',$employee->id)}}" name="set_clocking" id="set_clocking" autocomplete="off" class="form" method="post" accept-charset="utf-8"
+                                                data-attendance-type="{{ $employee->attendance_type ?? 'general' }}"
+                                                data-office-lat="{{ $employee->location?->latitude ?? ($general_setting->latitude ?? '') }}"
+                                                data-office-lng="{{ $employee->location?->longitude ?? ($general_setting->longitude ?? '') }}"
+                                                data-max-radius="{{ $employee->location?->max_radius ?? ($general_setting->max_radius ?? '') }}">
                                                 @csrf
 
                                                 <input type="hidden" value="{{$shift_in}}" name="office_shift_in" id="shift_in">
                                                 <input type="hidden" value="{{$shift_out}}" name="office_shift_out" id="shift_out">
                                                 <input type="hidden" value="" name="in_out_value" id="in_out">
+                                                <input type="hidden" name="latitude" id="user_lat">
+                                                <input type="hidden" name="longitude" id="user_lng">
+                                                <input type="hidden" name="location_accuracy" id="user_location_accuracy">
+                                                <input type="hidden" name="location_captured_at" id="user_location_captured_at">
 
                                                 <div class="row">
                                                     @if(!$employee_attendance || $employee_attendance->clock_in_out== 0)
                                                     <div class="col-md-6">
-                                                        <button class="btn btn-success btn-block text-uppercase" type="submit" id="clock_in_btn"><i class="fa fa-arrow-circle-right"></i>{{__('Clock IN')}}</button>
+                                                        <button class="btn btn-success btn-block text-uppercase" type="button" id="clock_in_btn" onclick="handleAttendanceClockSubmit()"><i class="fa fa-arrow-circle-right"></i>{{__('Clock IN')}}</button>
                                                     </div>
                                                    @else
                                                     <div class="col-md-6">
-                                                        <button class="btn btn-danger btn-block text-uppercase"  type="submit" id="clock_out_btn"><i class="fa fa-arrow-circle-left"></i>{{__('Clock Out')}}</button>
+                                                        <button class="btn btn-danger btn-block text-uppercase" type="button" id="clock_out_btn" onclick="handleAttendanceClockSubmit()"><i class="fa fa-arrow-circle-left"></i>{{__('Clock Out')}}</button>
                                                     </div>
                                                     @endif
                                                 </div>
@@ -69,10 +80,8 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- /.row -->
                     </div>
                 </div>
-                <!-- /.tab-pane -->
                 <div class="tab-pane" id="tab_2">
                     <div class="">
                         <div class="box-body">
@@ -103,32 +112,27 @@
                         </div>
                     </div>
                 </div>
-                <!-- /.tab-pane -->
             </div>
-            <!-- /.tab-content -->
         </div>
-        <!-- Widget: user widget style 1 -->
     </div>
 </section>
 @endsection
 
-    @push('scripts')
-        <script type="text/javascript">
-            (function($) {
-                "use strict";
+@push('scripts')
+    @include('partials.attendance_clock_gps', ['clockFormId' => 'set_clocking'])
+    <script type="text/javascript">
+        (function($) {
+            "use strict";
 
-                $(document).ready(function() {
-
-                    $('#clock_in_btn').on('click',function () {
-                        $('#in_out').val('1');
-                    });
-
-                    $('#clock_out_btn').on('click',function () {
-                        $('#in_out').val('0');
-                    });
-
+            $(document).ready(function() {
+                $('#clock_in_btn').on('click', function () {
+                    $('#in_out').val('1');
                 });
-            })(jQuery);
-        </script>
-    @endpush
 
+                $('#clock_out_btn').on('click', function () {
+                    $('#in_out').val('0');
+                });
+            });
+        })(jQuery);
+    </script>
+@endpush

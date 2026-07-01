@@ -2,15 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Client;
 use App\Models\Employee;
+use App\Models\Project;
 use App\Models\company;
+use App\Models\department;
 use App\Models\location;
 use App\Models\office_shift;
 use App\Scopes\AuthCompanyLocationScope;
 use App\Scopes\AuthCompanyScope;
+use App\Support\ClientDisplay;
 use App\Support\CompanyScope;
+use App\Support\ManagedEmployeeScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
 use Spatie\Permission\Models\Role;
@@ -25,6 +31,7 @@ class LocationController extends Controller
             'store',
             'update',
             'assignShift',
+            'updateLocationAttendanceType',
             'delete',
             'delete_by_selection',
         ]);
@@ -38,7 +45,7 @@ class LocationController extends Controller
             return true;
         }
 
-        return location::userHeadsLocation((int) $user->id, $locationId);
+        return location::userCanManageLocationForMyPage((int) $user->id, $locationId);
     }
 
     protected function canAssignShiftAtLocation(int $locationId): bool
@@ -49,14 +56,15 @@ class LocationController extends Controller
             return true;
         }
 
-        return location::userHeadsLocation((int) $user->id, $locationId);
+        return location::userCanManageLocationForMyPage((int) $user->id, $locationId);
     }
 
-    protected function isHeadOnlyLocationManager(): bool
+    protected function isScopedLocationManager(): bool
     {
         $user = auth()->user();
 
-        return location::userIsLocationHead((int) $user->id) && ! $user->can('edit-location');
+        return ! $user->can('edit-location')
+            && location::userCanAccessMyLocationsPage((int) $user->id);
     }
 
 	public function index()
@@ -65,45 +73,96 @@ class LocationController extends Controller
             abort(403, __('You are not authorized'));
         }
 
+		if (request()->ajax()) {
+            try {
+                $relations = array_merge(['Country:id,name'], $this->locationListRelations());
+
+                $locationsQuery = location::with($relations)->latest();
+
+                if ($request->filled('filter_company_id')) {
+                    $companyId = (int) $request->filter_company_id;
+                    $locationsQuery->where(function ($query) use ($companyId) {
+                        $query->whereHas('companies', function ($companyQuery) use ($companyId) {
+                            $companyQuery->where('companies.id', $companyId);
+                        })->orWhereHas('client', function ($clientQuery) use ($companyId) {
+                            $clientQuery->whereIn('clients.id', $this->clientIdsForCompany($companyId));
+                        });
+                    });
+                }
+
+                if ($request->filled('filter_client_id')) {
+                    $locationsQuery->where('client_id', (int) $request->filter_client_id);
+                }
+
+                if ($request->filled('filter_project_id')) {
+                    $projectId = (int) $request->filter_project_id;
+                    $locationsQuery->whereHas('employees', function ($employeeQuery) use ($projectId) {
+                        $employeeQuery->whereHas('projects', function ($projectQuery) use ($projectId) {
+                            $projectQuery->where('projects.id', $projectId);
+                        });
+                    });
+                }
+
+                if ($request->filled('filter_department_id')) {
+                    $locationsQuery->whereHas('employees', function ($employeeQuery) use ($request) {
+                        $employeeQuery->where('department_id', (int) $request->filter_department_id);
+                    });
+                }
+
+                if ($request->filled('filter_employee_id')) {
+                    $locationsQuery->where(function ($query) use ($request) {
+                        $employeeId = (int) $request->filter_employee_id;
+                        $query->whereHas('employees', function ($employeeQuery) use ($employeeId) {
+                            $employeeQuery->where('employees.id', $employeeId);
+                        })->orWhereHas('locationHeads', function ($headQuery) use ($employeeId) {
+                            $headQuery->where('employees.id', $employeeId);
+                        });
+                    });
+                }
+
+                return datatables()->of($locationsQuery->get())
+                    ->addColumn('country', function ($row) {
+                        return optional($row->Country)->name ?? '';
+                    })
+                    ->addColumn('location_head', function ($row) {
+                        return $row->locationHeadsLabel();
+                    })
+                    ->addColumn('companies', function ($row) {
+                        return $this->locationClientLabel($row);
+                    })
+                    ->addColumn('action', function ($data) {
+                        $button = '';
+                        if (auth()->user()->can('edit-location')) {
+                            $button = '<button type="button" name="edit" id="'.$data->id.'" class="edit btn btn-primary btn-sm"><i class="dripicons-pencil"></i></button>';
+                            $button .= '&nbsp;&nbsp;';
+                        }
+                        if (auth()->user()->can('view-location')) {
+                            $button .= '<button type="button" name="assign_shift" id="'.$data->id.'" class="assign_shift btn btn-info btn-sm" title="'.__('Assign Shift').'"><i class="fa fa-clock-o"></i></button>';
+                            $button .= '&nbsp;&nbsp;';
+                        }
+                        if (auth()->user()->can('delete-location')) {
+                            $button .= '<button type="button" name="delete" id="'.$data->id.'" class="delete btn btn-danger btn-sm"><i class="dripicons-trash"></i></button>';
+                        }
+
+                        return $button;
+                    })
+                    ->rawColumns(['action'])
+                    ->make(true);
+            } catch (\Throwable $e) {
+                report($e);
+
+                return response()->json([
+                    'error' => __('Unable to load locations. Please refresh and try again.'),
+                    'message' => config('app.debug') ? $e->getMessage() : null,
+                ], 500);
+            }
+        }
+
 		$countries = \DB::table('countries')->select('id','name')->get();
         $companies = CompanyScope::companiesForSelect();
+        $locationHeadEmployees = $this->solochoicezEmployeesForSelect();
 
-		if(request()->ajax())
-		{
-			return datatables()->of(location::with('Country:id,name', 'locationHeads:id,first_name,last_name', 'companies:id,company_name')->latest()->get())
-				->addColumn('country', function ($row)
-				{
-					return optional($row->Country)->name ?? '';
-				})
-				->addColumn('location_head', function ($row)
-				{
-					return $row->locationHeadsLabel();
-				})
-                ->addColumn('companies', function ($row) {
-                    return $row->companies->pluck('company_name')->implode(', ');
-                })
-				->addColumn('action', function($data){
-					$button = '';
-					if (auth()->user()->can('edit-location'))
-					{
-						$button = '<button type="button" name="edit" id="' . $data->id . '" class="edit btn btn-primary btn-sm"><i class="dripicons-pencil"></i></button>';
-						$button .= '&nbsp;&nbsp;';
-					}
-					if (auth()->user()->can('view-location'))
-					{
-						$button .= '<button type="button" name="assign_shift" id="' . $data->id . '" class="assign_shift btn btn-info btn-sm" title="'.__('Assign Shift').'"><i class="fa fa-clock-o"></i></button>';
-						$button .= '&nbsp;&nbsp;';
-					}
-					if (auth()->user()->can('delete-location'))
-					{
-						$button .= '<button type="button" name="delete" id="' . $data->id . '" class="delete btn btn-danger btn-sm"><i class="dripicons-trash"></i></button>';
-					}
-					return $button;
-				})
-				->rawColumns(['action'])
-				->make(true);
-		}
-		return view('organization.location.index', compact('countries', 'companies'));
+		return view('organization.location.index', compact('countries', 'companies', 'locationHeadEmployees'));
 	}
 
 
@@ -111,13 +170,19 @@ class LocationController extends Controller
 	{
 		$logged_user = auth()->user();
 
-		if (! $logged_user || ! $logged_user->can('store-location')) {
+        if (! $logged_user || ! $logged_user->can('store-location')) {
             return response()->json(['errors' => [__('You are not authorized')]], 403);
         }
 
+            if ($request->filled('client_id')) {
+                $request->merge(['owner_type' => 'client']);
+            } elseif (! $request->filled('owner_type')) {
+                $request->merge(['owner_type' => 'company']);
+            }
+
 			$validator = Validator::make($request->only('location_name', 'location_head', 'address1', 'address2', 'city',
-				'state', 'country', 'zip', 'latitude', 'longitude', 'max_radius', 'company_ids'),
-				[
+				'state', 'country', 'zip', 'latitude', 'longitude', 'max_radius', 'owner_type', 'owner_company_id', 'client_id'),
+				array_merge([
 					'location_name' => 'required|unique:locations,location_name,',
 					'address1' => 'required',
 					'zip' => 'nullable|numeric',
@@ -125,17 +190,10 @@ class LocationController extends Controller
                     'latitude' => 'nullable|numeric|between:-90,90',
                     'longitude' => 'nullable|numeric|between:-180,180',
                     'max_radius' => 'nullable|numeric|min:0',
-                    'company_ids' => 'required|array|min:1',
-                    'company_ids.*' => 'exists:companies,id',
-                    'employee_ids' => 'nullable|array',
-                    'employee_ids.*' => 'exists:employees,id',
-                    'assign_scope' => 'nullable|in:specific,all',
-                    'shifts' => 'nullable|array',
-                    'shifts.*.company_id' => 'required_with:shifts|exists:companies,id',
-                    'shifts.*.office_shift_id' => 'nullable|exists:office_shifts,id',
+                    'owner_type' => 'required|in:company,client',
                     'location_head_ids' => 'nullable|array',
                     'location_head_ids.*' => 'exists:employees,id',
-				]
+				], $this->ownerFieldValidationRules($request))
 			);
 
 
@@ -144,16 +202,10 @@ class LocationController extends Controller
 				return response()->json(['errors' => $validator->errors()->all()]);
 			}
 
-            $employeeErrors = $this->validateLocationEmployeeSelection($request);
+            $headErrors = $this->validateClientSelection($request);
 
-            if (! empty($employeeErrors)) {
-                return response()->json(['errors' => $employeeErrors]);
-            }
-
-            $shiftErrors = $this->validateLocationShiftSelection($request);
-
-            if (! empty($shiftErrors)) {
-                return response()->json(['errors' => $shiftErrors]);
+            if (! empty($headErrors)) {
+                return response()->json(['errors' => $headErrors]);
             }
 
 			$data = [];
@@ -176,10 +228,13 @@ class LocationController extends Controller
             DB::beginTransaction();
             try {
                 $location = location::create($data);
-                $location->companies()->sync($request->company_ids);
+                $this->applyLocationOwner(
+                    $location,
+                    (string) $request->owner_type,
+                    $request->filled('owner_company_id') ? (int) $request->owner_company_id : null,
+                    $request->filled('client_id') ? (int) $request->client_id : null
+                );
                 $location->locationHeads()->sync($locationHeadIds);
-                $this->assignEmployeesToLocation($location->id, $request);
-                $this->applyOfficeShiftsToLocation($location->id, $request);
                 DB::commit();
             } catch (\Throwable $e) {
                 DB::rollBack();
@@ -200,9 +255,13 @@ class LocationController extends Controller
             }
 
 			$data = location::withoutGlobalScope(AuthCompanyLocationScope::class)->findOrFail($id);
+            $owner = $this->resolveLocationOwner($data);
+
 			return response()->json([
                 'data' => $data,
-                'company_ids' => $data->companies()->pluck('companies.id')->toArray(),
+                'owner_type' => $owner['type'],
+                'owner_company_id' => $owner['company_id'],
+                'client_id' => $owner['client_id'],
                 'location_head_ids' => $data->locationHeads()->pluck('employees.id')->toArray(),
             ]);
 		}
@@ -223,15 +282,26 @@ class LocationController extends Controller
 
         $location = location::withoutGlobalScope(AuthCompanyLocationScope::class)->findOrFail($id);
 
-        if ($this->isHeadOnlyLocationManager()) {
+        if ($this->isScopedLocationManager()) {
+            $owner = $this->resolveLocationOwner($location);
             $request->merge([
-                'company_ids' => $location->companies()->pluck('companies.id')->toArray(),
+                'owner_type' => $owner['type'],
+                'owner_company_id' => $owner['company_id'],
+                'client_id' => $owner['client_id'],
                 'location_head_ids' => $location->locationHeads()->pluck('employees.id')->toArray(),
             ]);
         }
 
-        if ($this->isHeadOnlyLocationManager() && ! location::userHeadsLocation((int) auth()->id(), $id)) {
+        if ($this->isScopedLocationManager() && ! location::userCanManageLocationForMyPage((int) auth()->id(), $id)) {
             return response()->json(['errors' => [__('You are not authorized')]], 403);
+        }
+
+        if (! $this->isScopedLocationManager()) {
+            if ($request->filled('client_id')) {
+                $request->merge(['owner_type' => 'client']);
+            } elseif (! $request->filled('owner_type')) {
+                $request->merge(['owner_type' => 'company']);
+            }
         }
 
 			$data = $request->only('location_name', 'location_head', 'address1', 'address2', 'city',
@@ -251,8 +321,8 @@ class LocationController extends Controller
 
 
 			$validator = Validator::make($request->only('location_name', 'location_head', 'address1', 'address2', 'city',
-				'state', 'country', 'zip', 'latitude', 'longitude', 'max_radius', 'company_ids'),
-				[
+				'state', 'country', 'zip', 'latitude', 'longitude', 'max_radius', 'owner_type', 'owner_company_id', 'client_id'),
+				array_merge([
 					'location_name' => 'required|unique:locations,location_name,' . $id,
 					'location_head' => 'nullable',
 					'address1' => 'required',
@@ -261,17 +331,10 @@ class LocationController extends Controller
                     'latitude' => 'nullable|numeric|between:-90,90',
                     'longitude' => 'nullable|numeric|between:-180,180',
                     'max_radius' => 'nullable|numeric|min:0',
-                    'company_ids' => 'required|array|min:1',
-                    'company_ids.*' => 'exists:companies,id',
-                    'employee_ids' => 'nullable|array',
-                    'employee_ids.*' => 'exists:employees,id',
-                    'assign_scope' => 'nullable|in:specific,all',
-                    'shifts' => 'nullable|array',
-                    'shifts.*.company_id' => 'required_with:shifts|exists:companies,id',
-                    'shifts.*.office_shift_id' => 'nullable|exists:office_shifts,id',
+                    'owner_type' => 'required|in:company,client',
                     'location_head_ids' => 'nullable|array',
                     'location_head_ids.*' => 'exists:employees,id',
-				]
+				], $this->ownerFieldValidationRules($request))
 			);
 
 
@@ -281,26 +344,27 @@ class LocationController extends Controller
 				return response()->json(['errors'=>$validator->errors()->all()]);
 			}
 
-            $employeeErrors = $this->validateLocationEmployeeSelection($request);
+            if (! $this->isScopedLocationManager()) {
+                $clientErrors = $this->validateClientSelection($request);
 
-            if (! empty($employeeErrors)) {
-                return response()->json(['errors' => $employeeErrors]);
-            }
-
-            $shiftErrors = $this->validateLocationShiftSelection($request);
-
-            if (! empty($shiftErrors)) {
-                return response()->json(['errors' => $shiftErrors]);
+                if (! empty($clientErrors)) {
+                    return response()->json(['errors' => $clientErrors]);
+                }
             }
 
             DB::beginTransaction();
             try {
                 location::withoutGlobalScope(AuthCompanyLocationScope::class)->whereId($id)->update($data);
                 $location = location::withoutGlobalScope(AuthCompanyLocationScope::class)->findOrFail($id);
-                $location->companies()->sync($request->company_ids);
-                $location->locationHeads()->sync($locationHeadIds);
-                $this->assignEmployeesToLocation($id, $request);
-                $this->applyOfficeShiftsToLocation($id, $request);
+                if (! $this->isScopedLocationManager()) {
+                    $this->applyLocationOwner(
+                        $location,
+                        (string) $request->owner_type,
+                        $request->filled('owner_company_id') ? (int) $request->owner_company_id : null,
+                        $request->filled('client_id') ? (int) $request->client_id : null
+                    );
+                    $location->locationHeads()->sync($locationHeadIds);
+                }
                 DB::commit();
             } catch (\Throwable $e) {
                 DB::rollBack();
@@ -310,9 +374,190 @@ class LocationController extends Controller
 			return response()->json(['success' => __('Data is successfully updated')]);
 	}
 
+    public function clientsSelect()
+    {
+        if (! auth()->user()->can('view-location')) {
+            return response()->json(['clients' => []], 403);
+        }
+
+        return response()->json([
+            'clients' => $this->clientsForSelect()->map(function ($client) {
+                return [
+                    'id' => (int) $client->id,
+                    'label' => $this->clientSelectLabel($client),
+                ];
+            })->values(),
+        ]);
+    }
+
+    public function hierarchyClients(Request $request)
+    {
+        if (! auth()->user()->can('view-location')) {
+            return response()->json(['items' => []], 403);
+        }
+
+        $companyId = CompanyScope::resolveCompanyIdForInput((int) $request->get('company_id'));
+
+        if (! $companyId) {
+            return response()->json(['items' => []]);
+        }
+
+        $clientIds = $this->clientIdsForCompany($companyId);
+
+        $items = Client::query()
+            ->select('id', 'company_name', 'first_name', 'last_name')
+            ->whereIn('id', $clientIds)
+            ->orderBy('company_name')
+            ->orderBy('first_name')
+            ->get()
+            ->map(fn ($client) => [
+                'id' => (int) $client->id,
+                'label' => $this->clientSelectLabel($client),
+            ])
+            ->values();
+
+        return response()->json(['items' => $items]);
+    }
+
+    public function hierarchyProjects(Request $request)
+    {
+        if (! auth()->user()->can('view-location')) {
+            return response()->json(['items' => []], 403);
+        }
+
+        $companyId = CompanyScope::resolveCompanyIdForInput((int) $request->get('company_id'));
+        $clientId = (int) $request->get('client_id');
+
+        if (! $companyId || ! $clientId) {
+            return response()->json(['items' => []]);
+        }
+
+        $items = Project::query()
+            ->select('id', 'title', 'department_id', 'project_status')
+            ->where('company_id', $companyId)
+            ->where('client_id', $clientId)
+            ->orderBy('title')
+            ->get()
+            ->map(fn ($project) => [
+                'id' => (int) $project->id,
+                'label' => $project->title,
+                'department_id' => $project->department_id ? (int) $project->department_id : null,
+                'status' => $project->project_status,
+            ])
+            ->values();
+
+        return response()->json(['items' => $items]);
+    }
+
+    public function hierarchyDepartments(Request $request)
+    {
+        if (! auth()->user()->can('view-location')) {
+            return response()->json(['items' => []], 403);
+        }
+
+        $companyId = CompanyScope::resolveCompanyIdForInput((int) $request->get('company_id'));
+        $clientId = (int) $request->get('client_id');
+        $projectId = (int) $request->get('project_id');
+
+        if (! $companyId) {
+            return response()->json(['items' => []]);
+        }
+
+        $departmentIds = collect();
+
+        if ($projectId) {
+            $projectDepartmentId = Project::query()
+                ->where('id', $projectId)
+                ->value('department_id');
+
+            if ($projectDepartmentId) {
+                $departmentIds->push((int) $projectDepartmentId);
+            }
+        }
+
+        if ($clientId) {
+            $departmentIds = $departmentIds->merge(
+                Employee::query()
+                    ->where('company_id', $companyId)
+                    ->where('client_id', $clientId)
+                    ->whereNotNull('department_id')
+                    ->distinct()
+                    ->pluck('department_id')
+            )->merge(
+                Project::query()
+                    ->where('company_id', $companyId)
+                    ->where('client_id', $clientId)
+                    ->whereNotNull('department_id')
+                    ->distinct()
+                    ->pluck('department_id')
+            );
+        }
+
+        $departmentsQuery = department::query()
+            ->select('id', 'department_name')
+            ->where('company_id', $companyId)
+            ->orderBy('department_name');
+
+        if ($departmentIds->filter()->isNotEmpty()) {
+            $departmentsQuery->whereIn('id', $departmentIds->filter()->unique()->values());
+        }
+
+        $items = $departmentsQuery->get()->map(fn ($row) => [
+            'id' => (int) $row->id,
+            'label' => $row->department_name,
+        ])->values();
+
+        return response()->json(['items' => $items]);
+    }
+
+    public function hierarchyEmployees(Request $request)
+    {
+        if (! auth()->user()->can('view-location')) {
+            return response()->json(['items' => []], 403);
+        }
+
+        $companyId = CompanyScope::resolveCompanyIdForInput((int) $request->get('company_id'));
+        $clientId = (int) $request->get('client_id');
+        $projectId = (int) $request->get('project_id');
+        $departmentId = (int) $request->get('department_id');
+
+        if (! $companyId) {
+            return response()->json(['items' => []]);
+        }
+
+        $employeesQuery = Employee::query()
+            ->select('id', 'first_name', 'last_name', 'staff_id', 'department_id', 'client_id')
+            ->where('company_id', $companyId)
+            ->where('is_active', 1)
+            ->whereNull('exit_date')
+            ->orderBy('first_name')
+            ->orderBy('last_name');
+
+        if ($clientId) {
+            $employeesQuery->where('client_id', $clientId);
+        }
+
+        if ($departmentId) {
+            $employeesQuery->where('department_id', $departmentId);
+        }
+
+        if ($projectId) {
+            $employeesQuery->whereHas('projects', function ($query) use ($projectId) {
+                $query->where('projects.id', $projectId);
+            });
+        }
+
+        $items = $employeesQuery->get()->map(fn ($employee) => [
+            'id' => (int) $employee->id,
+            'label' => trim($employee->full_name.($employee->staff_id ? ' ('.$employee->staff_id.')' : '')),
+        ])->values();
+
+        return response()->json(['items' => $items]);
+    }
+
     public function employeesByCompanies(Request $request)
     {
-        if (! auth()->user()->can('view-location') && ! location::userIsLocationHead((int) auth()->id())) {
+        if (! auth()->user()->can('view-location') && ! location::userCanAccessMyLocationsPage((int) auth()->id())) {
             return response()->json(['employees' => [], 'companies' => []], 403);
         }
 
@@ -325,8 +570,9 @@ class LocationController extends Controller
             return response()->json(['employees' => []]);
         }
 
-        if ($this->isHeadOnlyLocationManager()) {
-            $allowedCompanyIds = CompanyScope::companiesForLocationHead((int) auth()->id())
+        if ($this->isScopedLocationManager()) {
+            $managedLocationIds = location::locationIdsForMyLocationsPage((int) auth()->id());
+            $allowedCompanyIds = $this->companiesForLocationIds($managedLocationIds)
                 ->pluck('id')
                 ->map(fn ($id) => (int) $id)
                 ->all();
@@ -486,68 +732,448 @@ class LocationController extends Controller
         ]);
     }
 
+    public function attendanceTypeForm($id)
+    {
+        if (! request()->ajax()) {
+            abort(404);
+        }
+
+        $locationId = (int) $id;
+
+        if (! $this->canAssignShiftAtLocation($locationId)) {
+            return response()->json(['errors' => [__('You are not authorized')]], 403);
+        }
+
+        $location = location::withoutGlobalScope(AuthCompanyLocationScope::class)
+            ->select('id', 'location_name')
+            ->findOrFail($locationId);
+
+        $employeeQuery = Employee::withoutGlobalScope(AuthCompanyScope::class)
+            ->where('location_id', $locationId)
+            ->where('is_active', 1)
+            ->whereNull('exit_date');
+
+        $summary = (clone $employeeQuery)
+            ->select('attendance_type', DB::raw('count(*) as total'))
+            ->groupBy('attendance_type')
+            ->pluck('total', 'attendance_type');
+
+        return response()->json([
+            'location' => [
+                'id' => $location->id,
+                'location_name' => $location->location_name,
+            ],
+            'total_employees' => (int) $summary->sum(),
+            'attendance_summary' => [
+                'general' => (int) ($summary['general'] ?? 0),
+                'location_based' => (int) ($summary['location_based'] ?? 0),
+            ],
+        ]);
+    }
+
+    public function updateLocationAttendanceType(Request $request)
+    {
+        $locationId = (int) $request->location_id;
+
+        if (! $this->canAssignShiftAtLocation($locationId)) {
+            return response()->json(['errors' => [__('You are not authorized')]]);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'location_id' => 'required|exists:locations,id',
+            'attendance_type' => 'required|in:general,location_based',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()->all()]);
+        }
+
+        $attendanceType = (string) $request->attendance_type;
+
+        $updated = Employee::withoutGlobalScope(AuthCompanyScope::class)
+            ->where('location_id', $locationId)
+            ->where('is_active', 1)
+            ->whereNull('exit_date')
+            ->update(['attendance_type' => $attendanceType]);
+
+        if ($updated === 0) {
+            return response()->json(['errors' => [__('No active employees were found at this location.')]]);
+        }
+
+        $typeLabel = $attendanceType === 'location_based'
+            ? __('Location Based')
+            : __('General');
+
+        return response()->json([
+            'success' => __('Attendance type updated to :type for :count employee(s) at this location.', [
+                'type' => $typeLabel,
+                'count' => $updated,
+            ]),
+        ]);
+    }
+
     public function myLocations()
     {
         $userId = (int) auth()->id();
+        $isDataTableRequest = request()->ajax() || request()->filled('draw');
 
-        if (! location::userIsLocationHead($userId) && ! auth()->user()->can('view-location')) {
-            return abort(403, __('You are not assigned as a location head.'));
-        }
-
-        if (request()->ajax()) {
-            $locations = location::withoutGlobalScope(AuthCompanyLocationScope::class)
-                ->with([
-                'companies:id,company_name',
-                'locationHeads:id,first_name,last_name',
-            ])->withCount([
-                'employees as active_employees_count' => function ($query) {
-                    $query->withoutGlobalScope(AuthCompanyScope::class)
-                        ->where('is_active', 1)
-                        ->whereNull('exit_date');
-                },
-            ]);
-
-            if (! auth()->user()->can('view-location')) {
-                $locations->headedByUser($userId);
+        if (! $this->userHasPermission('view-location') && ! ManagedEmployeeScope::canAccessMyLocations((int) $userId)) {
+            if ($isDataTableRequest) {
+                return response()->json(['error' => __('You are not authorized to manage locations.')], 403);
             }
 
-            return datatables()->of($locations->latest('id'))
-                ->addColumn('companies', function ($row) {
-                    return $row->companies->pluck('company_name')->implode(', ');
-                })
-                ->addColumn('location_heads', function ($row) {
-                    return $row->locationHeadsLabel();
-                })
-                ->addColumn('action', function ($row) use ($userId) {
-                    $canEdit = auth()->user()->can('edit-location')
-                        || location::userHeadsLocation($userId, (int) $row->id);
-                    $canAssignShift = auth()->user()->can('view-location')
-                        || location::userHeadsLocation($userId, (int) $row->id);
+            return abort(403, __('You are not authorized to manage locations.'));
+        }
 
-                    $button = '<a href="'.route('employees.index', ['location_id' => $row->id]).'" class="btn btn-primary btn-sm">'
-                        .__('View Employees').'</a>';
+        if ($isDataTableRequest) {
+            try {
+                $locations = location::withoutGlobalScope(AuthCompanyLocationScope::class)
+                    ->with($this->locationListRelations())
+                    ->withCount([
+                        'employees as active_employees_count' => function ($query) {
+                            $query->withoutGlobalScope(AuthCompanyScope::class)
+                                ->where('is_active', 1)
+                                ->where(function ($activeQuery) {
+                                    $activeQuery->whereNull('exit_date')
+                                        ->orWhere('exit_date', '>=', date('Y-m-d'))
+                                        ->orWhere('exit_date', '0000-00-00');
+                                });
+                        },
+                    ]);
 
-                    if ($canEdit) {
-                        $button .= '&nbsp;&nbsp;<button type="button" name="edit" id="'.$row->id.'" class="edit btn btn-info btn-sm" title="'.__('Edit').'"><i class="dripicons-pencil"></i></button>';
+                if (! $this->userHasPermission('view-location')) {
+                    $managedLocationIds = location::locationIdsForMyLocationsPage($userId);
+
+                    if ($managedLocationIds === []) {
+                        $locations->whereRaw('1 = 0');
+                    } else {
+                        $locations->whereIn('id', $managedLocationIds);
                     }
+                }
 
-                    if ($canAssignShift) {
-                        $button .= '&nbsp;&nbsp;<button type="button" name="assign_shift" id="'.$row->id.'" class="assign_shift btn btn-warning btn-sm" title="'.__('Assign Shift').'"><i class="fa fa-clock-o"></i></button>';
-                    }
+                $rows = $locations->latest('id')->get()->map(function ($row) use ($userId) {
+                    return [
+                        'id' => $row->id,
+                        'location_name' => $row->location_name,
+                        'location_heads' => $row->locationHeadsLabel(),
+                        'companies' => $this->locationClientLabel($row),
+                        'active_employees_count' => (int) $row->active_employees_count,
+                        'action' => $this->myLocationActionButtons($row, $userId),
+                    ];
+                });
 
-                    return $button;
-                })
-                ->rawColumns(['action'])
-                ->make(true);
+                return datatables()->of($rows)
+                    ->rawColumns(['action'])
+                    ->make(true);
+            } catch (\Throwable $e) {
+                report($e);
+
+                return response()->json([
+                    'error' => __('Unable to load locations. Please refresh and try again.'),
+                    'message' => config('app.debug') ? $e->getMessage() : null,
+                ], 500);
+            }
         }
 
         $countries = \DB::table('countries')->select('id', 'name')->get();
-        $companies = auth()->user()->can('view-location')
-            ? CompanyScope::companiesForSelect()
-            : CompanyScope::companiesForLocationHead($userId);
-        $locationHeadManage = ! auth()->user()->can('edit-location');
+        $locationHeadManage = ! $this->userHasPermission('edit-location');
 
-        return view('organization.location.my', compact('countries', 'companies', 'locationHeadManage'));
+        return view('organization.location.my', compact('countries', 'locationHeadManage'));
+    }
+
+    private function userHasPermission(string $permission): bool
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        try {
+            return $user->can($permission);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return false;
+        }
+    }
+
+    private function myLocationActionButtons(location $row, int $userId): string
+    {
+        $canManage = location::userCanManageLocationForMyPage($userId, (int) $row->id);
+        $canEdit = $this->userHasPermission('edit-location') || $canManage;
+
+        if (! $canEdit) {
+            return '';
+        }
+
+        $button = '<button type="button" name="edit" id="'.$row->id.'" class="edit btn btn-info btn-sm" title="'.__('Edit').'"><i class="dripicons-pencil"></i></button>';
+
+        if ((int) $row->active_employees_count > 0) {
+            $button .= '&nbsp;&nbsp;<button type="button" name="change_attendance" id="'.$row->id.'" class="change_attendance btn btn-warning btn-sm" title="'.__('Change Attendance Type').'"><i class="fa fa-exchange"></i></button>';
+        }
+
+        return $button;
+    }
+
+    private function locationListRelations(): array
+    {
+        $relations = [
+            'companies:id,company_name',
+        ];
+
+        if (Schema::hasTable('location_heads')) {
+            $relations[] = 'locationHeads:id,first_name,last_name';
+        }
+
+        if (Schema::hasColumn('locations', 'client_id') && Schema::hasTable('clients')) {
+            $relations[] = 'client:id,company_name,first_name,last_name';
+        }
+
+        return $relations;
+    }
+
+    private function resolveSolochoicezCompanyId(): ?int
+    {
+        if (method_exists(CompanyScope::class, 'solochoicezCompanyId')) {
+            return CompanyScope::solochoicezCompanyId();
+        }
+
+        $id = company::query()
+            ->whereRaw('LOWER(company_name) LIKE ?', ['%solochoice%'])
+            ->value('id');
+
+        return $id ? (int) $id : null;
+    }
+
+    private function solochoicezEmployeesForSelect()
+    {
+        if (method_exists(CompanyScope::class, 'solochoicezEmployeesForSelect')) {
+            return CompanyScope::solochoicezEmployeesForSelect();
+        }
+
+        $companyId = $this->resolveSolochoicezCompanyId();
+
+        if (! $companyId) {
+            return collect();
+        }
+
+        return Employee::withoutGlobalScope(AuthCompanyScope::class)
+            ->select('id', 'first_name', 'last_name')
+            ->where('company_id', $companyId)
+            ->where('is_active', 1)
+            ->where(function ($query) {
+                $query->whereNull('exit_date')
+                    ->orWhere('exit_date', '>=', date('Y-m-d'))
+                    ->orWhere('exit_date', '0000-00-00');
+            })
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
+    }
+
+    private function companiesForLocationIds(array $locationIds)
+    {
+        if (method_exists(CompanyScope::class, 'companiesForLocationIds')) {
+            return CompanyScope::companiesForLocationIds($locationIds);
+        }
+
+        $locationIds = array_values(array_filter(array_map('intval', $locationIds)));
+
+        if ($locationIds === []) {
+            return collect();
+        }
+
+        $companyIds = DB::table('company_location')
+            ->whereIn('location_id', $locationIds)
+            ->pluck('company_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($companyIds === []) {
+            return collect();
+        }
+
+        return company::withoutGlobalScopes()
+            ->select('id', 'company_name')
+            ->whereIn('id', $companyIds)
+            ->orderBy('company_name')
+            ->get();
+    }
+
+    private function ownerFieldValidationRules(Request $request): array
+    {
+        if ($request->input('owner_type') === 'client') {
+            return [
+                'client_id' => 'required|integer|exists:clients,id',
+                'owner_company_id' => 'nullable|integer|exists:companies,id',
+            ];
+        }
+
+        return [
+            'owner_company_id' => 'required|integer|exists:companies,id',
+            'client_id' => 'nullable|integer|exists:clients,id',
+        ];
+    }
+
+    private function resolveLocationOwner(location $location): array
+    {
+        if ($location->client_id) {
+            return [
+                'type' => 'client',
+                'company_id' => null,
+                'client_id' => (int) $location->client_id,
+            ];
+        }
+
+        $companyId = $location->companies()->value('companies.id');
+
+        return [
+            'type' => 'company',
+            'company_id' => $companyId ? (int) $companyId : null,
+            'client_id' => null,
+        ];
+    }
+
+    private function applyLocationOwner(location $location, string $ownerType, ?int $companyId, ?int $clientId): void
+    {
+        if ($ownerType === 'client') {
+            if (! $clientId) {
+                throw new \RuntimeException(__('Please select a client.'));
+            }
+
+            $location->update(['client_id' => $clientId]);
+            $this->syncCompaniesFromClient($location, $clientId);
+
+            return;
+        }
+
+        $location->update(['client_id' => null]);
+
+        if (! $companyId) {
+            throw new \RuntimeException(__('Please select a company.'));
+        }
+
+        $location->companies()->sync([$companyId]);
+    }
+
+    private function clientsForSelect()
+    {
+        return Client::query()
+            ->select('id', 'company_name', 'first_name', 'last_name')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->orderBy('company_name')
+            ->get();
+    }
+
+    private function clientIdsForCompany(int $companyId): array
+    {
+        return Project::query()
+            ->where('company_id', $companyId)
+            ->whereNotNull('client_id')
+            ->distinct()
+            ->pluck('client_id')
+            ->merge(
+                Employee::query()
+                    ->where('company_id', $companyId)
+                    ->whereNotNull('client_id')
+                    ->distinct()
+                    ->pluck('client_id')
+            )
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function clientSelectLabel($client): string
+    {
+        return ClientDisplay::label($client);
+    }
+
+    private function locationClientLabel(location $location): string
+    {
+        if ($location->client_id && $location->client) {
+            return __('Client').': '.ClientDisplay::label($location->client);
+        }
+
+        $companyNames = $location->companies->pluck('company_name')->filter();
+
+        if ($companyNames->isNotEmpty()) {
+            return __('Company').': '.$companyNames->implode(', ');
+        }
+
+        return '---';
+    }
+
+    private function resolveClientIdFromLocation(location $location): ?int
+    {
+        if ($location->client_id) {
+            return (int) $location->client_id;
+        }
+
+        $companyName = $location->companies()->value('company_name');
+
+        if (! $companyName) {
+            return null;
+        }
+
+        $clientId = Client::query()
+            ->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower(trim((string) $companyName))])
+            ->value('id');
+
+        return $clientId ? (int) $clientId : null;
+    }
+
+    private function syncCompaniesFromClient(location $location, int $clientId): void
+    {
+        $client = Client::query()->findOrFail($clientId);
+        $companyIds = company::query()
+            ->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower(trim((string) $client->company_name))])
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($companyIds === []) {
+            throw new \RuntimeException(__('No company found for the selected client.'));
+        }
+
+        $location->companies()->sync($companyIds);
+    }
+
+    private function validateClientSelection(Request $request): array
+    {
+        return $this->validateLocationHeadSelection($request);
+    }
+
+    private function validateLocationHeadSelection(Request $request): array
+    {
+        $soloCompanyId = $this->resolveSolochoicezCompanyId();
+
+        if (! $soloCompanyId) {
+            return [];
+        }
+
+        $errors = [];
+
+        foreach ($this->normalizeLocationHeadIds($request) as $headId) {
+            $headAllowed = Employee::withoutGlobalScope(AuthCompanyScope::class)
+                ->where('id', $headId)
+                ->where('company_id', $soloCompanyId)
+                ->where('is_active', 1)
+                ->whereNull('exit_date')
+                ->exists();
+
+            if (! $headAllowed) {
+                $errors[] = __('Location head must be a Solochoicez employee.');
+            }
+        }
+
+        return $errors;
     }
 
     private function normalizeLocationHeadIds(Request $request): array

@@ -66,10 +66,15 @@ class LeaveController extends Controller
 
     protected function canAccessLeaveModule(): bool
     {
-        return auth()->user()->can('view-leave')
-            || $this->isOrgDepartmentManager()
-            || $this->isTeamLeaveManager()
-            || $this->isLocationLeaveManager();
+        if (auth()->user()->can('view-leave')) {
+            return true;
+        }
+
+        if ($this->isOrgDepartmentManager()) {
+            return true;
+        }
+
+        return ManagedEmployeeScope::canManageScopedLeave((int) auth()->id());
     }
 
     protected function canViewLeaveRecord(leave $leave): bool
@@ -84,7 +89,7 @@ class LeaveController extends Controller
             return $managedIds->contains((int) $leave->department_id);
         }
 
-        if (ManagedEmployeeScope::canManageLeaveRequests((int) auth()->id())) {
+        if (ManagedEmployeeScope::canManageScopedLeave((int) auth()->id())) {
             return in_array(
                 (int) $leave->employee_id,
                 ManagedEmployeeScope::managedEmployeeIds((int) auth()->id()),
@@ -108,7 +113,7 @@ class LeaveController extends Controller
             return true;
         }
 
-        if (ManagedEmployeeScope::canManageLeaveRequests((int) auth()->id())) {
+        if (ManagedEmployeeScope::canManageScopedLeave((int) auth()->id())) {
             return in_array(
                 (int) $leave->employee_id,
                 ManagedEmployeeScope::managedEmployeeIds((int) auth()->id()),

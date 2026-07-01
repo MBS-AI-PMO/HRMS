@@ -12,6 +12,7 @@ use DB;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Validator;
 
@@ -99,16 +100,22 @@ class ProjectController extends Controller {
 		$logged_user = auth()->user();
 		if ($logged_user->can('store-project'))
 		{
-			$validator = Validator::make($request->only('title', 'company_id', 'client_id', 'employee_id', 'project_priority', 'description', 'start_date'
+			$request->merge([
+				'end_date' => $request->filled('end_date') ? $request->end_date : null,
+			]);
+
+			$validator = Validator::make($request->only('title', 'company_id', 'department_id', 'client_id', 'employee_id', 'project_priority', 'description', 'start_date'
 				, 'end_date', 'summary'),
 				[
 					'title' => 'required',
 					'company_id' => 'required',
+					'department_id' => 'required|exists:departments,id',
 					'client_id' => 'required',
-					'employee_id' => 'required',
+					'employee_id' => 'required|array|min:1',
+					'employee_id.*' => 'exists:employees,id',
 					'project_priority' => 'required',
 					'start_date' => 'required',
-					'end_date' => 'required|after_or_equal:start_date',
+					'end_date' => 'nullable|after_or_equal:start_date',
 				]
 			);
 
@@ -124,26 +131,44 @@ class ProjectController extends Controller {
 			$data['summary'] = $request->summary;
 			$data['title'] = $request->title;
 			$data['company_id'] = $request->company_id;
+			$data['department_id'] = $request->department_id;
 			$data['client_id'] = $request->client_id;
 			$data ['start_date'] = $request->start_date;
 			$data ['end_date'] = $request->end_date;
 
 			$data ['description'] = $request->description;
 			$data ['project_priority'] = $request->project_priority;
+			$data['project_status'] = $request->filled('project_status')
+				? $request->project_status
+				: 'not_started';
 
+			try {
+				$project = Project::create($data);
+				$employees = $request->input('employee_id');
+				$project->assignedEmployees()->sync($employees);
 
-			$project = Project::create($data);
-			$employees = $request->input('employee_id');
-			$project->assignedEmployees()->sync($employees);
+				try {
+					$notificable = User::where('role_users_id', 1)
+						->orwhereIntegerInRaw('id', $employees)
+						->get();
 
+					Notification::send($notificable, new ProjectCreatedNotifiaction($project));
+				} catch (\Throwable $notificationError) {
+					Log::warning('Project created but notification failed', [
+						'project_id' => $project->id,
+						'message' => $notificationError->getMessage(),
+					]);
+				}
 
-			$notificable = User::where('role_users_id', 1)
-				->orwhereIntegerInRaw('id', $employees)
-				->get();
+				return response()->json(['success' => __('Data Added successfully.')]);
+			} catch (\Throwable $e) {
+				Log::error('Project create failed', [
+					'message' => $e->getMessage(),
+					'title' => $request->title,
+				]);
 
-			Notification::send($notificable, new ProjectCreatedNotifiaction($project));
-
-			return response()->json(['success' => __('Data Added successfully.')]);
+				return response()->json(['errors' => [$e->getMessage()]]);
+			}
 		}
 
 		return response()->json(['success' => __('You are not authorized')]);
@@ -196,7 +221,6 @@ class ProjectController extends Controller {
 		{
 			$data = Project::findOrFail($id);
 
-
 			return response()->json(['data' => $data]);
 		}
 
@@ -216,14 +240,23 @@ class ProjectController extends Controller {
 		{
 			$id = $request->hidden_id;
 
-			$validator = Validator::make($request->only('edit_title', 'edit_client_id', 'edit_project_priority', 'edit_description', 'edit_start_date'
-				, 'edit_end_date', 'edit_summary', 'edit_project_status', 'edit_project_progress'),
+			$request->merge([
+				'edit_end_date' => $request->filled('edit_end_date') ? $request->edit_end_date : null,
+			]);
+
+			$validator = Validator::make($request->only(
+				'edit_title', 'edit_client_id', 'edit_company_id', 'edit_department_id',
+				'edit_project_priority', 'edit_description', 'edit_start_date', 'edit_end_date',
+				'edit_summary', 'edit_project_status', 'edit_project_progress'
+			),
 				[
 					'edit_title' => 'required',
 					'edit_client_id' => 'required',
+					'edit_company_id' => 'required|exists:companies,id',
+					'edit_department_id' => 'required|exists:departments,id',
 					'edit_project_priority' => 'required',
 					'edit_start_date' => 'required',
-					'edit_end_date' => 'required',
+					'edit_end_date' => 'nullable|after_or_equal:edit_start_date',
 				]
 			);
 
@@ -239,6 +272,8 @@ class ProjectController extends Controller {
 			$data['summary'] = $request->edit_summary;
 			$data['title'] = $request->edit_title;
 			$data['client_id'] = $request->edit_client_id;
+			$data['company_id'] = $request->edit_company_id;
+			$data['department_id'] = $request->edit_department_id;
 			$data ['start_date'] = $request->edit_start_date;
 			$data ['end_date'] = $request->edit_end_date;
 
@@ -255,7 +290,8 @@ class ProjectController extends Controller {
 			}
 
 
-			Project::find($id)->update($data);
+			$project = Project::findOrFail($id);
+			$project->update($data);
 
 			return response()->json(['success' => __('Data is successfully updated')]);
 		}

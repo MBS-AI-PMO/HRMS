@@ -67,4 +67,9 @@ class company extends Model
     {
         return $this->belongsToMany(location::class, 'company_location', 'company_id', 'location_id');
     }
+
+    public function projects()
+    {
+        return $this->hasMany(Project::class, 'company_id');
+    }
 }

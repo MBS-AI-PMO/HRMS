@@ -205,7 +205,7 @@
     @endif
 
 
-    @if (request()->is('admin/dashboard*') || request()->is('calendar*'))
+    @if (request()->is('admin/dashboard*') || request()->is('admin/executive*') || request()->is('calendar*'))
         @include('calendarable.css')
     @endif
     <style>
@@ -331,7 +331,7 @@
     <script type="text/javascript" src="{{ asset('vendor/select2/dist/js/select2.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    @if (request()->is('admin/dashboard*') || request()->is('calendar*'))
+    @if (request()->is('admin/dashboard*') || request()->is('admin/executive*') || request()->is('calendar*'))
         @include('calendarable.js')
     @endif
 

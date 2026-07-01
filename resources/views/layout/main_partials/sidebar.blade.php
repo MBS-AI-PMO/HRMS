@@ -6,6 +6,15 @@
             <ul id="side-main-menu" class="side-menu list-unstyled mb-5">
 
                 @if (auth()->user()->role_users_id == 1)
+                    <li class="{{ request()->is('admin/executive*') ? 'active' : '' }}"><a
+                            href="{{ route('admin.executive') }}"> <i
+                                class="dripicons-meter"></i><span>{{ __('Executive Dashboard') }}</span></a>
+                    </li>
+                    <li class="{{ request()->is('admin/dashboard*') ? 'active' : '' }}"><a
+                            href="{{ route('admin.dashboard') }}"> <i
+                                class="dripicons-view-thumb"></i><span>{{ __('HR Dashboard') }}</span></a>
+                    </li>
+                @elseif (auth()->user()->role_users_id == 2 || auth()->user()->can('view-details-employee'))
                     <li class="{{ request()->is('admin/dashboard*') ? 'active' : '' }}"><a
                             href="{{ route('admin.dashboard') }}"> <i
                                 class="dripicons-meter"></i><span>{{ trans('file.Dashboard') }}</span></a>
@@ -17,7 +26,7 @@
                     </li>
                 @endif
 
-                @if (\App\Models\Team::userHasTeamAccess((int) auth()->id()))
+                @if (\App\Support\ManagedEmployeeScope::canAccessMyTeam((int) auth()->id()))
                     <li class="{{ request()->is('organization/teams/my*') ? 'active' : '' }}">
                         <a href="{{ route('teams.my') }}">
                             <i class="dripicons-user-group"></i>
@@ -26,7 +35,7 @@
                     </li>
                 @endif
 
-                @if ((\App\Models\Team::userCanAccessEmployeeList((int) auth()->id()) || \App\Models\location::userCanAccessLocationEmployeeList((int) auth()->id())) && ! auth()->user()->can('view-details-employee'))
+                @if (\App\Support\ManagedEmployeeScope::canAccessScopedEmployeeList((int) auth()->id(), (int) auth()->user()->role_users_id) && ! auth()->user()->can('view-details-employee'))
                     <li class="{{ request()->is('staff/employees*') ? 'active' : '' }}">
                         <a href="{{ route('employees.index') }}">
                             <i class="dripicons-view-list"></i>
@@ -35,14 +44,7 @@
                     </li>
                 @endif
 
-                @if (\App\Models\location::userIsLocationHead((int) auth()->id()))
-                    <li class="{{ request()->is('organization/locations/my*') ? 'active' : '' }}">
-                        <a href="{{ route('locations.my') }}">
-                            <i class="dripicons-location"></i>
-                            <span>{{ __('My Locations') }}</span>
-                        </a>
-                    </li>
-                @endif
+            
 
 
 
@@ -89,6 +91,15 @@
                                 </li>
                             @endcan
                         </ul>
+                    </li>
+                @endcan
+
+                @can('client')
+                    <li class="{{ request()->is('project-management/clients*') ? 'active' : '' }}">
+                        <a href="{{ route('clients.index') }}">
+                            <i class="dripicons-briefcase"></i>
+                            <span>{{ trans('file.Client') }}</span>
+                        </a>
                     </li>
                 @endcan
 
@@ -152,6 +163,11 @@
                         aria-expanded="false" data-toggle="collapse">
                         <i class="dripicons-view-thumb"></i><span>{{ trans('file.Organization') }}</span></a>
                     <ul id="Organization" class="collapse list-unstyled ">
+                        @if (\App\Support\ManagedEmployeeScope::canAccessMyLocations((int) auth()->id()))
+                            <li id="my_locations" class="{{ request()->is('organization/locations/my*') ? 'active' : '' }}">
+                                <a href="{{ route('locations.my') }}">{{ __('My Centers / Locations') }}</a>
+                            </li>
+                        @endif
                         @can('view-location')
                             <li id="location"><a href="{{ route('locations.index') }}">{{ trans('file.Location') }}</a>
                             </li>
@@ -294,8 +310,10 @@
                 )->pluck('id');
                 $isDepartmentManager = $managedDepartmentIds->isNotEmpty();
                 $isHrUser = $leaveManagerSidebarUser->can('view-leave');
-                $isTeamLeaveManager = \App\Models\Team::userCanManageTeamLeaveRequests((int) $leaveManagerSidebarUser->id);
-                $isLocationLeaveManager = \App\Models\location::userCanManageLocationLeaveRequests((int) $leaveManagerSidebarUser->id);
+                $isTeamLeaveManager = \App\Models\Team::userCanManageTeamLeaveRequests((int) $leaveManagerSidebarUser->id)
+                    && $leaveManagerSidebarUser->can('scoped-manage-leave');
+                $isLocationLeaveManager = \App\Models\location::userCanManageLocationLeaveRequests((int) $leaveManagerSidebarUser->id)
+                    && $leaveManagerSidebarUser->can('scoped-manage-leave');
                 $showLeaveManagementTabs = $isDepartmentManager || $isHrUser || $isTeamLeaveManager || $isLocationLeaveManager;
 
                 $pendingLeaveCount = 0;
@@ -434,12 +452,18 @@
                 <ul id="HR_Reports" class="collapse list-unstyled ">
 
                     <!--New added-->
+                    @can('daily-attendances')
                     <li id="attendance"><a
                             href="{{ route('attendances.index') }}">{{ __('Daily Attendances') }}</a></li>
+                    @endcan
+                    @can('date-wise-attendances')
                     <li id="date_wise_attendance"><a href="{{ route('date_wise_attendances.index') }}">
                             {{ __('Date wise Attendances') }}</a></li>
+                    @endcan
+                    @can('monthly-attendances')
                     <li id="monthly_attendance"><a href="{{ route('monthly_attendances.index') }}">
                             {{ __('Monthly Attendances') }}</a></li>
+                    @endcan
                     <!--New added End-->
 
                     @can('report-training')
@@ -451,6 +475,9 @@
                         <li id="project_report"><a
                                 href="{{ route('report.project') }}">{{ __('Project Report') }}</a>
                         </li>
+                        <li id="summary_dashboard"><a
+                                href="{{ route('report.summary-dashboard') }}">{{ __('Operations Summary') }}</a>
+                        </li>
                     @endcan
                     @can('report-task')
                                 <li id="task_report"><a
@@ -460,6 +487,13 @@
                         <li id="employees_report"><a
                                 href="{{ route('report.employees') }}">{{ __('Employees Report') }}</a>
                         </li>
+                    @endcan
+                    @can('report-clock-in-locations')
+                        @if (\App\Support\ManagedEmployeeScope::canAccessClockInLocationReport((int) auth()->id(), (int) auth()->user()->role_users_id))
+                        <li id="login_location_report"><a
+                                href="{{ route('report.login-locations') }}">{{ __('Clock-in Location Report') }}</a>
+                        </li>
+                        @endif
                     @endcan
                     @can('report-employee')
                                 <li id="employees_report"><a
@@ -607,7 +641,6 @@
                 <li class="has-dropdown {{ request()->is('project-management*') ? 'active' : '' }}">
                     @if (auth()->user()->can('view-project') ||
                             auth()->user()->can('view-task') ||
-                            auth()->user()->can('client') ||
                             auth()->user()->can('view-invoice'))
                         <a href="#Project_Management" aria-expanded="false" data-toggle="collapse">
                             <i class="dripicons-checklist"></i><span>{{ __('Project Management') }}</span>
@@ -624,12 +657,6 @@
                                     href="{{ route('tasks.index') }}">{{ trans('file.Tasks') }}</a>
                             </li>
                         @endcan
-                        @can('client')
-                            <li id="clients"><a
-                                    href="{{ route('clients.index') }}">{{ trans('file.Client') }}</a>
-                            </li>
-                        @endcan
-
                         @can('view-invoice')
                             <li id="invoices"><a
                                     href="{{ route('invoices.index') }}">{{ trans('file.Invoice') }}</a>

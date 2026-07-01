@@ -15,10 +15,10 @@
                                 <div class="row">
 
 
-                                    @if ((Auth::user()->can('date-wise-attendances') || !empty($canManageScopedAttendance)))
+                                    @if (Auth::user()->can('date-wise-attendances'))
                                     {{-- @if (Auth::user()->role_users_id==1) --}}
 
-                                        <div class="col-md-4">
+                                        <div class="col-md-2">
                                             <div class="form-group">
                                                 <label>{{trans('file.Company')}} *</label>
                                                 <select name="company_id" id="company_id"  class="form-control selectpicker dynamic" required
@@ -31,7 +31,23 @@
                                             </div>
                                         </div>
 
-                                        <div class="col-md-4 form-group">
+                                        <div class="col-md-2 form-group">
+                                            <label>{{trans('file.Client')}}</label>
+                                            <select name="client_id" id="client_id" class="selectpicker form-control"
+                                                    data-live-search="true" data-live-search-style="contains"
+                                                    title="{{__('Selecting',['key'=>trans('file.Client')])}}...">
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-2 form-group">
+                                            <label>{{trans('file.Location')}}</label>
+                                            <select name="location_id" id="location_id" class="selectpicker form-control"
+                                                    data-live-search="true" data-live-search-style="contains"
+                                                    title="{{__('Selecting',['key'=>trans('file.Location')])}}...">
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-2 form-group">
                                             <label>{{trans('file.Department')}}</label>
                                             <select name="department_id" id="department_id"
                                                     class="selectpicker form-control department_wise_employees"
@@ -41,7 +57,7 @@
                                             </select>
                                         </div>
 
-                                        <div class="col-md-4 form-group">
+                                        <div class="col-md-2 form-group">
                                             <label>{{trans('file.Employee')}} </label>
                                             <select name="employee_id" id="employee_id"  class="selectpicker form-control"
                                                     data-live-search="true" data-live-search-style="contains"
@@ -155,7 +171,7 @@
 
             fill_datatable();
 
-            function fill_datatable(filter_start_date = '', filter_end_date = '', company_id = '', department_id = '', employee_id = '') {
+            function fill_datatable(filter_start_date = '', filter_end_date = '', company_id = '', client_id = '', location_id = '', department_id = '', employee_id = '') {
 
                 let table_table = $('#date_wise_attendance-table').DataTable({
                     responsive: true,
@@ -171,6 +187,8 @@
                             filter_start_date: filter_start_date,
                             filter_end_date: filter_end_date,
                             company_id: company_id,
+                            client_id: client_id,
+                            location_id: location_id,
                             department_id: department_id,
                             employee_id: employee_id,
                             "_token": "{{ csrf_token()}}"
@@ -344,11 +362,13 @@
                 var filter_start_date = $('#start_date').val();
                 var filter_end_date = $('#end_date').val();
                 let company_id = $('#company_id').val();
+                let client_id = $('#client_id').val();
+                let location_id = $('#location_id').val();
                 let department_id = $('#department_id').val();
                 let employee_id = $('#employee_id').val();
                 if (filter_start_date !== '' && filter_end_date !== '' && company_id !== '') {
                     $('#date_wise_attendance-table').DataTable().destroy();
-                    fill_datatable(filter_start_date, filter_end_date, company_id, department_id, employee_id);
+                    fill_datatable(filter_start_date, filter_end_date, company_id, client_id, location_id, department_id, employee_id);
                 } else {
                     alert('{{__('Select Both filter option')}}');
                 }
@@ -358,64 +378,123 @@
 
 
 
-            $('.dynamic').change(function() {
+            function resetSelect($select, allLabel) {
+                $select.selectpicker('destroy');
+                $select.html('<option value="">' + allLabel + '</option>');
+                $select.selectpicker();
+            }
+
+            function loadClients(companyId) {
+                resetSelect($('#client_id'), @json(__('All')));
+
+                if (!companyId) {
+                    return $.Deferred().resolve().promise();
+                }
+
+                return $.post("{{ route('dynamic_clients') }}", {
+                    value: companyId,
+                    _token: '{{ csrf_token() }}'
+                }).done(function(result) {
+                    $('#client_id').selectpicker('destroy');
+                    $('#client_id').html('<option value="">' + @json(__('All')) + '</option>' + result);
+                    $('#client_id').selectpicker();
+                });
+            }
+
+            function loadLocations(companyId, clientId) {
+                resetSelect($('#location_id'), @json(__('All')));
+
+                if (!companyId && !clientId) {
+                    return $.Deferred().resolve().promise();
+                }
+
+                return $.post("{{ route('dynamic_locations') }}", {
+                    company_id: companyId || '',
+                    client_id: clientId || '',
+                    _token: '{{ csrf_token() }}'
+                }).done(function(result) {
+                    $('#location_id').selectpicker('destroy');
+                    $('#location_id').html('<option value="">' + @json(__('All')) + '</option>' + result);
+                    $('#location_id').selectpicker();
+                });
+            }
+
+            function loadEmployees(companyId, clientId, locationId) {
+                resetSelect($('#employee_id'), @json(__('All')));
+
+                if (!companyId) {
+                    return $.Deferred().resolve().promise();
+                }
+
+                return $.post("{{ route('dynamic_employee') }}", {
+                    value: companyId,
+                    client_id: clientId || '',
+                    location_id: locationId || '',
+                    first_name: 'first_name',
+                    last_name: 'last_name',
+                    _token: '{{ csrf_token() }}'
+                }).done(function(result) {
+                    $('#employee_id').selectpicker('destroy');
+                    $('#employee_id').html('<option value="">' + @json(__('All')) + '</option>' + result);
+                    $('#employee_id').selectpicker();
+                });
+            }
+
+            function loadDepartments(companyId) {
+                resetSelect($('#department_id'), @json(__('All')));
+
+                if (!companyId) {
+                    return $.Deferred().resolve().promise();
+                }
+
+                return $.post("{{ route('dynamic_department') }}", {
+                    value: companyId,
+                    dependent: 'department_name',
+                    _token: '{{ csrf_token() }}'
+                }).done(function(result) {
+                    $('#department_id').selectpicker('destroy');
+                    $('#department_id').html('<option value="">' + @json(__('All')) + '</option>' + result);
+                    $('#department_id').selectpicker();
+                });
+            }
+
+            $('#company_id').on('changed.bs.select', function() {
+                var companyId = $(this).val();
+                loadClients(companyId).always(function() {
+                    loadLocations(companyId, '').always(function() {
+                        loadDepartments(companyId).always(function() {
+                            loadEmployees(companyId, '', '');
+                        });
+                    });
+                });
+            });
+
+            $('#client_id').on('changed.bs.select', function() {
+                var companyId = $('#company_id').val();
+                var clientId = $(this).val();
+                loadLocations(companyId, clientId).always(function() {
+                    loadEmployees(companyId, clientId, $('#location_id').val());
+                });
+            });
+
+            $('#location_id').on('changed.bs.select', function() {
+                loadEmployees($('#company_id').val(), $('#client_id').val(), $(this).val());
+            });
+
+            $('.department_wise_employees').on('changed.bs.select', function () {
                 if ($(this).val() !== '') {
                     let value = $(this).val();
                     let first_name = $(this).data('first_name');
                     let last_name = $(this).data('last_name');
-                    let _token = $('input[name="_token"]').val();
-                    $.ajax({
-                        url:"{{ route('dynamic_employee') }}",
-                        method:"POST",
-                        data:{ value:value, _token:_token, first_name:first_name,last_name:last_name},
-                        success:function(result)
-                        {
-                            $('select').selectpicker("destroy");
-                            $('#employee_id').html(result);
-                            $('select').selectpicker();
-
-                        }
-                    });
-                }
-            });
-
-            $('.dynamic').change(function () {
-                if ($(this).val() !== '') {
-                    let value = $(this).val();
-                    let dependent = $(this).data('dependent');
-                    let _token = $('input[name="_token"]').val();
-                    $.ajax({
-                        url: "{{ route('dynamic_department') }}",
-                        method: "POST",
-                        data: {value: value, _token: _token, dependent: dependent},
-                        success: function (result) {
-
-                            $('select').selectpicker("destroy");
-                            $('#department_id').html(result);
-                            $('select').selectpicker();
-
-                        }
-                    });
-                }
-            });
-
-            $('.department_wise_employees').change(function () {
-                if ($(this).val() !== '') {
-                    let value = $(this).val();
-                    let first_name = $(this).data('first_name');
-                    let last_name = $(this).data('last_name');
-                    let _token = $('input[name="_token"]').val();
-                    $.ajax({
-                        url: "{{ route('dynamic_employee_department') }}",
-                        method: "POST",
-                        data: {value: value, _token: _token, first_name:first_name,last_name:last_name},
-                        success: function (result) {
-
-                            $('select').selectpicker("destroy");
-                            $('#employee_id').html(result);
-                            $('select').selectpicker();
-
-                        }
+                    $.post("{{ route('dynamic_employee_department') }}", {
+                        value: value,
+                        _token: '{{ csrf_token() }}',
+                        first_name: first_name,
+                        last_name: last_name
+                    }).done(function (result) {
+                        $('#employee_id').selectpicker('destroy');
+                        $('#employee_id').html('<option value="">' + @json(__('All')) + '</option>' + result);
+                        $('#employee_id').selectpicker();
                     });
                 }
             });

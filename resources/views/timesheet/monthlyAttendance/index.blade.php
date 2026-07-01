@@ -22,8 +22,8 @@
                                     </div>
 
                                     {{-- if (Au@th::user()->role_users_id==1) --}}
-                                    @if ((Auth::user()->can('monthly-attendances') || !empty($canManageScopedAttendance)))
-                                        <div class="col-md-3">
+                                    @if (Auth::user()->can('monthly-attendances'))
+                                        <div class="col-md-2">
                                             <div class="form-group">
                                                 <select name="company_id" id="company_id" class="form-control selectpicker dynamic"
                                                         data-live-search="true" data-live-search-style="contains"  data-first_name="first_name" data-last_name="last_name"
@@ -36,7 +36,25 @@
                                             </div>
                                         </div>
 
-                                        <div class="col-md-4">
+                                        <div class="col-md-2">
+                                            <div class="form-group">
+                                                <select name="client_id" id="client_id" class="selectpicker form-control"
+                                                        data-live-search="true" data-live-search-style="contains"
+                                                        title='{{__('Selecting',['key'=>trans('file.Client')])}}...'>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-2">
+                                            <div class="form-group">
+                                                <select name="location_id" id="location_id" class="selectpicker form-control"
+                                                        data-live-search="true" data-live-search-style="contains"
+                                                        title='{{__('Selecting',['key'=>trans('file.Location')])}}...'>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-2">
                                             <div class="form-group">
                                                 <select name="employee_id" id="employee_id"   class="selectpicker form-control"
                                                         data-live-search="true" data-live-search-style="begins"
@@ -47,7 +65,7 @@
                                     @endif
 
 
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
                                         <div class="form-group">
                                             <button name="submit_form" id="submit_form" type="submit" class="btn btn-primary"><i class="fa fa fa-check-square-o"></i> {{trans('file.Get')}}</button>
                                         </div>
@@ -130,7 +148,7 @@
 
             fill_datatable();
 
-            function fill_datatable(filter_company = '', filter_employee = '', filter_month_year = $('#month_year').val()) {
+            function fill_datatable(filter_company = '', filter_client = '', filter_location = '', filter_employee = '', filter_month_year = $('#month_year').val()) {
                 $('#details_month_year').html($('#month_year').val());
                 let table_table = $('#month_wise_attendance-table').DataTable({
                     initComplete: function () {
@@ -166,6 +184,8 @@
                         url: "{{ route('monthly_attendances.index') }}",
                         data: {
                             filter_company: filter_company,
+                            filter_client: filter_client,
+                            filter_location: filter_location,
                             filter_employee: filter_employee,
                             filter_month_year: filter_month_year,
                             "_token": "{{ csrf_token()}}"
@@ -403,39 +423,104 @@
                 e.preventDefault();
 
                 var filter_company = $('#company_id').val();
+                var filter_client = $('#client_id').val();
+                var filter_location = $('#location_id').val();
                 var filter_employee = $('#employee_id').val();
                 var filter_month_year = $('#month_year').val();
                 if (filter_company !== '' && filter_month_year !== '') {
                     $('#month_wise_attendance-table').DataTable().destroy();
-                    fill_datatable(filter_company, filter_employee, filter_month_year);
+                    fill_datatable(filter_company, filter_client, filter_location, filter_employee, filter_month_year);
                 }
                 else {
                     alert('{{__('Select at least one filter option')}}');
                 }
             });
-        });
 
+            function resetSelect($select, allLabel) {
+                $select.selectpicker('destroy');
+                $select.html('<option value="">' + allLabel + '</option>');
+                $select.selectpicker();
+            }
 
-        $('.dynamic').change(function() {
-            if ($(this).val() !== '') {
-                let value = $(this).val();
-                let first_name = $(this).data('first_name');
-                let last_name = $(this).data('last_name');
-                let _token = $('input[name="_token"]').val();
-                $.ajax({
-                    url:"{{ route('dynamic_employee') }}",
-                    method:"POST",
-                    data:{ value:value, _token:_token, first_name:first_name,last_name:last_name},
-                    success:function(result)
-                    {
-                        $('select').selectpicker("destroy");
-                        $('#employee_id').html(result);
-                        $('select').selectpicker();
+            function loadClients(companyId) {
+                resetSelect($('#client_id'), @json(__('All')));
 
-                    }
+                if (!companyId) {
+                    return $.Deferred().resolve().promise();
+                }
+
+                return $.post("{{ route('dynamic_clients') }}", {
+                    value: companyId,
+                    _token: '{{ csrf_token() }}'
+                }).done(function(result) {
+                    $('#client_id').selectpicker('destroy');
+                    $('#client_id').html('<option value="">' + @json(__('All')) + '</option>' + result);
+                    $('#client_id').selectpicker();
                 });
             }
+
+            function loadLocations(companyId, clientId) {
+                resetSelect($('#location_id'), @json(__('All')));
+
+                if (!companyId && !clientId) {
+                    return $.Deferred().resolve().promise();
+                }
+
+                return $.post("{{ route('dynamic_locations') }}", {
+                    company_id: companyId || '',
+                    client_id: clientId || '',
+                    _token: '{{ csrf_token() }}'
+                }).done(function(result) {
+                    $('#location_id').selectpicker('destroy');
+                    $('#location_id').html('<option value="">' + @json(__('All')) + '</option>' + result);
+                    $('#location_id').selectpicker();
+                });
+            }
+
+            function loadEmployees(companyId, clientId, locationId) {
+                resetSelect($('#employee_id'), @json(__('All')));
+
+                if (!companyId) {
+                    return;
+                }
+
+                $.post("{{ route('dynamic_employee') }}", {
+                    value: companyId,
+                    client_id: clientId || '',
+                    location_id: locationId || '',
+                    first_name: 'first_name',
+                    last_name: 'last_name',
+                    _token: '{{ csrf_token() }}'
+                }).done(function(result) {
+                    $('#employee_id').selectpicker('destroy');
+                    $('#employee_id').html('<option value="">' + @json(__('All')) + '</option>' + result);
+                    $('#employee_id').selectpicker();
+                });
+            }
+
+            $('#company_id').on('changed.bs.select', function() {
+                var companyId = $(this).val();
+                loadClients(companyId).always(function() {
+                    loadLocations(companyId, '').always(function() {
+                        loadEmployees(companyId, '', '');
+                    });
+                });
+            });
+
+            $('#client_id').on('changed.bs.select', function() {
+                var companyId = $('#company_id').val();
+                var clientId = $(this).val();
+                loadLocations(companyId, clientId).always(function() {
+                    loadEmployees(companyId, clientId, $('#location_id').val());
+                });
+            });
+
+            $('#location_id').on('changed.bs.select', function() {
+                loadEmployees($('#company_id').val(), $('#client_id').val(), $(this).val());
+            });
         });
+
+
     })(jQuery);
 </script>
 @endpush

@@ -27,6 +27,7 @@ class Employee extends Model
         'location_id',
         'designation_id',
         'company_id',
+        'client_id',
         'department_id',
         'is_active',
         'role_users_id',
@@ -98,6 +99,11 @@ class Employee extends Model
     public function company()
     {
         return $this->hasOne('App\Models\company', 'id', 'company_id');
+    }
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class, 'client_id');
     }
 
     public function designation()
@@ -180,6 +186,11 @@ class Employee extends Model
     public function employeeLeaveTypeDetail()
     {
         return $this->hasOne(EmployeeLeaveTypeDetail::class);
+    }
+
+    public function projects()
+    {
+        return $this->belongsToMany(Project::class, 'employee_project', 'employee_id', 'project_id');
     }
 
     public function activityLogs()

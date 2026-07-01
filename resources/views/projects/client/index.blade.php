@@ -25,8 +25,6 @@
                     <th class="not-exported"></th>
                     <th>{{__('Name')}}</th>
                     <th>{{trans('file.Company')}}</th>
-                    <th>{{trans('file.Website')}}</th>
-                    <th>{{trans('file.Phone')}}</th>
                     <th>{{trans('file.Email')}}</th>
                     <th class="not-exported">{{trans('file.action')}}</th>
                 </tr>
@@ -39,7 +37,7 @@
 
 
     <div id="formModal" class="modal fade" role="dialog">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 id="exampleModalLabel" class="modal-title">{{__('Add Client')}}</h5>
@@ -56,19 +54,13 @@
                         <div class="row">
                             <div class="col-md-6 form-group">
                                 <label>{{__('First Name')}} <span class="text-danger">*</span></label>
-                                <input type="text" name="first_name" id="first_name" placeholder={{__('First Name')}}
-                                        required class="form-control">
+                                <input type="text" name="first_name" id="first_name" placeholder="{{__('First Name')}}"
+                                       required class="form-control">
                             </div>
                             <div class="col-md-6 form-group">
-                                <label>{{__('Last Name')}} <span class="text-danger">*</span></label>
-                                <input type="text" name="last_name" id="last_name" placeholder={{__('Last Name')}}
-                                        required class="form-control">
-                            </div>
-                            <div class="col-md-6 form-group">
-                                <label>{{trans('file.Company')}} <span class="text-danger">*</span></label>
-                                <input type="text" name="company_name" id="company_name"
-                                       placeholder={{trans('file.Company')}}
-                                               required class="form-control">
+                                <label>{{__('Last Name')}}</label>
+                                <input type="text" name="last_name" id="last_name" placeholder="{{__('Last Name')}}"
+                                       class="form-control">
                             </div>
                             <div class="col-md-6 form-group">
                                 <label>{{trans('file.Username')}} <span class="text-danger">*</span></label>
@@ -76,93 +68,93 @@
                                        placeholder="{{trans('file.Username')}}"
                                        required class="form-control">
                             </div>
-
                             <div class="col-md-6 form-group">
-                                <label>{{trans('file.Email')}}</label>
-                                <input type="email" name="email" id="email" placeholder='example@example.com'
+                                <label>{{trans('file.Company')}} <span class="text-danger">*</span></label>
+                                <select name="company_id" id="company_id" class="form-control selectpicker"
+                                        data-live-search="true" data-live-search-style="contains"
+                                        title="{{ __('Select Company') }}" required>
+                                    @foreach ($companies as $company)
+                                        <option value="{{ $company->id }}">{{ $company->company_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label>{{trans('file.Email')}} <span class="text-danger">*</span></label>
+                                <input type="email" name="email" id="email" placeholder="example@example.com"
+                                       required class="form-control">
+                            </div>
+                            <div class="col-md-6 form-group hide-edit">
+                                <label>{{trans('file.Password')}} <span class="text-danger">*</span></label>
+                                <input type="password" name="password" id="password"
+                                       placeholder="{{trans('file.Password')}}"
                                        class="form-control">
                             </div>
-                            <div class="col-md-6 form-group">
-                                <label>{{trans('file.Phone')}}<span class="text-danger">*</span></label>
-                                <input type="number" name="contact_no" id="contact_no"
+
+                            <div class="col-md-6 form-group hide-add">
+                                <label>{{trans('file.Phone')}}</label>
+                                <input type="text" name="contact_no" id="contact_no"
                                        placeholder="{{trans('file.Phone')}}"
-                                       class="form-control" value="{{ old('contact_no') }}">
+                                       class="form-control">
                             </div>
 
-                            <div class="col-md-6 form-group ">
-                                <label>{{trans('file.Website')}} </label>
+                            <div class="col-md-6 form-group hide-add">
+                                <label>{{trans('file.Website')}}</label>
                                 <input type="text" name="website" id="website" placeholder="Website"
                                        class="form-control">
                             </div>
 
-                            <div class="col-md-6 form-group hide-edit">
-                                <label>{{trans('file.Password')}} <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <input type="password" name="password" id="password"
-                                           placeholder="{{trans('file.Password')}}"
-                                           class="form-control">
-                                </div>
-                            </div>
-
-                            <div class="col-md-6 form-group">
-                                <label>{{__('Address Line 1')}} </label>
+                            <div class="col-md-6 form-group hide-add">
+                                <label>{{__('Address Line 1')}}</label>
                                 <input type="text" name="address1" id="address1" placeholder="{{__('Address Line 1')}}"
                                        class="form-control">
                             </div>
 
-                            <div class="col-md-6 form-group">
-                                <label>{{__('Address Line 2')}} </label>
+                            <div class="col-md-6 form-group hide-add">
+                                <label>{{__('Address Line 2')}}</label>
                                 <input type="text" name="address2" id="address2" placeholder="{{__('Address Line 2')}}"
                                        class="form-control">
                             </div>
 
-                            <div class="col-md-6 form-group">
-                                <label>{{trans('file.City')}} </label>
+                            <div class="col-md-6 form-group hide-add">
+                                <label>{{trans('file.City')}}</label>
                                 <input type="text" name="city" id="city" placeholder="{{trans('file.City')}}"
                                        class="form-control">
                             </div>
 
-                            <div class="col-md-6 form-group">
-                                <label>{{trans('file.State/Province')}} </label>
-                                <input type="text" name="state" id="state"
-                                       placeholder="{{trans('file.State/Province')}}"
+                            <div class="col-md-6 form-group hide-add">
+                                <label>{{trans('file.State/Province')}}</label>
+                                <input type="text" name="state" id="state" placeholder="{{trans('file.State/Province')}}"
                                        class="form-control">
                             </div>
 
-                            <div class="col-md-6 form-group">
-                                <label>{{trans('file.ZIP')}} </label>
+                            <div class="col-md-6 form-group hide-add">
+                                <label>{{trans('file.ZIP')}}</label>
                                 <input type="text" name="zip" id="zip" placeholder="{{trans('file.ZIP')}}"
                                        class="form-control">
                             </div>
 
-
-                            <div class="col-md-6 form-group">
-                                    <label>{{trans('file.Country')}}</label>
-                                    <select name="country" id="country" class="form-control selectpicker"
-                                            data-live-search="true" data-live-search-style="contains"
-                                            title='{{__('Selecting',['key'=>trans('file.Country')])}}...'>
-                                        @foreach($countries as $country)
-                                            <option value="{{$country->id}}">{{$country->name}}</option>
-                                        @endforeach
-                                    </select>
+                            <div class="col-md-6 form-group hide-add">
+                                <label>{{trans('file.Country')}}</label>
+                                <select name="country" id="country" class="form-control selectpicker"
+                                        data-live-search="true" data-live-search-style="contains"
+                                        title='{{__('Selecting',['key'=>trans('file.Country')])}}...'>
+                                    @foreach($countries as $country)
+                                        <option value="{{$country->id}}">{{$country->name}}</option>
+                                    @endforeach
+                                </select>
                             </div>
 
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-6 form-group hide-add">
                                 <label for="profile_photo">{{ __('Image') }}</label>
-                                <input type="file" id="profile_photo"
-                                       class="form-control @error('photo') is-invalid @enderror"
-                                       name="profile_photo"
-                                       placeholder={{trans('file.Upload')}} {{trans('file.Photo')}}>
+                                <input type="file" id="profile_photo" class="form-control" name="profile_photo">
                             </div>
 
                             <div class="col-md-6 form-group custom-control custom-checkbox hide-add">
-                                <input type="checkbox" class="custom-control-input" name="is_active" id="is_active"
-                                       value="1" checked>
+                                <input type="checkbox" class="custom-control-input" name="is_active" id="is_active" value="1">
                                 <label class="custom-control-label" for="is_active">{{trans('file.Active')}}</label>
                             </div>
 
-
-                            <div class="container">
+                            <div class="col-md-12">
                                 <div class="form-group" align="center">
                                     <input type="hidden" name="action" id="action"/>
                                     <input type="hidden" name="hidden_id" id="hidden_id"/>
@@ -209,15 +201,14 @@
         "use strict";
 
         $(document).ready(function () {
+            $('.hide-add').hide();
 
             if (window.location.href.indexOf('#formModal') != -1) {
                 $('.modal-title').text('{{__('Add Client')}}');
-                $('#store_profile_photo').html('');
                 $('#action_button').val('{{trans("file.Add")}}');
                 $('#action').val('{{trans("file.Add")}}');
                 $('.hide-add').hide();
                 $('.hide-edit').show();
-                
                 $('#formModal').modal('show');
             }
 
@@ -271,14 +262,6 @@
                         name: 'company_name',
                     },
                     {
-                        data: 'website',
-                        name: 'website',
-                    },
-                    {
-                        data: 'contact_no',
-                        name: 'contact_no',
-                    },
-                    {
                         data: 'email',
                         name: 'email',
                     },
@@ -303,7 +286,7 @@
                 'columnDefs': [
                     {
                         "orderable": false,
-                        'targets': [0, 6],
+                        'targets': [0, 4],
                     },
                     {
                         'render': function (data, type, row, meta) {
@@ -363,11 +346,13 @@
 
         $('#create_record').on('click', function () {
             $('.modal-title').text('{{__('Add Client')}}');
+            $('#sample_form')[0].reset();
             $('#store_profile_photo').html('');
             $('#action_button').val('{{trans("file.Add")}}');
             $('#action').val('{{trans("file.Add")}}');
             $('.hide-add').hide();
             $('.hide-edit').show();
+            $('select').selectpicker('refresh');
             $('#formModal').modal('show');
         });
 
@@ -458,12 +443,12 @@
                 dataType: "json",
                 success: function (html) {
 
-                    $('#company_name').val(html.data.company_name);
+                    $('#company_id').selectpicker('val', html.company_id || '');
                     $('#username').val(html.data.username);
                     $('#first_name').val(html.data.first_name);
                     $('#last_name').val(html.data.last_name);
-                    $('#contact_no').val(html.data.contact_no);
                     $('#email').val(html.data.email);
+                    $('#contact_no').val(html.data.contact_no === '-' ? '' : html.data.contact_no);
                     $('#website').val(html.data.website);
                     $('#address1').val(html.data.address1);
                     $('#address2').val(html.data.address2);
@@ -477,9 +462,10 @@
                         $('#is_active').prop('checked', false);
                     }
                     if (html.data.profile) {
-                        $('#store_profile_photo').html("<img src={{ URL::to('/public') }}/uploads/profile_photos/" + html.data.profile + " width='70'  class='img-thumbnail' />");
-                        $('#store_profile_photo').append("<input type='hidden' name='hidden_image' value='" + html.data.profile + "'  />");
+                        $('#store_profile_photo').html("<img src={{ URL::to('/public') }}/uploads/profile_photos/" + html.data.profile + " width='70' class='img-thumbnail' />");
+                        $('#store_profile_photo').append("<input type='hidden' name='hidden_image' value='" + html.data.profile + "' />");
                     }
+                    $('#company_id').selectpicker('refresh');
 
                     $('#hidden_id').val(html.data.id);
                     $('.modal-title').text('{{trans('file.Edit')}}');

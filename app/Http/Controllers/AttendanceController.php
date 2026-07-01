@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Models\EmployeeActivityLog;
 use App\Models\GeneralSetting;
 use App\Models\Holiday;
+use App\Models\IpSetting;
 use App\Imports\AttendancesImport;
 use App\Imports\AttendancesImportDevice;
 use Carbon\Carbon;
@@ -144,6 +145,33 @@ class AttendanceController extends Controller {
         return null;
     }
 
+    protected function validateIpBasedAttendance(Employee $employee, Request $request): ?string
+    {
+        if (($employee->attendance_type ?? '') !== 'ip_based') {
+            return null;
+        }
+
+        $ipSettings = IpSetting::all();
+
+        if ($ipSettings->isEmpty()) {
+            return __('Office IP is not configured.');
+        }
+
+        $clientIp = (string) $request->ip();
+        $clientPrefix = implode('.', array_slice(explode('.', $clientIp), 0, 3));
+        $allowed = $ipSettings->contains(function ($ipRow) use ($clientPrefix) {
+            $configuredPrefix = implode('.', array_slice(explode('.', (string) $ipRow->ip_address), 0, 3));
+
+            return $configuredPrefix !== '' && $configuredPrefix === $clientPrefix;
+        });
+
+        if (! $allowed) {
+            return __('Please connect to office internet for attendance.');
+        }
+
+        return null;
+    }
+
     protected function mergeClockInLocation(array &$data, Request $request): void
     {
         $data = array_merge($data, AttendanceLocationCapture::clockInFields($request));
@@ -154,10 +182,45 @@ class AttendanceController extends Controller {
         $data = array_merge($data, AttendanceLocationCapture::clockOutFields($request));
     }
 
+    /**
+     * Apply company / client / location / department / employee filters to an employee query.
+     */
+    protected function applyAttendanceEmployeeFilters($query, Request $request, string $prefix = ''): void
+    {
+        $companyKey = $prefix ? $prefix.'company' : 'company_id';
+        $clientKey = $prefix ? $prefix.'client' : 'client_id';
+        $locationKey = $prefix ? $prefix.'location' : 'location_id';
+        $employeeKey = $prefix ? $prefix.'employee' : 'employee_id';
+
+        if ($request->filled($employeeKey)) {
+            $query->where('id', (int) $request->input($employeeKey));
+
+            return;
+        }
+
+        if ($request->filled($companyKey)) {
+            $query->where('company_id', (int) $request->input($companyKey));
+        }
+        if ($request->filled($clientKey)) {
+            $query->where('client_id', (int) $request->input($clientKey));
+        }
+        if ($request->filled($locationKey)) {
+            $query->where('location_id', (int) $request->input($locationKey));
+        }
+        if ($request->filled('department_id')) {
+            $query->where('department_id', (int) $request->input('department_id'));
+        }
+    }
+
 	public function index(Request $request)
 	{
 		$logged_user = auth()->user();
-		$canManageScopedAttendance = ManagedEmployeeScope::usesScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
+
+        if (! $logged_user->can('daily-attendances')) {
+            return abort(403, __('You are not authorized'));
+        }
+
+		$canManageScopedAttendance = ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
 		$managedEmployeeIds = $canManageScopedAttendance
 			? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
 			: [];
@@ -430,6 +493,16 @@ class AttendanceController extends Controller {
         $employee = Employee::with('location')->findOrFail($id);
         if ((int) optional(auth()->user())->id !== (int) $id && ! auth()->user()->can('view-attendance')) {
             return redirect()->back()->withErrors([__('You are not authorized')]);
+        }
+
+        $gpsError = AttendanceLocationCapture::gpsValidationError($request);
+        if ($gpsError) {
+            return redirect()->back()->withErrors([$gpsError]);
+        }
+
+        $ipError = $this->validateIpBasedAttendance($employee, $request);
+        if ($ipError) {
+            return redirect()->back()->withErrors([$ipError]);
         }
 
         $locationError = $this->validateLocationBasedAttendance($request, $employee);
@@ -1099,8 +1172,13 @@ class AttendanceController extends Controller {
 	public function dateWiseAttendance(Request $request)
 	{
 		$logged_user = auth()->user();
+
+        if (! $logged_user->can('date-wise-attendances')) {
+            return abort(403, __('You are not authorized'));
+        }
+
         $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
-        $canManageScopedAttendance = ManagedEmployeeScope::usesScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
+        $canManageScopedAttendance = ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
         $managedEmployeeIds = $canManageScopedAttendance
             ? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
             : [];
@@ -1123,7 +1201,8 @@ class AttendanceController extends Controller {
 
         if (request()->ajax())
         {
-            if (!$request->company_id && !$request->department_id && !$request->employee_id)
+            if (!$request->company_id && !$request->department_id && !$request->employee_id
+                && !$request->client_id && !$request->location_id)
             {
                 $emp_attendance_date_range = [];
             }
@@ -1144,15 +1223,8 @@ class AttendanceController extends Controller {
                     $employee->whereIn('id', $managedEmployeeIds);
                 }
 
-                if ($request->employee_id) {
-                    $employee = $employee->where('id', '=', $request->employee_id)->get();
-                }
-                elseif ($request->department_id) {
-                    $employee = $employee->where('department_id', '=', $request->department_id)->get();
-                }
-                elseif ($request->company_id) {
-                    $employee = $employee->where('company_id', '=', $request->company_id)->get();
-                }
+                $this->applyAttendanceEmployeeFilters($employee, $request);
+                $employee = $employee->get();
 
                 $begin = new DateTime($start_date);
                 $end = new DateTime($end_date);
@@ -1388,8 +1460,13 @@ class AttendanceController extends Controller {
 	public function monthlyAttendance(Request $request)
 	{
 		$logged_user = auth()->user();
+
+        if (! $logged_user->can('monthly-attendances')) {
+            return abort(403, __('You are not authorized'));
+        }
+
         $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
-        $canManageScopedAttendance = ManagedEmployeeScope::usesScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
+        $canManageScopedAttendance = ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
         $managedEmployeeIds = $canManageScopedAttendance
             ? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
             : [];
@@ -1457,58 +1534,28 @@ class AttendanceController extends Controller {
 				}
 				else
 				{
-					//Previous
-					if (!empty($request->filter_company && $request->filter_employee))
+					$employee = Employee::with(['officeShift', 'employeeAttendance' => function ($query) use ($first_date, $last_date)
 					{
+						$query->whereBetween('attendance_date', [$first_date, $last_date]);
+					},
+						'employeeLeave.LeaveType',
+						'company:id,company_name',
+						'company.companyHolidays'
+					])
+						->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id')
+						->where('is_active', 1)
+						->where(function ($query) use ($last_date) {
+							$query->whereNull('exit_date')
+								->orWhere('exit_date', '>=', $last_date)
+								->orWhere('exit_date', '0000-00-00');
+						});
 
-						$employee = Employee::with(['officeShift', 'employeeAttendance' => function ($query) use ($first_date, $last_date)
-						{
-							$query->whereBetween('attendance_date', [$first_date, $last_date]);
-						},
-							'employeeLeave.LeaveType',
-							'company:id,company_name',
-							'company.companyHolidays'
-						])
-							->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id')
-							->whereId($request->filter_employee)->get();
+					if ($request->filter_company || $request->filter_employee
+						|| $request->filter_client || $request->filter_location) {
+						$this->applyAttendanceEmployeeFilters($employee, $request, 'filter_');
+					}
 
-					} elseif (!empty($request->filter_company))
-					{
-						$employee = Employee::with(['officeShift', 'employeeAttendance' => function ($query) use ($first_date, $last_date)
-						{
-							$query->whereBetween('attendance_date', [$first_date, $last_date]);
-						},
-							'employeeLeave.LeaveType',
-							'company:id,company_name',
-							'company.companyHolidays'
-						])
-							->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id')
-							->where('company_id', $request->filter_company)->where('is_active',1)
-                            ->where(function ($query) use ($last_date) {
-								$query->whereNull('exit_date')
-									->orWhere('exit_date', '>=', $last_date)
-									->orWhere('exit_date', '0000-00-00');
-							})->get();
-					}
-					else
-					{
-						$employee = Employee::with(['officeShift', 'employeeAttendance' => function ($query) use ($first_date, $last_date)
-						{
-							$query->whereBetween('attendance_date', [$first_date, $last_date]);
-						},
-							'employeeLeave.LeaveType',
-							'company:id,company_name',
-							'company.companyHolidays'
-						])
-							->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id')
-                            ->where('is_active',1)
-                            ->where(function ($query) use ($last_date) {
-								$query->whereNull('exit_date')
-									->orWhere('exit_date', '>=', $last_date)
-									->orWhere('exit_date', '0000-00-00');
-							})
-							->get();
-					}
+					$employee = $employee->get();
 				}
 
                 if ($canManageScopedAttendance) {

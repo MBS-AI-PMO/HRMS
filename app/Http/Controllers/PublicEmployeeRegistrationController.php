@@ -293,7 +293,7 @@ class PublicEmployeeRegistrationController extends Controller
             return response()->json(['error' => $e->getMessage()], 422);
         }
 
-        $isActive = $setting->auto_approve ? 1 : 0;
+        $isActive = 1;
         $joiningDate = ! empty($fields['joining_date']['enabled']) && $request->joining_date
             ? $request->joining_date
             : now()->format(env('Date_Format', 'Y-m-d'));
@@ -389,9 +389,7 @@ class PublicEmployeeRegistrationController extends Controller
         );
 
         $message = $setting->success_message
-            ?: ($setting->auto_approve
-                ? __('Registration successful. Login credentials have been sent to your email.')
-                : __('Registration submitted. Admin will review your account. Login credentials will be emailed after approval.'));
+            ?: __('Registration successful. Login credentials have been sent to your email.');
 
         if (! $emailSent) {
             $message .= ' '.__('We could not send the login email. Please contact your administrator for your password.');

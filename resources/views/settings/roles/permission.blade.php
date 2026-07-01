@@ -3,6 +3,30 @@
 
 @push('css')
     <link rel="stylesheet" href="<?php echo asset('css/kendo.default.v2.min.css') ?>" type="text/css">
+    <style>
+        .location-head-perm-banner {
+            background: linear-gradient(135deg, #e0f2fe 0%, #fef3c7 100%);
+            border: 2px solid #0284c7;
+            border-radius: 8px;
+            padding: 14px 18px;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.12);
+        }
+
+        .location-head-perm-banner strong {
+            color: #0c4a6e;
+            font-size: 1.05rem;
+        }
+
+        #treeview1 .location-head-perm-highlight {
+            background: linear-gradient(90deg, #fef3c7 0%, #fde68a 100%) !important;
+            border: 2px solid #d97706 !important;
+            border-radius: 6px !important;
+            padding: 6px 10px !important;
+            font-weight: 700 !important;
+            color: #92400e !important;
+            box-shadow: 0 1px 4px rgba(217, 119, 6, 0.2);
+        }
+    </style>
 @endpush
 
 
@@ -20,6 +44,14 @@
                         <div class="demo-section k-content">
 
                             <h4>{{__('Select modules')}}</h4>
+
+                            @if (strtolower(trim($role->name)) === 'employee')
+                            <div class="location-head-perm-banner mb-3">
+                                <strong>{{ __('Employee (Location Head) — scoped by assignment') }}</strong>
+                                <p class="mb-0 mt-1 small text-muted">{{ __('Enable options below for location heads / team leads. Regular employees will not get these menus unless they are assigned in Organization.') }}</p>
+                            </div>
+                            @endif
+
                             <div class="row">
                                 <div class="col-md-4">
                                     <div id="treeview1"></div>
@@ -50,7 +82,7 @@
 
 @endsection
 
-@push('scripts').
+@push('scripts')
 <script type="text/javascript" src="<?php echo asset('js/kendo.all.min.js') ?>"></script>
 
 <script type="text/javascript">
@@ -59,8 +91,98 @@
 
         var checkedNodes;
 
-
         $(document).ready(function () {
+
+            function getPermissionTrees() {
+                return [
+                    $('#treeview1').data('kendoTreeView'),
+                    $('#treeview2').data('kendoTreeView'),
+                    $('#treeview3').data('kendoTreeView')
+                ].filter(Boolean);
+            }
+
+            function checkedNodeIds(nodes, targetNodes) {
+                for (var i = 0; i < nodes.length; i++) {
+                    if (nodes[i].checked) {
+                        getParentIds(nodes[i], targetNodes);
+                        targetNodes.push(nodes[i].id);
+                    }
+
+                    if (nodes[i].hasChildren) {
+                        checkedNodeIds(nodes[i].children.view(), targetNodes);
+                    }
+                }
+            }
+
+            function getParentIds(node, targetNodes) {
+                if (node.parent() && node.parent().parent() && targetNodes.indexOf(node.parent().parent().id) === -1) {
+                    getParentIds(node.parent().parent(), targetNodes);
+                    targetNodes.push(node.parent().parent().id);
+                }
+            }
+
+            function refreshCheckedNodes() {
+                checkedNodes = [];
+                getPermissionTrees().forEach(function(treeView) {
+                    checkedNodeIds(treeView.dataSource.view(), checkedNodes);
+                });
+            }
+
+            function onCheck() {
+                refreshCheckedNodes();
+            }
+
+            function submitPermissions() {
+                refreshCheckedNodes();
+
+                $.ajaxSetup({
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    }
+                });
+
+                $.ajax({
+                    type: 'POST',
+                    url: '{{ route('set_permission') }}',
+                    data: {
+                        checkedId: checkedNodes,
+                        roleId: "{{ $role->id }}"
+                    },
+                    success: function (data) {
+                        var html = '';
+                        if (data.errors) {
+                            html = '<div class="alert alert-danger">';
+                            for (var count = 0; count < data.errors.length; count++) {
+                                html += '<p>' + data.errors[count] + '</p>';
+                            }
+                            html += '</div>';
+                        }
+                        if (data.success) {
+                            html = '<div class="alert alert-success">' + data.success + '</div>';
+                        }
+                        if (data.error) {
+                            html = '<div class="alert alert-danger">' + data.error + '</div>';
+                        }
+                        $('#form_result_permission').html(html).slideDown(100).delay(3000).slideUp(100);
+                    },
+                    error: function (xhr) {
+                        var msg = (xhr.responseJSON && xhr.responseJSON.error)
+                            ? xhr.responseJSON.error
+                            : '{{ __('Could not save permissions. Please try again.') }}';
+                        $('#form_result_permission').html('<div class="alert alert-danger">' + msg + '</div>').slideDown(100);
+                    }
+                });
+            }
+
+            function highlightLocationHeadPermissionNode(e) {
+                var tree = e.sender;
+                tree.element.find('.k-item').each(function() {
+                    var dataItem = tree.dataItem(this);
+                    if (dataItem && dataItem.id === 'location-head-access') {
+                        $(this).children('div').find('> .k-in').first().addClass('location-head-perm-highlight');
+                    }
+                });
+            }
 
             $("ul#setting").siblings('a').attr('aria-expanded', 'true');
             $("ul#setting").addClass("show");
@@ -79,7 +201,69 @@
                             checkChildren: true
                         },
                         check: onCheck,
+                        dataBound: highlightLocationHeadPermissionNode,
                         dataSource: [
+                            {
+                                id: 'location-head-access',
+                                text: "{{__('Employee (Location Head) — scoped by assignment')}}",
+                                expanded: true,
+                                checked: ($.inArray('location-head-access', result) >= 0) ? true : false,
+                                items: [
+                                    {
+                                        id: 'view-my-team',
+                                        text: '{{__('My Team')}}',
+                                        checked: ($.inArray('view-my-team', result) >= 0) ? true : false
+                                    },
+                                    {
+                                        id: 'view-my-locations',
+                                        text: '{{__('My Centers / Locations')}}',
+                                        checked: ($.inArray('view-my-locations', result) >= 0) ? true : false
+                                    },
+                                    {
+                                        id: 'scoped-view-employees',
+                                        text: '{{__('Employee List (Scoped)')}}',
+                                        checked: ($.inArray('scoped-view-employees', result) >= 0) ? true : false
+                                    },
+                                    {
+                                        id: 'scoped-view-employee-details',
+                                        text: '{{__('Employee Details (Scoped)')}}',
+                                        checked: ($.inArray('scoped-view-employee-details', result) >= 0) ? true : false
+                                    },
+                                    {
+                                        id: 'scoped-manage-leave',
+                                        text: '{{__('Leave / WFH Management (Scoped)')}}',
+                                        checked: ($.inArray('scoped-manage-leave', result) >= 0) ? true : false
+                                    },
+                                    {
+                                        id: 'location-head-reports',
+                                        text: '{{__('Reports')}}',
+                                        expanded: true,
+                                        checked: ($.inArray('location-head-reports', result) >= 0) ? true : false,
+                                        items: [
+                                            {
+                                                id: 'daily-attendances',
+                                                text: '{{__('Daily Attendances')}}',
+                                                checked: ($.inArray('daily-attendances', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'date-wise-attendances',
+                                                text: '{{__('Date Wise Attendances')}}',
+                                                checked: ($.inArray('date-wise-attendances', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'monthly-attendances',
+                                                text: '{{__('Monthly Attendances')}}',
+                                                checked: ($.inArray('monthly-attendances', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'report-clock-in-locations',
+                                                text: '{{__('Clock-in Location Report')}}',
+                                                checked: ($.inArray('report-clock-in-locations', result) >= 0) ? true : false
+                                            },
+                                        ]
+                                    },
+                                ]
+                            },
                             {
                                 id: 'user',
                                 text: "{{trans('User')}}",
@@ -706,6 +890,11 @@
                                         id: 'report-employee',
                                         text: '{{__('Employee Report')}}',
                                         checked: ($.inArray('report-employee', result) >= 0) ? true : false
+                                    },
+                                    {
+                                        id: 'report-clock-in-locations',
+                                        text: '{{__('Clock-in Location Report')}}',
+                                        checked: ($.inArray('report-clock-in-locations', result) >= 0) ? true : false
                                     },
                                     {
                                         id: 'report-account',
@@ -1754,104 +1943,19 @@
                         ]
                     });
 
-
-                    // function that gathers IDs of checked nodes
-                    function checkedNodeIds(nodes, checkedNodes) {
-
-                        for (var i = 0; i < nodes.length; i++) {
-                            if (nodes[i].checked) {
-                                getParentIds(nodes[i], checkedNodes);
-                                checkedNodes.push(nodes[i].id);
-                            }
-
-                            if (nodes[i].hasChildren) {
-                                checkedNodeIds(nodes[i].children.view(), checkedNodes);
-                            }
-                        }
-                    }
-
-                    function getParentIds(node, checkedNodes) {
-                        if (node.parent() && node.parent().parent() && checkedNodes.indexOf(node.parent().parent().id) == -1) {
-                            getParentIds(node.parent().parent(), checkedNodes);
-                            checkedNodes.push(node.parent().parent().id);
-                        }
-                    }
-
-                    // show checked node IDs on datasource change
-                    function onCheck() {
-                        checkedNodes = [];
-                        var treeView1 = $('#treeview1').data("kendoTreeView"),
-                            message;
-                        var treeView2 = $('#treeview2').data("kendoTreeView"),
-                            message;
-                        var treeView3 = $('#treeview3').data("kendoTreeView"),
-                            message;
-
-                        //console.log(treeView.dataSource.view());
-                        //console.log(checkedNodes);
-
-                        checkedNodeIds(treeView1.dataSource.view(), checkedNodes);
-                        checkedNodeIds(treeView2.dataSource.view(), checkedNodes);
-                        checkedNodeIds(treeView3.dataSource.view(), checkedNodes);
-
-                        // if (checkedNodes.length > 0) {
-                        //     message = "IDs of checked nodes: " + checkedNodes.join();
-                        // } else {
-                        //     message = "No nodes checked.";
-                        // }
-                        // $("#result").html(message);
-                    }
+                    refreshCheckedNodes();
 
                 }
             });
 
 
             $('#set_permission_btn').on('click', function () {
-
-                if (checkedNodes) {
-                    $.ajaxSetup({
-                        headers: {
-                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                        }
-                    });
-                    var target = '{{route('set_permission')}}';
-
-                    $.ajax({
-                        type: 'POST',
-                        url: target,
-                        data: {
-                            checkedId: checkedNodes,
-                            roleId: "{{ $role->id}}",
-                        },
-                        success: function (data) {
-                            var html = '';
-                            if (data.errors) {
-                                html = '<div class="alert alert-danger">';
-                                for (var count = 0; count < data.errors.length; count++) {
-                                    html += '<p>' + data.errors[count] + '</p>';
-                                }
-                                html += '</div>';
-                            }
-                            if (data.success) {
-                                html = '<div class="alert alert-success">' + data.success + '</div>';
-                            }
-                            if (data.error) {
-                                html = '<div class="alert alert-danger">' + data.error + '</div>';
-                            }
-                            $('#form_result_permission').html(html).slideDown(100).delay(3000).slideUp(100);
-                        },
-                        error: function (xhr) {
-                            var msg = (xhr.responseJSON && xhr.responseJSON.error)
-                                ? xhr.responseJSON.error
-                                : '{{ __('Could not save permissions. Please try again.') }}';
-                            $('#form_result_permission').html('<div class="alert alert-danger">' + msg + '</div>').slideDown(100);
-                        }
-                    });
-                } else {
+                if (!checkedNodes || !checkedNodes.length) {
                     alert('{{__('Please select atleast one checkbox')}}');
+                    return;
                 }
 
-
+                submitPermissions();
             });
 
         });

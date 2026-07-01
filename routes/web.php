@@ -221,8 +221,9 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::get('/delete', [LanguageSettingController::class, 'languageDelete'])->name('language.delete');
     });
 
-    Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth', 'admin']], function () {
-        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::group(['prefix' => 'admin', 'as' => 'admin.', 'middleware' => ['auth']], function () {
+        Route::get('/dashboard', [DashboardController::class, 'hrDashboard'])->name('dashboard');
+        Route::get('/executive', [DashboardController::class, 'executiveDashboard'])->name('executive')->middleware('admin');
     });
 
     Route::group(['prefix' => 'employee', 'as' => 'employee.', 'middleware' => ['auth']], function () {
@@ -514,6 +515,12 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::get('project', [ReportController::class, 'project'])->name('report.project');
         Route::get('task', [ReportController::class, 'task'])->name('report.task');
         Route::get('employees', [ReportController::class, 'employees'])->name('report.employees');
+        Route::get('login-locations', [ReportController::class, 'loginLocations'])->name('report.login-locations');
+        Route::get('reverse-geocode', [ReportController::class, 'reverseGeocode'])->name('report.reverse-geocode');
+        Route::post('reverse-geocode', [ReportController::class, 'storeReverseGeocode'])->name('report.reverse-geocode.store');
+        Route::get('summary-dashboard', [ReportController::class, 'summaryDashboard'])->name('report.summary-dashboard');
+        Route::get('summary-dashboard/pdf', [ReportController::class, 'summaryDashboardPdf'])->name('report.summary-dashboard.pdf');
+        Route::get('summary-dashboard/csv', [ReportController::class, 'summaryDashboardCsv'])->name('report.summary-dashboard.csv');
         Route::get('account', [ReportController::class, 'account'])->name('report.account');
         Route::get('expense', [ReportController::class, 'expense'])->name('report.expense');
         Route::get('deposit', [ReportController::class, 'deposit'])->name('report.deposit');
@@ -524,6 +531,11 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::prefix('organization')->middleware(['auth', 'secure.app'])->group(function () {
 
         Route::get('locations/my', [LocationController::class, 'myLocations'])->name('locations.my');
+        Route::get('locations/clients/select', [LocationController::class, 'clientsSelect'])->name('locations.clients_select');
+        Route::get('locations/hierarchy/clients', [LocationController::class, 'hierarchyClients'])->name('locations.hierarchy.clients');
+        Route::get('locations/hierarchy/projects', [LocationController::class, 'hierarchyProjects'])->name('locations.hierarchy.projects');
+        Route::get('locations/hierarchy/departments', [LocationController::class, 'hierarchyDepartments'])->name('locations.hierarchy.departments');
+        Route::get('locations/hierarchy/employees', [LocationController::class, 'hierarchyEmployees'])->name('locations.hierarchy.employees');
         Route::get('locations/employees/by-companies', [LocationController::class, 'employeesByCompanies'])->name('locations.employees_by_companies');
         Route::resource('locations', LocationController::class)->except([
             'create', 'show',
@@ -531,6 +543,8 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::get('locations/edit/{id}', [LocationController::class, 'edit'])->name('locations.edit');
         Route::get('locations/{id}/shift-assignment', [LocationController::class, 'shiftAssignmentForm'])->name('locations.shift_assignment');
         Route::post('locations/assign-shift', [LocationController::class, 'assignShift'])->name('locations.assign_shift');
+        Route::get('locations/{id}/attendance-type', [LocationController::class, 'attendanceTypeForm'])->name('locations.attendance_type');
+        Route::post('locations/update-attendance-type', [LocationController::class, 'updateLocationAttendanceType'])->name('locations.update_attendance_type');
         Route::post('locations/update', [LocationController::class, 'update'])->name('locations.update');
         Route::get('locations/delete/{id}', [LocationController::class, 'delete']);
         Route::post('locations/delete/selected', [LocationController::class, 'delete_by_selection'])->name('mass_delete_location');
@@ -810,6 +824,8 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
 
     Route::post('dynamic_dependent/fetch_department', [DynamicDependent::class, 'fetchDepartment'])->name('dynamic_department');
     Route::post('dynamic_dependent/fetch_employee', [DynamicDependent::class, 'fetchEmployee'])->name('dynamic_employee');
+    Route::post('dynamic_dependent/fetch_clients', [DynamicDependent::class, 'fetchClients'])->name('dynamic_clients');
+    Route::post('dynamic_dependent/fetch_locations', [DynamicDependent::class, 'fetchLocations'])->name('dynamic_locations');
     Route::post('dynamic_dependent/fetch_employee_department', [DynamicDependent::class, 'fetchEmployeeDepartment'])->name('dynamic_employee_department');
     Route::post('dynamic_dependent/fetch_designation_department', [DynamicDependent::class, 'fetchDesignationDepartment'])->name('dynamic_designation_department');
     Route::post('dynamic_dependent/fetch_office_shifts', [DynamicDependent::class, 'fetchOfficeShifts'])->name('dynamic_office_shifts');

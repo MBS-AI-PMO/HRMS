@@ -55,6 +55,52 @@ class CompanyScope
         return static::$companyId;
     }
 
+    public static function clientCompaniesForSelect()
+    {
+        $query = company::select('id', 'company_name')
+            ->whereRaw('LOWER(company_name) NOT LIKE ?', ['%solochoice%'])
+            ->orderBy('company_name');
+
+        if (static::applies()) {
+            $companyId = static::companyId();
+
+            if (! $companyId) {
+                return collect();
+            }
+
+            $query->where('id', $companyId);
+        }
+
+        return $query->get();
+    }
+
+    public static function solochoicezCompanyId(): ?int
+    {
+        $id = company::query()
+            ->whereRaw('LOWER(company_name) LIKE ?', ['%solochoice%'])
+            ->value('id');
+
+        return $id ? (int) $id : null;
+    }
+
+    public static function solochoicezEmployeesForSelect()
+    {
+        $companyId = static::solochoicezCompanyId();
+
+        if (! $companyId) {
+            return collect();
+        }
+
+        return Employee::withoutGlobalScope(AuthCompanyScope::class)
+            ->select('id', 'first_name', 'last_name')
+            ->where('company_id', $companyId)
+            ->where('is_active', 1)
+            ->whereNull('exit_date')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
+    }
+
     public static function companiesForSelect()
     {
         $query = company::select('id', 'company_name')->orderBy('company_name');
@@ -78,6 +124,36 @@ class CompanyScope
     public static function companiesForLocationHead(int $userId)
     {
         $locationIds = location::locationIdsHeadedByUser($userId);
+
+        if ($locationIds === []) {
+            return collect();
+        }
+
+        $companyIds = DB::table('company_location')
+            ->whereIn('location_id', $locationIds)
+            ->pluck('company_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($companyIds === []) {
+            return collect();
+        }
+
+        return company::withoutGlobalScopes()
+            ->select('id', 'company_name')
+            ->whereIn('id', $companyIds)
+            ->orderBy('company_name')
+            ->get();
+    }
+
+    /**
+     * Companies linked to the given location IDs (for scoped location managers).
+     */
+    public static function companiesForLocationIds(array $locationIds)
+    {
+        $locationIds = array_values(array_filter(array_map('intval', $locationIds)));
 
         if ($locationIds === []) {
             return collect();

@@ -18,20 +18,27 @@ class PermissionController extends Controller {
 
 		try {
 			$role = Role::findById((int) $request->input('roleId'));
-			$requested = array_values(array_filter((array) $request->input('checkedId', [])));
+			$requested = array_values(array_unique(array_filter((array) $request->input('checkedId', []), function ($name) {
+				return is_string($name) && trim($name) !== '';
+			})));
 
-			$this->ensureTeamManagementPermissionsExist();
+			$this->ensureDefaultPermissionsExist();
+			$this->ensurePermissionsExist($requested);
 
-			$existing = Permission::query()
+			$registrar = app(\Spatie\Permission\PermissionRegistrar::class);
+			$registrar->forgetCachedPermissions();
+
+			$permissions = Permission::query()
+				->where('guard_name', 'web')
 				->whereIn('name', $requested)
-				->pluck('name')
-				->all();
+				->get();
 
-			$missing = array_diff($requested, $existing);
+			$missing = array_diff($requested, $permissions->pluck('name')->all());
 
-			$role->syncPermissions($existing);
+			// Sync models (not name strings) so Spatie does not rely on a stale permission cache.
+			$role->syncPermissions($permissions);
 
-			app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+			$registrar->forgetCachedPermissions();
 
 			$message = __('Successfully saved the permission');
 			if ($missing !== []) {
@@ -48,20 +55,61 @@ class PermissionController extends Controller {
 		}
 	}
 
-	protected function ensureTeamManagementPermissionsExist(): void
+	protected function ensurePermissionsExist(array $names): void
 	{
-		foreach ([
+		$now = now();
+
+		foreach ($names as $name) {
+			if (! is_string($name) || trim($name) === '') {
+				continue;
+			}
+
+			$name = trim($name);
+
+			$exists = DB::table('permissions')
+				->where('name', $name)
+				->where('guard_name', 'web')
+				->exists();
+
+			if ($exists) {
+				continue;
+			}
+
+			DB::table('permissions')->insert([
+				'name' => $name,
+				'guard_name' => 'web',
+				'created_at' => $now,
+				'updated_at' => $now,
+			]);
+		}
+	}
+
+	protected function ensureDefaultPermissionsExist(): void
+	{
+		$this->ensurePermissionsExist([
 			'team-management',
 			'view-team',
 			'store-team',
 			'edit-team',
 			'delete-team',
 			'organization',
-		] as $name) {
-			Permission::query()->firstOrCreate(
-				['name' => $name, 'guard_name' => 'web']
-			);
-		}
+			'location-head-access',
+			'view-my-team',
+			'view-my-locations',
+			'scoped-view-employees',
+			'scoped-view-employee-details',
+			'scoped-manage-leave',
+			'location-head-reports',
+			'report-clock-in-locations',
+			'daily-attendances',
+			'date-wise-attendances',
+			'monthly-attendances',
+		]);
+	}
+
+	protected function ensureTeamManagementPermissionsExist(): void
+	{
+		$this->ensureDefaultPermissionsExist();
 	}
 
 	public function rolePermission($id)

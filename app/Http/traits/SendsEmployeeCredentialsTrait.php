@@ -26,10 +26,10 @@ trait SendsEmployeeCredentialsTrait
         return [
             'registered_email' => NotificationRecipientResolver::resolveUserEmailAddress((int) $employee->id)
                 ?? strtolower(trim((string) $employee->email)),
-            'company_name' => $employee->company->company_name ?? '—',
-            'department_name' => $employee->department->department_name ?? '—',
-            'designation_name' => $employee->designation->designation_name ?? '—',
-            'office_shift_name' => $employee->officeShift->shift_name ?? '—',
+            'company_name' => $employee->company?->company_name ?? '—',
+            'department_name' => $employee->department?->department_name ?? '—',
+            'designation_name' => $employee->designation?->designation_name ?? '—',
+            'office_shift_name' => $employee->officeShift?->shift_name ?? '—',
         ];
     }
 

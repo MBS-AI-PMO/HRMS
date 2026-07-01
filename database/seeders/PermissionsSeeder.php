@@ -1529,6 +1529,46 @@ class PermissionsSeeder extends Seeder
 				'guard_name' => 'web',
 				'name' => 'delete-team'
 			),
+            array(
+				'id' => 303,
+				'guard_name' => 'web',
+				'name' => 'location-head-access'
+			),
+            array(
+				'id' => 304,
+				'guard_name' => 'web',
+				'name' => 'view-my-locations'
+			),
+            array(
+				'id' => 305,
+				'guard_name' => 'web',
+				'name' => 'scoped-view-employees'
+			),
+            array(
+				'id' => 306,
+				'guard_name' => 'web',
+				'name' => 'scoped-manage-leave'
+			),
+            array(
+				'id' => 307,
+				'guard_name' => 'web',
+				'name' => 'report-clock-in-locations'
+			),
+            array(
+				'id' => 308,
+				'guard_name' => 'web',
+				'name' => 'view-my-team'
+			),
+            array(
+				'id' => 309,
+				'guard_name' => 'web',
+				'name' => 'scoped-view-employee-details'
+			),
+            array(
+				'id' => 310,
+				'guard_name' => 'web',
+				'name' => 'location-head-reports'
+			),
 		);
 		DB::table('permissions')->insert($permissions);
     }

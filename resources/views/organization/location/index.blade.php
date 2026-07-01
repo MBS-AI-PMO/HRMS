@@ -19,6 +19,64 @@
             @endcan
         </div>
 
+        <div class="card mb-4">
+            <div class="card-header with-border">
+                <h3 class="card-title mb-0">{{ __('Filter Locations') }}</h3>
+            </div>
+            <div class="card-body">
+                <div class="row location-hierarchy-flow" id="location_filter_flow">
+                    <div class="col-md-2 form-group">
+                        <label>{{ trans('file.Company') }}</label>
+                        <select id="filter_company_id" class="form-control selectpicker hierarchy-select"
+                                data-live-search="true" data-live-search-style="contains"
+                                title="{{ __('All') }}">
+                            <option value="">{{ __('All') }}</option>
+                            @foreach ($companies as $company)
+                                <option value="{{ $company->id }}">{{ $company->company_name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 form-group">
+                        <label>{{ trans('file.Client') }}</label>
+                        <select id="filter_client_id" class="form-control selectpicker hierarchy-select" disabled
+                                data-live-search="true" data-live-search-style="contains"
+                                title="{{ __('All') }}">
+                            <option value="">{{ __('All') }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 form-group">
+                        <label>{{ trans('file.Project') }}</label>
+                        <select id="filter_project_id" class="form-control selectpicker hierarchy-select" disabled
+                                data-live-search="true" data-live-search-style="contains"
+                                title="{{ __('All') }}">
+                            <option value="">{{ __('All') }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 form-group">
+                        <label>{{ trans('file.Department') }}</label>
+                        <select id="filter_department_id" class="form-control selectpicker hierarchy-select" disabled
+                                data-live-search="true" data-live-search-style="contains"
+                                title="{{ __('All') }}">
+                            <option value="">{{ __('All') }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 form-group">
+                        <label>{{ trans('file.Employee') }}</label>
+                        <select id="filter_employee_id" class="form-control selectpicker hierarchy-select" disabled
+                                data-live-search="true" data-live-search-style="contains"
+                                title="{{ __('All') }}">
+                            <option value="">{{ __('All') }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 form-group d-flex align-items-end">
+                        <button type="button" class="btn btn-primary btn-block" id="apply_location_filters">
+                            <i class="fa fa-filter"></i> {{ trans('file.Search') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
 
         <div class="table-responsive">
             <table id="location-table" class="table ">
@@ -26,7 +84,7 @@
                 <tr>
                     <th class="not-exported"></th>
                     <th>{{trans('file.Location')}}</th>
-                    <th>{{ trans('file.Company') }}</th>
+                    <th>{{ __('Company / Client') }}</th>
                     <th>{{__('Location Head')}}</th>
                     <th>{{__('Address Line 1')}}</th>
                     <th>{{__('Address Line 2')}}</th>
@@ -69,24 +127,70 @@
                             </div>
 
                             <div class="col-md-6 form-group">
-                                <label>{{ trans('file.Company') }} *</label>
-                                <select name="company_ids[]" id="company_ids" class="form-control selectpicker"
-                                        data-live-search="true" data-live-search-style="contains" multiple
-                                        title='{{__('Selecting',['key'=>trans('file.Company')])}}...'>
-                                    @foreach($companies as $company)
-                                        <option value="{{$company->id}}">{{$company->company_name}}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-
-                            <div class="col-md-6 form-group">
                                 <label>{{__('Location Head')}}</label>
                                 <select name="location_head_ids[]" id="location_head" class="form-control selectpicker"
                                         data-live-search="true" data-live-search-style="contains" multiple
                                         title='{{__('Selecting',['key'=>trans('file.Employee')])}}...'>
                                 </select>
-                                <small class="text-muted">{{ __('Multiple location heads allowed. Shows employees from selected companies only.') }}</small>
+                                <small class="text-muted">{{ __('Select company, client, project, and department first to load employees.') }}</small>
+                            </div>
+
+                            <div class="col-md-12">
+                                <div class="location-hierarchy-panel border rounded bg-light p-3 mb-3">
+                                    <label class="d-block font-weight-bold mb-3 text-center">{{ __('Company') }} &rarr; {{ trans('file.Client') }} &rarr; {{ trans('file.Project') }} &rarr; {{ trans('file.Department') }} &rarr; {{ trans('file.Employee') }}</label>
+                                    <div class="row location-hierarchy-flow">
+                                        <div class="col-md-2 form-group">
+                                            <label>{{ trans('file.Company') }} *</label>
+                                            <select name="owner_company_id" id="hierarchy_company_id" required
+                                                    class="form-control selectpicker hierarchy-select"
+                                                    data-live-search="true"
+                                                    data-live-search-style="contains"
+                                                    title='{{ __('Selecting', ['key' => trans('file.Company')]) }}...'>
+                                                @foreach ($companies as $company)
+                                                    <option value="{{ $company->id }}">{{ $company->company_name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2 form-group">
+                                            <label>{{ trans('file.Client') }} *</label>
+                                            <select name="client_id" id="hierarchy_client_id" disabled
+                                                    class="form-control selectpicker hierarchy-select"
+                                                    data-live-search="true"
+                                                    data-live-search-style="contains"
+                                                    title='{{ __('Selecting', ['key' => trans('file.Client')]) }}...'>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2 form-group">
+                                            <label>{{ trans('file.Project') }}</label>
+                                            <select id="hierarchy_project_id" disabled
+                                                    class="form-control selectpicker hierarchy-select"
+                                                    data-live-search="true"
+                                                    data-live-search-style="contains"
+                                                    title='{{ __('Selecting', ['key' => trans('file.Project')]) }}...'>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2 form-group">
+                                            <label>{{ trans('file.Department') }}</label>
+                                            <select id="hierarchy_department_id" disabled
+                                                    class="form-control selectpicker hierarchy-select"
+                                                    data-live-search="true"
+                                                    data-live-search-style="contains"
+                                                    title='{{ __('Selecting', ['key' => trans('file.Department')]) }}...'>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4 form-group">
+                                            <label>{{ trans('file.Employee') }}</label>
+                                            <select id="hierarchy_employee_id" disabled
+                                                    class="form-control selectpicker hierarchy-select"
+                                                    data-live-search="true"
+                                                    data-live-search-style="contains"
+                                                    title='{{ __('Selecting', ['key' => trans('file.Employee')]) }}...'>
+                                            </select>
+                                            <small class="text-muted">{{ __('Optional: pick an employee to add as location head.') }}</small>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="owner_type" id="owner_type_hidden" value="client">
+                                </div>
                             </div>
 
 
@@ -150,38 +254,6 @@
                                        placeholder="{{ trans('file.Optional') }}">
                             </div>
 
-                            <div class="col-md-12 form-group">
-                                <label class="d-block">{{ __('Assign Employees') }}</label>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="assign_scope" id="assign_scope_specific" value="specific" checked>
-                                    <label class="form-check-label" for="assign_scope_specific">{{ __('Specific Employees') }}</label>
-                                </div>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="assign_scope" id="assign_scope_all" value="all">
-                                    <label class="form-check-label" for="assign_scope_all">{{ __('All Employees of Selected Companies') }}</label>
-                                </div>
-                            </div>
-
-                            <div class="col-md-12 form-group" id="employee_selection_wrap">
-                                <label>{{ trans('file.Employee') }}</label>
-                                <select name="employee_ids[]" id="employee_ids" class="form-control selectpicker"
-                                        data-live-search="true" data-live-search-style="contains" multiple
-                                        title='{{__('Selecting',['key'=>trans('file.Employee')])}}...'>
-                                </select>
-                                <small class="text-muted">{{ __('Choose company first, then employees will load.') }}</small>
-                            </div>
-
-                            <div class="col-md-12 form-group" id="office_shift_wrap">
-                                <label>{{ __('Office Shift') }}</label>
-                                <small class="text-muted d-block mb-2">
-                                    {{ __('Select company first. One shift can be assigned per company for employees at this location.') }}
-                                </small>
-                                <div id="office_shift_rows" class="border rounded p-2 bg-light text-muted">
-                                    {{ __('Choose company first, then office shifts will load.') }}
-                                </div>
-                            </div>
-
-
                             <div class="form-group" align="center">
                                 <input type="hidden" name="action" id="action"/>
                                 <input type="hidden" name="hidden_id" id="hidden_id"/>
@@ -227,7 +299,7 @@
                             <table class="table table-bordered table-sm mb-0">
                                 <thead>
                                 <tr>
-                                    <th>{{ trans('file.Company') }}</th>
+                                    <th>{{ trans('file.Client') }}</th>
                                     <th>{{ __('Employees at Location') }}</th>
                                     <th>{{ trans('file.Office_Shift') }}</th>
                                 </tr>
@@ -272,11 +344,29 @@
 
 @endsection
 
+@push('css')
+<style>
+    #formModal .location-hierarchy-panel,
+    .location-hierarchy-flow .form-group label {
+        font-weight: 600;
+    }
+
+    #formModal .location-hierarchy-panel {
+        background: #f8f9fc;
+    }
+
+    #formModal .bootstrap-select .dropdown-menu {
+        z-index: 1060;
+    }
+</style>
+@endpush
+
 @push('scripts')
 <script type="text/javascript">
     (function($) {
         "use strict";
         $(document).ready(function () {
+            $('#location_filter_flow .selectpicker').selectpicker();
 
             $('#location-table').DataTable({
                 initComplete: function () {
@@ -296,7 +386,6 @@
 
                         column.data().unique().sort().each(function (d, j) {
                             select.append('<option value="' + d + '">' + d + '</option>');
-                            $('select').selectpicker('refresh');
                         });
                     });
                 },
@@ -308,6 +397,13 @@
                 serverSide: true,
                 ajax: {
                     url: "{{ route('locations.index') }}",
+                    data: function (data) {
+                        data.filter_company_id = $('#filter_company_id').val();
+                        data.filter_client_id = $('#filter_client_id').val();
+                        data.filter_project_id = $('#filter_project_id').val();
+                        data.filter_department_id = $('#filter_department_id').val();
+                        data.filter_employee_id = $('#filter_employee_id').val();
+                    }
                 },
                 createdRow: function (row, data, dataIndex) {
                     $(row).find('td:eq(0) .dt-checkboxes').attr('data-id', data.id);
@@ -446,18 +542,254 @@
         });
 
 
+        var editLocationData = null;
+
+        var hierarchyRoutes = {
+            clients: @json(route('locations.hierarchy.clients')),
+            projects: @json(route('locations.hierarchy.projects')),
+            departments: @json(route('locations.hierarchy.departments')),
+            employees: @json(route('locations.hierarchy.employees')),
+        };
+
+        function refreshHierarchySelect($select) {
+            if ($select.data('selectpicker')) {
+                $select.selectpicker('refresh');
+            } else {
+                $select.selectpicker();
+            }
+        }
+
+        function resetHierarchySelect($select, disabled, placeholder) {
+            $select.prop('disabled', !!disabled);
+            $select.html('<option value="">' + (placeholder || '{{ __('All') }}') + '</option>');
+            refreshHierarchySelect($select);
+        }
+
+        function populateHierarchySelect($select, items, selectedValue, disabled) {
+            var placeholder = $select.find('option:first').text() || '{{ __('All') }}';
+            $select.prop('disabled', !!disabled);
+            $select.html('<option value="">' + placeholder + '</option>');
+            (items || []).forEach(function (item) {
+                $select.append($('<option>', { value: item.id, text: item.label }));
+            });
+            if (selectedValue) {
+                $select.val(String(selectedValue));
+            }
+            refreshHierarchySelect($select);
+        }
+
+        function fetchHierarchyItems(url, params) {
+            return $.getJSON(url, params).then(function (response) {
+                return response.items || [];
+            });
+        }
+
+        function getHierarchyParams(prefix) {
+            return {
+                company_id: $('#' + prefix + 'company_id').val(),
+                client_id: $('#' + prefix + 'client_id').val(),
+                project_id: $('#' + prefix + 'project_id').val(),
+                department_id: $('#' + prefix + 'department_id').val(),
+            };
+        }
+
+        function loadHierarchyClients(prefix, selectedClientId) {
+            var companyId = $('#' + prefix + 'company_id').val();
+            resetHierarchySelect($('#' + prefix + 'project_id'), true);
+            resetHierarchySelect($('#' + prefix + 'department_id'), true);
+            resetHierarchySelect($('#' + prefix + 'employee_id'), true);
+
+            if (!companyId) {
+                resetHierarchySelect($('#' + prefix + 'client_id'), true);
+                return $.Deferred().resolve().promise();
+            }
+
+            return fetchHierarchyItems(hierarchyRoutes.clients, { company_id: companyId })
+                .then(function (items) {
+                    populateHierarchySelect($('#' + prefix + 'client_id'), items, selectedClientId, false);
+                });
+        }
+
+        function loadHierarchyProjects(prefix, selectedProjectId) {
+            var params = getHierarchyParams(prefix);
+            resetHierarchySelect($('#' + prefix + 'department_id'), true);
+            resetHierarchySelect($('#' + prefix + 'employee_id'), true);
+
+            if (!params.company_id || !params.client_id) {
+                resetHierarchySelect($('#' + prefix + 'project_id'), true);
+                return $.Deferred().resolve().promise();
+            }
+
+            return fetchHierarchyItems(hierarchyRoutes.projects, params)
+                .then(function (items) {
+                    populateHierarchySelect($('#' + prefix + 'project_id'), items, selectedProjectId, false);
+                });
+        }
+
+        function loadHierarchyDepartments(prefix, selectedDepartmentId) {
+            var params = getHierarchyParams(prefix);
+            resetHierarchySelect($('#' + prefix + 'employee_id'), true);
+
+            if (!params.company_id || !params.client_id) {
+                resetHierarchySelect($('#' + prefix + 'department_id'), true);
+                return $.Deferred().resolve().promise();
+            }
+
+            return fetchHierarchyItems(hierarchyRoutes.departments, params)
+                .then(function (items) {
+                    populateHierarchySelect($('#' + prefix + 'department_id'), items, selectedDepartmentId, false);
+                });
+        }
+
+        function loadHierarchyEmployees(prefix, selectedEmployeeId, targetHeadSelect) {
+            var params = getHierarchyParams(prefix);
+
+            if (!params.company_id || !params.client_id) {
+                if (targetHeadSelect) {
+                    resetHierarchySelect(targetHeadSelect, true);
+                } else {
+                    resetHierarchySelect($('#' + prefix + 'employee_id'), true);
+                }
+                return $.Deferred().resolve().promise();
+            }
+
+            return fetchHierarchyItems(hierarchyRoutes.employees, params)
+                .then(function (items) {
+                    var $target = targetHeadSelect || $('#' + prefix + 'employee_id');
+                    populateHierarchySelect($target, items, selectedEmployeeId, false);
+                });
+        }
+
+        function applyEditHierarchy(editData) {
+            var ownerType = editData.owner_type || 'client';
+            $('#owner_type_hidden').val(ownerType === 'company' ? 'company' : 'client');
+
+            $('#hierarchy_company_id').selectpicker('val', editData.owner_company_id ? String(editData.owner_company_id) : '');
+
+            loadHierarchyClients('hierarchy_', editData.client_id || '')
+                .then(function () {
+                    if (!editData.client_id) {
+                        return loadHierarchyEmployees('hierarchy_', '', $('#location_head'));
+                    }
+
+                    return loadHierarchyProjects('hierarchy_', '')
+                        .then(function () {
+                            return loadHierarchyDepartments('hierarchy_', '');
+                        })
+                        .then(function () {
+                            return loadHierarchyEmployees('hierarchy_', '', $('#location_head'));
+                        });
+                })
+                .then(function () {
+                    (editData.location_head_ids || []).forEach(function (headId) {
+                        if (!$('#location_head option[value="' + headId + '"]').length) {
+                            $('#location_head').append($('<option>', {
+                                value: headId,
+                                text: '{{ __('Employee') }} #' + headId
+                            }));
+                        }
+                    });
+                    $('#location_head').selectpicker('val', (editData.location_head_ids || []).map(String));
+                    $('#country').selectpicker('val', editData.country);
+                    refreshHierarchySelect($('#location_head'));
+                });
+        }
+
+        $('#hierarchy_company_id').on('changed.bs.select', function () {
+            loadHierarchyClients('hierarchy_');
+        });
+
+        $('#hierarchy_client_id').on('changed.bs.select', function () {
+            $('#owner_type_hidden').val($(this).val() ? 'client' : 'company');
+            loadHierarchyProjects('hierarchy_').then(function () {
+                return loadHierarchyDepartments('hierarchy_');
+            }).then(function () {
+                return loadHierarchyEmployees('hierarchy_', '', $('#location_head'));
+            });
+        });
+
+        $('#hierarchy_project_id').on('changed.bs.select', function () {
+            loadHierarchyDepartments('hierarchy_').then(function () {
+                return loadHierarchyEmployees('hierarchy_', '', $('#location_head'));
+            });
+        });
+
+        $('#hierarchy_department_id').on('changed.bs.select', function () {
+            loadHierarchyEmployees('hierarchy_', '', $('#location_head'));
+        });
+
+        $('#hierarchy_employee_id').on('changed.bs.select', function () {
+            var employeeId = $(this).val();
+            if (!employeeId) {
+                return;
+            }
+
+            var currentHeads = $('#location_head').val() || [];
+            if (currentHeads.indexOf(String(employeeId)) === -1) {
+                currentHeads.push(String(employeeId));
+                $('#location_head').selectpicker('val', currentHeads);
+            }
+        });
+
+        $('#filter_company_id').on('changed.bs.select', function () {
+            loadHierarchyClients('filter_');
+        });
+
+        $('#filter_client_id').on('changed.bs.select', function () {
+            loadHierarchyProjects('filter_').then(function () {
+                return loadHierarchyDepartments('filter_');
+            }).then(function () {
+                return loadHierarchyEmployees('filter_');
+            });
+        });
+
+        $('#filter_project_id, #filter_department_id').on('changed.bs.select', function () {
+            loadHierarchyEmployees('filter_');
+        });
+
+        $('#apply_location_filters').on('click', function () {
+            $('#location-table').DataTable().ajax.reload();
+        });
+
+        function ensureLocationFormSelectpickers() {
+            $('#formModal .selectpicker, #location_filter_flow .selectpicker').each(function () {
+                if (! $(this).data('selectpicker')) {
+                    $(this).selectpicker();
+                } else {
+                    $(this).selectpicker('refresh');
+                }
+            });
+        }
+
+        $('#formModal').on('shown.bs.modal', function () {
+            ensureLocationFormSelectpickers();
+            if ($('#action').val() === '{{trans('file.Add')}}') {
+                $('#hierarchy_company_id').selectpicker('val', '');
+                resetHierarchySelect($('#hierarchy_client_id'), true);
+                resetHierarchySelect($('#hierarchy_project_id'), true);
+                resetHierarchySelect($('#hierarchy_department_id'), true);
+                resetHierarchySelect($('#hierarchy_employee_id'), true);
+                resetHierarchySelect($('#location_head'), true);
+                $('#location_head').selectpicker('val', []);
+                $('#country').selectpicker('val', '');
+                $('#owner_type_hidden').val('client');
+            } else if (editLocationData) {
+                applyEditHierarchy(editLocationData);
+                editLocationData = null;
+            }
+        });
+
+        $('#formModal').on('hidden.bs.modal', function () {
+            $('#formModal .bootstrap-select').removeClass('open show');
+            $('#formModal .dropdown-menu').removeClass('show');
+        });
+
         $('#create_record').on('click', function () {
 
             $('.modal-title').text("{{__('Add Location')}}");
             $('#action_button').val('{{trans("file.Add")}}');
             $('#action').val('{{trans("file.Add")}}');
             $('#sample_form')[0].reset();
-            $('#company_ids').selectpicker('val', []);
-            $('#employee_ids').empty().selectpicker('refresh');
-            $('#location_head').empty().selectpicker('refresh');
-            $('#office_shift_rows').html('{{ __('Choose company first, then office shifts will load.') }}');
-            $('input[name="assign_scope"][value="specific"]').prop('checked', true);
-            $('#employee_selection_wrap').show();
             $('#formModal').modal('show');
         });
 
@@ -467,6 +799,19 @@
 
         $('#sample_form').on('submit', function (event) {
             event.preventDefault();
+
+            if ($('#action').val() == '{{trans('file.Add')}}') {
+                if (!$('#hierarchy_company_id').val()) {
+                    $('#form_result').html('<div class="alert alert-danger">{{ __('Please select a company.') }}</div>').slideDown(300);
+                    return;
+                }
+                if (!$('#hierarchy_client_id').val()) {
+                    $('#form_result').html('<div class="alert alert-danger">{{ __('Please select a client.') }}</div>').slideDown(300);
+                    return;
+                }
+                $('#owner_type_hidden').val('client');
+            }
+
             if ($('#action').val() == '{{trans('file.Add')}}') {
                 $.ajax({
                     url: "{{ route('locations.store') }}",
@@ -663,128 +1008,31 @@
 
 
                     $('#location_name').val(html.data.location_name);
-                    $('#company_ids').selectpicker('val', html.company_ids || []);
                     $('#address1').val(html.data.address1);
                     $('#address2').val(html.data.address2);
                     $('#city').val(html.data.city);
                     $('#state').val(html.data.state);
-                    $('#country').selectpicker('val', html.data.country);
                     $('#zip').val(html.data.zip);
                     $('#latitude').val(html.data.latitude);
                     $('#longitude').val(html.data.longitude);
                     $('#max_radius').val(html.data.max_radius);
+
+                    editLocationData = {
+                        owner_type: html.owner_type,
+                        owner_company_id: html.owner_company_id,
+                        client_id: html.client_id,
+                        location_head_ids: html.location_head_ids || [],
+                        country: html.data.country
+                    };
 
                     $('#hidden_id').val(html.data.id);
                     $('.modal-title').text('{{trans('file.Edit')}}');
                     $('#action_button').val('{{trans('file.Edit')}}');
                     $('#action').val('{{trans('file.Edit')}}');
                     $('#formModal').modal('show');
-                    loadEmployeesByCompanies(html.company_ids || [], true, html.location_head_ids || [], {});
                 }
             })
         });
-
-        function toggleEmployeeSelection() {
-            if ($('#assign_scope_all').is(':checked')) {
-                $('#employee_selection_wrap').hide();
-            } else {
-                $('#employee_selection_wrap').show();
-            }
-        }
-
-        function renderOfficeShiftRows(companies, selectedShifts) {
-            selectedShifts = selectedShifts || {};
-
-            if (!companies || !companies.length) {
-                $('#office_shift_rows').html('{{ __('Choose company first, then office shifts will load.') }}');
-                return;
-            }
-
-            let rows = '';
-
-            companies.forEach(function (company, index) {
-                let shiftOptions = '<option value="">{{ __('Select Shift') }}</option>';
-                let selectedShiftId = String(selectedShifts[company.id] || '');
-
-                (company.shifts || []).forEach(function (shift) {
-                    let selected = selectedShiftId === String(shift.id) ? 'selected' : '';
-                    shiftOptions += '<option value="' + shift.id + '" ' + selected + '>' + shift.shift_name + '</option>';
-                });
-
-                rows += '<div class="row align-items-center mb-2">' +
-                    '<div class="col-md-5"><strong>' + company.company_name + '</strong></div>' +
-                    '<div class="col-md-7">' +
-                    '<select class="form-control location-shift-select" ' +
-                    'name="shifts[' + index + '][office_shift_id]" ' +
-                    'data-company-id="' + company.id + '">' +
-                    shiftOptions +
-                    '</select>' +
-                    '<input type="hidden" name="shifts[' + index + '][company_id]" value="' + company.id + '">' +
-                    '</div>' +
-                    '</div>';
-            });
-
-            if (!rows) {
-                $('#office_shift_rows').html('<span class="text-danger">{{ __('No office shift found for selected companies.') }}</span>');
-                return;
-            }
-
-            $('#office_shift_rows').html(rows);
-        }
-
-        function loadEmployeesByCompanies(companyIds, keepSelected, selectedLocationHeads, selectedShifts) {
-            if (!companyIds || !companyIds.length) {
-                $('#employee_ids').empty().selectpicker('refresh');
-                $('#location_head').empty().selectpicker('refresh');
-                renderOfficeShiftRows([]);
-                return;
-            }
-
-            let prevEmployees = keepSelected ? ($('#employee_ids').val() || []) : [];
-            let prevHeads = keepSelected
-                ? (selectedLocationHeads || $('#location_head').val() || []).map(String)
-                : [];
-            let prevShifts = selectedShifts || {};
-
-            if (!keepSelected) {
-                $('.location-shift-select').each(function () {
-                    let companyId = $(this).data('company-id');
-                    if (companyId) {
-                        prevShifts[companyId] = $(this).val();
-                    }
-                });
-            }
-
-            $.ajax({
-                url: "{{ route('locations.employees_by_companies') }}",
-                method: "GET",
-                data: {company_ids: companyIds},
-                dataType: "json",
-                success: function (res) {
-                    let employeeOpts = '';
-                    let headOpts = '';
-
-                    (res.employees || []).forEach(function (emp) {
-                        let employeeSelected = prevEmployees.includes(String(emp.id)) ? 'selected' : '';
-                        let headSelected = prevHeads.includes(String(emp.id)) ? 'selected' : '';
-
-                        employeeOpts += '<option value="' + emp.id + '" ' + employeeSelected + '>' + emp.full_name + '</option>';
-                        headOpts += '<option value="' + emp.id + '" ' + headSelected + '>' + emp.full_name + '</option>';
-                    });
-
-                    $('#employee_ids').html(employeeOpts).selectpicker('refresh');
-                    $('#location_head').html(headOpts).selectpicker('refresh');
-                    renderOfficeShiftRows(res.companies || [], prevShifts);
-                }
-            });
-        }
-
-        $('#company_ids').on('changed.bs.select', function () {
-            loadEmployeesByCompanies($(this).val() || [], false);
-        });
-
-        $('input[name="assign_scope"]').on('change', toggleEmployeeSelection);
-        toggleEmployeeSelection();
 
 
         var delete_id;

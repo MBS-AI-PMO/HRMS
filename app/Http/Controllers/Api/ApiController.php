@@ -55,6 +55,14 @@ class ApiController extends Controller
 
     private function checkAttendanceTypeRules(Request $request, Employee $employee): ?array
     {
+        if (! is_numeric($request->input('latitude')) || ! is_numeric($request->input('longitude'))) {
+            return [
+                'status' => false,
+                'message' => 'GPS location is required to clock in or out. Please allow location access and try again.',
+                'code' => 422,
+            ];
+        }
+
         if ($employee->attendance_type === 'ip_based') {
             $ipSettings = IpSetting::all();
             if ($ipSettings->isEmpty()) {
@@ -72,24 +80,29 @@ class ApiController extends Controller
         }
 
         if ($employee->attendance_type === 'location_based') {
+            $location = $employee->location;
+
+            if (! $location) {
+                return ['status' => false, 'message' => 'No location is assigned to your profile.', 'code' => 422];
+            }
+
+            if ($location->latitude === null || $location->longitude === null || $location->max_radius === null) {
+                return ['status' => false, 'message' => 'Assigned location geofence is not configured.', 'code' => 422];
+            }
+
             $validated = $request->validate([
                 'latitude' => 'required|numeric',
                 'longitude' => 'required|numeric',
             ]);
 
-            $general = GeneralSetting::latest()->first();
-            if (! $general || $general->latitude === null || $general->longitude === null) {
-                return ['status' => false, 'message' => 'Office location is not configured.', 'code' => 422];
-            }
-
             $distance = $this->calculateDistanceMeters(
-                (float) $general->latitude,
-                (float) $general->longitude,
+                (float) $location->latitude,
+                (float) $location->longitude,
                 (float) $validated['latitude'],
                 (float) $validated['longitude']
             );
 
-            $maxRadius = (float) ($general->max_radius ?? 25);
+            $maxRadius = (float) $location->max_radius;
             if ($distance > $maxRadius) {
                 return ['status' => false, 'message' => 'You are outside the allowed office radius.', 'code' => 403];
             }

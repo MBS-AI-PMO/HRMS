@@ -21,11 +21,11 @@ class RedirectIfAuthenticated
 		if (Auth::guard($guard)->check()) {
 			if ($request->user()->role_users_id == 1)
 			{
-				return redirect('/admin/dashboard');
+				return redirect('/admin/executive');
 			}
 			elseif ($request->user()->role_users_id == 2)
 			{
-				return redirect('/employee/dashboard');
+				return redirect('/admin/dashboard');
 			}
 			else
 			{

@@ -64,7 +64,7 @@
                                 <div class="form-group">
                                     <label>{{trans('file.Client')}}*</label>
                                     <select name="client_id" id="client_id"
-                                            class="form-control selectpicker dynamic"
+                                            class="form-control selectpicker"
                                             data-live-search="true" data-live-search-style="contains"
                                             title='{{__('Selecting',['key'=>trans('file.Client')])}}...'>
                                         @foreach($clients as $client)
@@ -83,8 +83,8 @@
                             </div>
 
                             <div class="col-md-6 form-group">
-                                <label>{{__('End Date')}} *</label>
-                                <input type="text" name="end_date" id="end_date" autocomplete="off" required
+                                <label>{{__('End Date')}}</label>
+                                <input type="text" name="end_date" id="end_date" autocomplete="off"
                                        class="form-control date"
                                        value="">
                             </div>
@@ -103,10 +103,11 @@
 
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>{{trans('file.Company')}}</label>
-                                    <select name="company_id" id="company_id" class="form-control selectpicker dynamic"
+                                    <label>{{trans('file.Company')}} *</label>
+                                    <select name="company_id" id="company_id" required
+                                            class="form-control selectpicker"
                                             data-live-search="true" data-live-search-style="contains"
-                                            data-first_name="first_name" data-last_name="last_name"
+                                            data-dependent="department_name"
                                             title='{{__('Selecting',['key'=>trans('file.Company')])}}...'>
                                         @foreach($companies as $company)
                                             <option value="{{$company->id}}">{{$company->company_name}}</option>
@@ -116,7 +117,18 @@
                                 </div>
                             </div>
 
-                            <div class="col-md-4 form-group">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>{{trans('file.Department')}} *</label>
+                                    <select name="department_id" id="department_id" required
+                                            class="form-control selectpicker"
+                                            data-live-search="true" data-live-search-style="contains"
+                                            title='{{__('Selecting',['key'=>trans('file.Department')])}}...'>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12 form-group">
                                 <label>{{__('Assigned Employees')}} *</label>
                                 <select name="employee_id[]" id="employee_id" class="form-control js-example-responsive"
                                         multiple="multiple">
@@ -199,8 +211,8 @@
                             </div>
 
                             <div class="col-md-6 form-group">
-                                <label>{{__('End Date')}} *</label>
-                                <input type="text" name="edit_end_date" id="edit_end_date" autocomplete="off" required
+                                <label>{{__('End Date')}}</label>
+                                <input type="text" name="edit_end_date" id="edit_end_date" autocomplete="off"
                                        class="form-control date"
                                        value="">
                             </div>
@@ -230,6 +242,32 @@
                                     <option value="completed">{{trans('file.Completed')}}</option>
                                     <option value="deferred">{{trans('file.Deferred')}}</option>
                                 </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>{{trans('file.Company')}} *</label>
+                                    <select name="edit_company_id" id="edit_company_id" required
+                                            class="form-control selectpicker"
+                                            data-live-search="true" data-live-search-style="contains"
+                                            data-dependent="department_name"
+                                            title='{{__('Selecting',['key'=>trans('file.Company')])}}...'>
+                                        @foreach($companies as $company)
+                                            <option value="{{$company->id}}">{{$company->company_name}}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>{{trans('file.Department')}} *</label>
+                                    <select name="edit_department_id" id="edit_department_id" required
+                                            class="form-control selectpicker"
+                                            data-live-search="true" data-live-search-style="contains"
+                                            title='{{__('Selecting',['key'=>trans('file.Department')])}}...'>
+                                    </select>
+                                </div>
                             </div>
 
                             <div class="col-md-12">
@@ -556,7 +594,10 @@
 
 
         $('#create_record').on('click', function () {
-
+            $('#department_id').html('');
+            $('#employee_id').html('');
+            $('#employee_id').val(null).trigger('change');
+            $('#department_id').selectpicker('refresh');
             $('#formModal').modal('show');
         });
 
@@ -583,11 +624,22 @@
                     if (data.success) {
                         html = '<div class="alert alert-success">' + data.success + '</div>';
                         $('#sample_form')[0].reset();
+                        $('#department_id').html('');
+                        $('#employee_id').html('');
                         $('select').selectpicker('refresh');
-                        $('.js-example-responsive').val(null).trigger('change');
+                        $('#employee_id').val(null).trigger('change');
                         $('#project-table').DataTable().ajax.reload();
                     }
                     $('#form_result').html(html).slideDown(300).delay(5000).slideUp(300);
+                },
+                error: function (xhr) {
+                    var data = xhr.responseJSON || {};
+                    var message = (data.errors && data.errors.length)
+                        ? data.errors.join('\n')
+                        : (data.message || '{{ __('Request failed. Please try again.') }}');
+                    window.hrmsSwalResponse(data.errors ? data : null, {
+                        fallbackError: message
+                    });
                 }
             })
         });
@@ -616,7 +668,8 @@
                         setTimeout(function () {
                             $('#editModal').modal('hide');
                             $('select').selectpicker('refresh');
-                            $('.js-example-responsive').val(null).trigger('change');
+                            $('#edit_department_id').html('');
+                            $('#edit_department_id').selectpicker('refresh');
                             $('#project-table').DataTable().ajax.reload();
                             $('#edit_sample_form')[0].reset();
                         }, 2000);
@@ -666,7 +719,20 @@
                     }
                     $('#edit_summary').val(html.data.summary);
 
+                    if (html.data.company_id) {
+                        $('#edit_company_id').selectpicker('val', String(html.data.company_id));
+                        loadProjectDepartments(
+                            html.data.company_id,
+                            '#edit_department_id',
+                            html.data.department_id || ''
+                        );
+                    } else {
+                        $('#edit_department_id').html('');
+                        $('#edit_department_id').selectpicker('refresh');
+                    }
+
                     $('#hidden_id').val(html.data.id);
+                    $('select').selectpicker('refresh');
                     $('#editModal').modal('show');
                 }
             })
@@ -720,24 +786,90 @@
         });
 
 
-        $('.dynamic').change(function () {
-            if ($(this).val() !== '') {
-                let value = $(this).val();
-                let first_name = $(this).data('first_name');
-                let last_name = $(this).data('last_name');
-                let _token = $('input[name="_token"]').val();
-                $.ajax({
-                    url: "{{ route('dynamic_employee') }}",
-                    method: "POST",
-                    data: {value: value, _token: _token, first_name: first_name, last_name: last_name},
-                    success: function (result) {
-                        $('select').selectpicker("destroy");
-                        $('#employee_id').html(result);
-                        $('select').selectpicker();
+        function loadProjectDepartments(companyId, departmentSelector, selectedDepartmentId) {
+            var $department = $(departmentSelector);
+            var deferred = $.Deferred();
+            var _token = $('input[name="_token"]').val();
 
-                    }
-                });
+            $department.html('');
+            $department.selectpicker('refresh');
+
+            if (!companyId) {
+                deferred.resolve();
+                return deferred.promise();
             }
+
+            $.ajax({
+                url: "{{ route('dynamic_department') }}",
+                method: "POST",
+                data: {value: companyId, _token: _token, dependent: 'department_name'},
+                success: function (result) {
+                    $department.html(result);
+                    $department.selectpicker('refresh');
+                    if (selectedDepartmentId) {
+                        $department.selectpicker('val', String(selectedDepartmentId));
+                    }
+                    deferred.resolve();
+                },
+                error: function () {
+                    deferred.reject();
+                }
+            });
+
+            return deferred.promise();
+        }
+
+        function loadProjectEmployees(departmentId, employeeSelector, selectedEmployeeIds) {
+            var $employee = $(employeeSelector);
+            var deferred = $.Deferred();
+            var _token = $('input[name="_token"]').val();
+
+            $employee.html('');
+            $employee.val(null).trigger('change');
+
+            if (!departmentId) {
+                deferred.resolve();
+                return deferred.promise();
+            }
+
+            $.ajax({
+                url: "{{ route('dynamic_employee_department') }}",
+                method: "POST",
+                data: {
+                    value: departmentId,
+                    _token: _token,
+                    first_name: 'first_name',
+                    last_name: 'last_name'
+                },
+                success: function (result) {
+                    $employee.html(result);
+                    if (selectedEmployeeIds && selectedEmployeeIds.length) {
+                        $employee.val(selectedEmployeeIds.map(String)).trigger('change');
+                    } else {
+                        $employee.trigger('change');
+                    }
+                    deferred.resolve();
+                },
+                error: function () {
+                    deferred.reject();
+                }
+            });
+
+            return deferred.promise();
+        }
+
+        $('#company_id').on('change', function () {
+            $('#employee_id').html('');
+            $('#employee_id').val(null).trigger('change');
+            loadProjectDepartments($(this).val(), '#department_id');
+        });
+
+        $('#department_id').on('change', function () {
+            loadProjectEmployees($(this).val(), '#employee_id');
+        });
+
+        $('#edit_company_id').on('change', function () {
+            loadProjectDepartments($(this).val(), '#edit_department_id');
         });
 
     })(jQuery);

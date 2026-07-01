@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Client;
 use App\Models\department;
 use App\Models\designation;
 use App\Models\Employee;
+use App\Models\location;
+use App\Models\Project;
+use App\Support\ClientDisplay;
 use App\Support\CompanyScope;
 use App\Models\FinanceBankCash;
 use App\Models\JobCandidate;
@@ -48,7 +52,7 @@ class DynamicDependent extends Controller {
 	{
 		$loggedUser = auth()->user();
 		$useManagedScope = $loggedUser
-			&& ManagedEmployeeScope::usesScopedEmployeeList((int) $loggedUser->id, (int) $loggedUser->role_users_id);
+			&& ManagedEmployeeScope::canAccessScopedEmployeeList((int) $loggedUser->id, (int) $loggedUser->role_users_id);
 		$value = $useManagedScope
 			? (int) $request->get('value')
 			: CompanyScope::resolveCompanyIdForInput((int) $request->get('value'));
@@ -66,6 +70,14 @@ class DynamicDependent extends Controller {
 		if ($useManagedScope) {
 			$managedEmployeeIds = ManagedEmployeeScope::managedEmployeeIds((int) $loggedUser->id);
 			$dataQuery->whereIn('id', $managedEmployeeIds);
+		}
+
+		if ($request->filled('client_id')) {
+			$dataQuery->where('client_id', (int) $request->client_id);
+		}
+
+		if ($request->filled('location_id')) {
+			$dataQuery->where('location_id', (int) $request->location_id);
 		}
 
 		$data = $dataQuery->get();
@@ -86,7 +98,7 @@ class DynamicDependent extends Controller {
 		$last_name = $request->get('last_name');
 		$loggedUser = auth()->user();
 		$useManagedScope = $loggedUser
-			&& ManagedEmployeeScope::usesScopedEmployeeList((int) $loggedUser->id, (int) $loggedUser->role_users_id);
+			&& ManagedEmployeeScope::canAccessScopedEmployeeList((int) $loggedUser->id, (int) $loggedUser->role_users_id);
 
 		$data = Employee::wheredepartment_id($value)
                     ->where('is_active',1)
@@ -106,6 +118,110 @@ class DynamicDependent extends Controller {
 		}
 
 		return $output;
+	}
+
+	public function fetchClients(Request $request)
+	{
+		$companyId = CompanyScope::resolveCompanyIdForInput((int) $request->get('value'));
+
+		if (! $companyId) {
+			return '';
+		}
+
+		$clientIds = $this->clientIdsForCompany($companyId);
+
+		if ($clientIds === []) {
+			return '';
+		}
+
+		$clients = Client::query()
+			->select('id', 'company_name', 'first_name', 'last_name')
+			->whereIn('id', $clientIds)
+			->orderBy('first_name')
+			->orderBy('last_name')
+			->orderBy('company_name')
+			->get();
+
+		$output = '';
+
+		foreach ($clients as $client) {
+			$output .= '<option value="'.$client->id.'">'.e(ClientDisplay::label($client)).'</option>';
+		}
+
+		return $output;
+	}
+
+	public function fetchLocations(Request $request)
+	{
+		$companyId = $request->filled('company_id')
+			? CompanyScope::resolveCompanyIdForInput((int) $request->company_id)
+			: null;
+		$clientId = $request->filled('client_id') ? (int) $request->client_id : null;
+
+		$query = location::query()
+			->select('id', 'location_name', 'client_id')
+			->orderBy('location_name');
+
+		if (CompanyScope::applies()) {
+			$scopedCompanyId = CompanyScope::companyId();
+
+			if (! $scopedCompanyId) {
+				return '';
+			}
+
+			$query->whereHas('companies', function ($companyQuery) use ($scopedCompanyId) {
+				$companyQuery->where('companies.id', $scopedCompanyId);
+			});
+		}
+
+		if ($companyId) {
+			$companyClientIds = collect($this->clientIdsForCompany($companyId));
+
+			$query->where(function ($builder) use ($companyId, $clientId, $companyClientIds) {
+				$builder->whereHas('companies', function ($companyQuery) use ($companyId) {
+					$companyQuery->where('companies.id', $companyId);
+				});
+
+				if ($clientId) {
+					$builder->orWhere('client_id', $clientId);
+				} elseif ($companyClientIds->isNotEmpty()) {
+					$builder->orWhereIn('client_id', $companyClientIds);
+				}
+			});
+		}
+
+		if ($clientId) {
+			$query->where('client_id', $clientId);
+		}
+
+		$output = '';
+
+		foreach ($query->get() as $location) {
+			$output .= '<option value="'.$location->id.'">'.e($location->location_name).'</option>';
+		}
+
+		return $output;
+	}
+
+	protected function clientIdsForCompany(int $companyId): array
+	{
+		return Project::query()
+			->where('company_id', $companyId)
+			->whereNotNull('client_id')
+			->distinct()
+			->pluck('client_id')
+			->merge(
+				Employee::query()
+					->where('company_id', $companyId)
+					->whereNotNull('client_id')
+					->distinct()
+					->pluck('client_id')
+			)
+			->filter()
+			->map(fn ($id) => (int) $id)
+			->unique()
+			->values()
+			->all();
 	}
 
 	public function fetchDesignationDepartment(Request $request)

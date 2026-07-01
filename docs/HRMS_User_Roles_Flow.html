@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>HRMS — User Roles &amp; Access Flow</title>
+    <style>
+        @page { size: A4; margin: 18mm 16mm; }
+        body {
+            font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+            font-size: 11pt;
+            color: #1f2937;
+            line-height: 1.65;
+            margin: 0;
+            padding: 24px 30px;
+            background: #fff;
+        }
+        .cover {
+            text-align: center;
+            padding: 40px 10px 30px;
+            border-bottom: 3px solid #7C5CC4;
+            margin-bottom: 24px;
+        }
+        .cover h1 { font-size: 24pt; color: #4a3f8c; margin: 0 0 6px; }
+        .cover p { color: #6b7280; margin: 4px 0; }
+        h2 {
+            font-size: 13.5pt;
+            color: #4a3f8c;
+            margin: 22px 0 8px;
+            padding-bottom: 3px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        h3 { font-size: 11.5pt; color: #374151; margin: 14px 0 6px; }
+        p { margin: 0 0 10px; }
+        .flow {
+            background: #f8f7fc;
+            border-left: 4px solid #7C5CC4;
+            padding: 10px 14px;
+            margin: 10px 0 14px;
+            font-size: 10.5pt;
+        }
+        .flow strong { color: #4a3f8c; }
+        .demo-url {
+            text-align: center;
+            font-size: 12pt;
+            margin: 12px 0 18px;
+        }
+        .demo-url a { color: #4a3f8c; font-weight: 600; text-decoration: none; }
+        .cred {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin: 0 0 10px;
+            font-size: 10.5pt;
+        }
+        .cred .role {
+            font-weight: 600;
+            color: #4a3f8c;
+            margin-bottom: 4px;
+        }
+        ul { margin: 6px 0 12px 22px; padding: 0; }
+        li { margin-bottom: 5px; }
+        .page-break { page-break-before: always; }
+        .footer {
+            margin-top: 28px;
+            padding-top: 10px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 9pt;
+            color: #9ca3af;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="cover">
+    <h1>HRMS</h1>
+    <p><strong>User Roles &amp; Access Flow</strong></p>
+    <p>Client reference document</p>
+</div>
+
+<h2>Demo environment &amp; test logins</h2>
+<p class="demo-url">Live demo URL: <a href="https://demo.solochoicezz.com/">https://demo.solochoicezz.com/</a></p>
+<p>Use the accounts below to test each role on the demo site. Open the URL, enter <strong>Username</strong> and <strong>Password</strong>, then click Login. New employees can also use <em>Register here</em> on the same login page.</p>
+
+<div class="cred">
+    <div class="role">Super Admin</div>
+    Username: <strong>demoadmin</strong> &nbsp;|&nbsp; Password: <strong>demo@123</strong>
+</div>
+<div class="cred">
+    <div class="role">HR</div>
+    Username: <strong>obaid0001</strong> &nbsp;|&nbsp; Password: <strong>12345678</strong>
+</div>
+<div class="cred">
+    <div class="role">Manager</div>
+    Username: <strong>saqibma960@gmail.com</strong> &nbsp;|&nbsp; Password: <strong>12345678</strong>
+</div>
+<div class="cred">
+    <div class="role">Department Head</div>
+    Username: <strong>umerfarooq</strong> &nbsp;|&nbsp; Password: <strong>12345678</strong>
+</div>
+<div class="cred">
+    <div class="role">Employee</div>
+    Username: <strong>mahamjamil</strong> &nbsp;|&nbsp; Password: <strong>12345678</strong>
+</div>
+
+<p>After login, Super Admin lands on the Admin Dashboard. All other demo accounts above use the Employee Dashboard, with extra menus appearing based on role permissions and assignments (team, department, or location).</p>
+
+<h2>How the system decides access</h2>
+<p>HRMS uses three ideas together. First, every user has a <strong>primary role</strong> (Admin, HR Staff, or Employee/Client). That role decides where they land after login and whether they see one company or the whole system. Second, <strong>permissions</strong> are assigned to roles by admin — these control which menus and actions appear (employees, payroll, reports, etc.). Third, some access comes from <strong>organizational position</strong> — being a team leader, location head, or department head can open extra screens even without full HR permissions.</p>
+<p>Login only checks <strong>username and password</strong>. The <code>is_active</code> flag and employee <code>status_id</code> are used for HR records and lists; they do not currently block login.</p>
+
+<h2>Built-in roles (short)</h2>
+<p><strong>Admin (role 1)</strong> — full system. Sees all companies. Goes to Admin Dashboard.</p>
+<p><strong>HR / Staff (role 2 or custom roles)</strong> — works inside their own company. Menu items depend on permissions given by admin. Goes to Employee Dashboard.</p>
+<p><strong>Employee (role 3 with employee record)</strong> — day-to-day self-service: attendance, leave, profile. May gain leader tools if assigned to a team or location. Goes to Employee Dashboard.</p>
+<p><strong>External client (role 3 with client record, no employee)</strong> — separate portal for projects, tasks, and invoices. Should use Client Dashboard (<code>/client/dashboard</code>).</p>
+
+<h2>Login flow</h2>
+<div class="flow">
+    User opens login page → enters username &amp; password → system validates credentials →
+    <strong>Admin</strong> → /admin/dashboard &nbsp;|&nbsp;
+    <strong>Everyone else</strong> → /employee/dashboard
+</div>
+<p>Admin-only URLs under <code>/admin/*</code> are protected: non-admins are redirected to the employee dashboard if they try to open them.</p>
+
+<h2>How users enter the system</h2>
+<p><strong>Admin adds employee</strong> — creates User + Employee. Usually role 2 or a custom HR role. Account is active immediately. Login credentials can be emailed.</p>
+<p><strong>Admin adds client</strong> — creates User + Client record. Role 3. Used for external customers who track projects and invoices.</p>
+<p><strong>Public registration form</strong> — employee fills the form themselves. System creates User + Employee with role 3, account active by default, and emails login details.</p>
+<p><strong>Bulk import</strong> — HR uploads a file; employees are created with role 2 and active status.</p>
+
+<h2>Admin flow</h2>
+<p>Admin logs in → Admin Dashboard with company-wide counts and charts → sidebar shows all modules they have permission for → can manage companies, departments, locations, teams, employees, roles, settings, payroll, reports, and projects across the whole system → not limited to one company.</p>
+
+<h2>HR / Staff flow</h2>
+<p>HR user logs in → Employee Dashboard → sees only data for <strong>their company</strong> → sidebar modules depend on assigned permissions, for example:</p>
+<ul>
+    <li>Employee list, add/edit employees (if permitted)</li>
+    <li>Organization: company, department, location, team setup</li>
+    <li>Attendance, shifts, holidays</li>
+    <li>Leave / WFH approval for the whole company (if <code>view-leave</code> permission)</li>
+    <li>Payroll, core HR, recruitment, training, reports — each only if permission exists</li>
+    <li>Project management (internal): create projects, assign employees, link to clients</li>
+</ul>
+<p>If HR does not have a permission, that menu simply does not appear.</p>
+
+<div class="page-break"></div>
+
+<h2>Regular employee flow</h2>
+<p>Employee logs in → Employee Dashboard → sees own shift, today’s attendance, announcements, holidays → can clock in/out (subject to shift and optional IP rules) → can apply for leave or WFH → can view/update own profile → sees assigned projects and tasks on the dashboard if any exist.</p>
+<p>Employees do not see HR-wide lists unless they are also team leaders, location heads, or department heads (see below).</p>
+
+<h2>Team flow</h2>
+<p>Teams are set up by HR under <strong>Organization → Team Management</strong>. Each team has a company, department, leaders, and members.</p>
+
+<h3>Team member</h3>
+<div class="flow">
+    Assigned to team → <strong>My Team</strong> appears in sidebar → can view team details and their role (Team Member) → no approval powers
+</div>
+
+<h3>Team leader (Department Head / Project Manager / Assistant HR)</h3>
+<p>These three positions are defined on the team record. Any employee in one of these roles gets extra access <strong>without needing separate HR permissions</strong>:</p>
+<ul>
+    <li><strong>My Team</strong> — view teams they lead or belong to</li>
+    <li><strong>Employee List</strong> — see only their team members (not the full company list)</li>
+    <li><strong>Leave / WFH Management</strong> — approve or reject requests from team members only</li>
+</ul>
+<div class="flow">
+    Team leader logs in → opens Leave Management → sees pending requests filtered to their team members → approves/rejects → employee gets notification
+</div>
+<p>Team leaders can <strong>view</strong> their members but cannot add/delete employees or change HR master data unless they also have HR permissions.</p>
+
+<h2>Location head flow</h2>
+<p>HR assigns location heads on each location. A location head is an employee linked to one or more centers/locations.</p>
+<div class="flow">
+    Location head logs in → <strong>My Centers / Locations</strong> appears → can manage their location(s) → see employees at that location → approve leave/WFH for those employees → bulk-change attendance type (e.g. location-based vs manual) for active employees at that location
+</div>
+<p>Like team leaders, they see a <strong>scoped employee list</strong> — only people at locations they head — not the full HR employee module unless they have <code>view-details-employee</code> permission.</p>
+
+<h2>Department head flow</h2>
+<p>Each department can have a <strong>department head</strong> (employee ID stored on the department).</p>
+<div class="flow">
+    Department head logs in → Leave / WFH Management menu appears → sees pending requests for employees in their department → approves or rejects
+</div>
+<p>This works alongside team and location rules. Full-company leave access still requires HR <code>view-leave</code> permission.</p>
+
+<h2>Leave &amp; WFH approval — who can do what</h2>
+<p><strong>Employee</strong> submits leave or WFH from their dashboard or leave screen → status = pending.</p>
+<p><strong>Approver</strong> (first match that applies): HR with company-wide leave permission, OR department head for that department, OR team leader for that employee’s team, OR location head for that employee’s location.</p>
+<p>Approver opens Leave Management or WFH Management → acts on request → employee is notified by email/in-app notification.</p>
+
+<h2>Attendance flow</h2>
+<p><strong>Employee</strong> clocks in/out from dashboard (if IP check passes when configured). Shift times come from their office shift. Overtime rules apply after shift end if enabled.</p>
+<p><strong>HR</strong> with attendance permissions can add/edit attendance for employees, import bulk attendance, and run attendance reports.</p>
+<p><strong>Location head</strong> can set attendance type for all active employees at their location (e.g. switch between manual and GPS/location-based attendance).</p>
+
+<div class="page-break"></div>
+
+<h2>Project management — two sides</h2>
+
+<h3>Internal (HR / Admin)</h3>
+<div class="flow">
+    HR with project permission → Projects module → create project → select company, department, client (optional) → assign employees → track status (in progress / completed) → employees see assigned projects on their dashboard
+</div>
+<p>Used for internal delivery and client-linked work managed by the company.</p>
+
+<h3>Client portal (external client)</h3>
+<div class="flow">
+    Client user logs in → Client Dashboard → <strong>Projects</strong>: view own projects and assigned staff → can request/create projects → <strong>Tasks</strong>: create and track tasks → <strong>Invoices</strong>: view and payment status
+</div>
+<p>Clients only see their own projects and invoices. They do not see HR data, other clients, or internal employee records.</p>
+
+<h2>Client portal flow (summary)</h2>
+<p>Admin creates client under Projects → Client module → client gets username/password → client logs in → uses client layout (not the main HR sidebar) → works only in projects, tasks, and invoices → admin/HR manages the same projects from the internal side.</p>
+
+<h2>Public employee registration flow</h2>
+<div class="flow">
+    Employee opens registration link → fills form (company/department/designation/shift as configured) → system creates active User + Employee (role 3) → credentials emailed → employee logs in → Employee Dashboard → normal employee journey starts
+</div>
+<p>Registration fields and defaults (shift, attendance type, role) are controlled under Settings → Employee Registration.</p>
+
+<h2>Data visibility (simple rule)</h2>
+<p><strong>Admin</strong> — everything, all companies.</p>
+<p><strong>HR with permissions</strong> — their company, modules allowed by permissions.</p>
+<p><strong>Team leader / Location head without HR permission</strong> — only their team or location members for list and leave actions.</p>
+<p><strong>Regular employee</strong> — only their own data plus team/location tools if assigned.</p>
+<p><strong>External client</strong> — only their projects, tasks, and invoices.</p>
+
+<h2>Quick mental model</h2>
+<p>Think of HRMS as layers: <strong>Role</strong> decides the front door (admin vs employee vs client portal). <strong>Permissions</strong> decide which HR tools you get. <strong>Team / Location / Department assignment</strong> decides whose requests you can approve and whose records you can see when you are not full HR. Most staff are employees first; leaders get a small management slice on top without becoming full HR unless admin gives those permissions too.</p>
+
+<div class="footer">
+    HRMS User Roles &amp; Access Flow — Client document
+</div>
+
+</body>
+</html>

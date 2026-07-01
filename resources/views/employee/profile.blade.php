@@ -102,6 +102,22 @@
                                             $companyLabel =
                                                 optional($companies->firstWhere('id', $employee->company_id))
                                                     ->company_name ?? '—';
+                                            if ($employee->client_id && $employee->client) {
+                                                $clientName = trim(
+                                                    ($employee->client->first_name ?? '') .
+                                                        ' ' .
+                                                        ($employee->client->last_name ?? '')
+                                                );
+                                                $clientCompany = trim((string) ($employee->client->company_name ?? ''));
+                                                $ownerLabel =
+                                                    $clientName !== '' && $clientCompany !== ''
+                                                        ? $clientName . ' — ' . $clientCompany
+                                                        : ($clientName !== '' ? $clientName : $clientCompany);
+                                                $ownerTypeLabel = trans('file.Client');
+                                            } else {
+                                                $ownerLabel = $companyLabel;
+                                                $ownerTypeLabel = trans('file.Company');
+                                            }
                                             $departmentLabel =
                                                 optional($departments->firstWhere('id', $employee->department_id))
                                                     ->department_name ?? '—';
@@ -342,32 +358,26 @@
                                                 </div>
                                             @endif
 
-                                            <div class="col-md-4">
-                                                <div class="form-group">
-                                                    <label>{{ trans('file.Company') }} @if (!$workRo)
-                                                            <span class="text-danger">*</span>
-                                                        @endif
-                                                    </label>
-                                                    @if ($workRo)
+                                            <div class="col-md-{{ $workRo ? '4' : '12' }}">
+                                                @if ($workRo)
+                                                    <div class="form-group">
+                                                        <label>{{ __('Belongs To') }}</label>
                                                         <input type="hidden" name="company_id"
                                                             value="{{ $employee->company_id }}">
+                                                        @if ($employee->client_id)
+                                                            <input type="hidden" name="client_id"
+                                                                value="{{ $employee->client_id }}">
+                                                        @endif
                                                         <input type="text" readonly class="form-control bg-light"
-                                                            value="{{ $companyLabel }}">
-                                                    @else
-                                                        <input type="hidden" name="company_id_hidden"
-                                                            value="{{ $employee->company_id }}" />
-                                                        <select name="company_id" id="company_id"
-                                                            class="form-control selectpicker dynamic"
-                                                            data-live-search="true" data-live-search-style="contains"
-                                                            data-dependent="department_name" data-shift_name="shift_name"
-                                                            title="{{ __('Selecting', ['key' => trans('file.Company')]) }}...">
-                                                            @foreach ($companies as $company)
-                                                                <option value="{{ $company->id }}">
-                                                                    {{ $company->company_name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                    @endif
-                                                </div>
+                                                            value="{{ $ownerTypeLabel }}: {{ $ownerLabel }}">
+                                                    </div>
+                                                @else
+                                                    @include('employee.partials.owner_fields', [
+                                                        'employee' => $employee,
+                                                        'companies' => $companies,
+                                                        'clients' => $clients,
+                                                    ])
+                                                @endif
                                             </div>
 
                                             <div class="col-md-4">
@@ -729,7 +739,7 @@
 
         if (!profileWorkReadonly) {
             $('#role_users_id').selectpicker('val', $('input[name="role_user_hidden"]').val());
-            $('#company_id').selectpicker('val', $('input[name="company_id_hidden"]').val());
+            @include('employee.partials.owner_fields_script')
             $('#department_id').selectpicker('val', $('input[name="department_id_hidden"]').val());
             $('#designation_id').selectpicker('val', $('input[name="designation_id_hidden"]').val());
             $('#status_id').selectpicker('val', $('input[name="status_id_hidden"]').val());
