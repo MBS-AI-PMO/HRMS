@@ -94,15 +94,6 @@
                     </li>
                 @endcan
 
-                @can('client')
-                    <li class="{{ request()->is('project-management/clients*') ? 'active' : '' }}">
-                        <a href="{{ route('clients.index') }}">
-                            <i class="dripicons-briefcase"></i>
-                            <span>{{ trans('file.Client') }}</span>
-                        </a>
-                    </li>
-                @endcan
-
                 @can('customize-setting')
                     <li class="has-dropdown {{ request()->is('settings*') ? 'active' : '' }}">
 
@@ -116,9 +107,6 @@
                                 <i class="dripicons-toggles"></i><span>{{ __('Customize Setting') }}</span>
                             </a>
                         @endif
-                        {{-- <a href="#Customize_settings" aria-expanded="false" data-toggle="collapse">
-                            <i class="dripicons-toggles"></i><span>{{__('Customize Setting')}}</span>
-                        </a> --}}
 
                         <ul id="Customize_settings" class="collapse list-unstyled ">
                             @can('view-role')
@@ -149,17 +137,11 @@
                                         href="{{ route('variables_method.index') }}">{{ __('Travel Type') }}</a>
                                 </li>
                             @endcan
-                            {{-- @can('view-general-setting')
-                                <li id="ip_setting"><a href="{{route('ip_setting.index')}}">{{__('IP Settings')}}</a></li>
-                            @endcan --}}
-
                         </ul>
                     </li>
                 @endcan
 
-
-
-                <li class="has-dropdown {{ request()->is('organization*') ? 'active' : '' }}"><a href="#Organization"
+                <li class="has-dropdown {{ request()->is('organization*') || request()->is('companies*') || request()->is('project-management/clients*') || request()->is('project-management/projects*') || request()->is('project-management/project_categories*') ? 'active' : '' }}"><a href="#Organization"
                         aria-expanded="false" data-toggle="collapse">
                         <i class="dripicons-view-thumb"></i><span>{{ trans('file.Organization') }}</span></a>
                     <ul id="Organization" class="collapse list-unstyled ">
@@ -172,10 +154,61 @@
                             <li id="location"><a href="{{ route('locations.index') }}">{{ trans('file.Location') }}</a>
                             </li>
                         @endcan
-                        @can('view-company')
-                            <li id="company"><a href="{{ route('companies.index') }}">{{ trans('file.Company') }}</a>
+
+                        @if (auth()->user()->can('view-company') || auth()->user()->can('client') || auth()->user()->can('view-project-category') || auth()->user()->can('view-project'))
+                            <li class="has-dropdown {{ request()->is('companies*') || request()->is('project-management/clients*') || request()->is('project-management/projects*') || request()->is('project-management/project_categories*') ? 'active' : '' }}">
+                                <a href="#Organization_Company" aria-expanded="false" data-toggle="collapse">
+                                    {{ trans('file.Company') }}
+                                </a>
+                                <ul id="Organization_Company" class="collapse list-unstyled sidebar-nested-menu">
+                                    @can('view-company')
+                                        <li id="company" class="{{ request()->is('companies*') ? 'active' : '' }}">
+                                            <a href="{{ route('companies.index') }}">{{ __('Company List') }}</a>
+                                        </li>
+                                    @endcan
+
+                                    @can('client')
+                                        <li class="has-dropdown {{ request()->is('project-management/clients*') || request()->is('project-management/projects*') || request()->is('project-management/project_categories*') ? 'active' : '' }}">
+                                            <a href="#Organization_Client" aria-expanded="false" data-toggle="collapse">
+                                                {{ trans('file.Client') }}
+                                            </a>
+                                            <ul id="Organization_Client" class="collapse list-unstyled sidebar-nested-menu">
+                                                <li id="org_client_list" class="{{ request()->is('project-management/clients*') ? 'active' : '' }}">
+                                                    <a href="{{ route('clients.index') }}">{{ __('Client List') }}</a>
+                                                </li>
+                                                @can('view-project-category')
+                                                    <li id="org_client_categories" class="{{ request()->is('project-management/project_categories*') ? 'active' : '' }}">
+                                                        <a href="{{ route('project_categories.index') }}">{{ __('Project Categories') }}</a>
+                                                    </li>
+                                                @endcan
+                                                @can('view-project')
+                                                    <li id="org_client_projects" class="{{ request()->is('project-management/projects*') ? 'active' : '' }}">
+                                                        <a href="{{ route('projects.index') }}">{{ trans('file.Projects') }}</a>
+                                                    </li>
+                                                @endcan
+                                            </ul>
+                                        </li>
+                                    @endcan
+
+                                    @can('view-project-category')
+                                        @cannot('client')
+                                            <li id="org_project_categories" class="{{ request()->is('project-management/project_categories*') ? 'active' : '' }}">
+                                                <a href="{{ route('project_categories.index') }}">{{ __('Project Categories') }}</a>
+                                            </li>
+                                        @endcannot
+                                    @endcan
+
+                                    @can('view-project')
+                                        @cannot('client')
+                                            <li id="org_projects" class="{{ request()->is('project-management/projects*') ? 'active' : '' }}">
+                                                <a href="{{ route('projects.index') }}">{{ trans('file.Projects') }}</a>
+                                            </li>
+                                        @endcannot
+                                    @endcan
+                                </ul>
                             </li>
-                        @endcan
+                        @endif
+
                         @can('view-department')
                             <li id="department"><a
                                     href="{{ route('departments.index') }}">{{ trans('file.Department') }}</a>
@@ -194,15 +227,11 @@
                             </li>
                         @endcan
 
-                        {{-- @can('announcement') --}}
                         <li id="announcements"><a
                                 href="{{ route('announcements.index') }}">{{ trans('file.Announcements') }}</a></li>
-                        {{-- @endcan --}}
 
-                        {{-- @can('policy') --}}
                         <li id="company_policy"><a href="{{ route('policy.index') }}">{{ __('Company Policy') }}</a>
                         </li>
-                        {{-- @endcan --}}
                     </ul>
                 </li>
 
@@ -640,7 +669,6 @@
             @can('project-management')
                 <li class="has-dropdown {{ request()->is('project-management*') ? 'active' : '' }}">
                     @if (auth()->user()->can('view-project') ||
-                            auth()->user()->can('view-task') ||
                             auth()->user()->can('view-invoice'))
                         <a href="#Project_Management" aria-expanded="false" data-toggle="collapse">
                             <i class="dripicons-checklist"></i><span>{{ __('Project Management') }}</span>
@@ -648,13 +676,8 @@
                     @endcan
                     <ul id="Project_Management" class="collapse list-unstyled ">
                         @can('view-project')
-                            <li id="projects"><a
-                                    href="{{ route('projects.index') }}">{{ trans('file.Projects') }}</a>
-                            </li>
-                        @endcan
-                        @can('view-task')
-                            <li id="tasks"><a
-                                    href="{{ route('tasks.index') }}">{{ trans('file.Tasks') }}</a>
+                            <li id="pm_projects" class="{{ request()->is('project-management/projects*') ? 'active' : '' }}">
+                                <a href="{{ route('projects.index') }}">{{ trans('file.Projects') }}</a>
                             </li>
                         @endcan
                         @can('view-invoice')

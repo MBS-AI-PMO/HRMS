@@ -11,7 +11,10 @@ use App\Models\Attendance;
 use App\Models\Award;
 use App\Models\location;
 use App\Services\AttendanceOvertimeService;
+use App\Services\EntityDashboardService;
+use App\Services\ProjectTimelineService;
 use App\Support\ClientDisplay;
+use App\Support\CompanyScope;
 use App\Support\ManagedEmployeeScope;
 use App\Models\Client;
 use App\Models\company;
@@ -106,6 +109,40 @@ class DashboardController extends Controller {
         $metrics = $this->buildExecutiveDashboardMetrics();
 
         return view('dashboard.executive_dashboard', compact('metrics', 'versionUpgradeData'));
+    }
+
+    public function companyDashboard(int $id)
+    {
+        if (! auth()->user()->can('view-company')) {
+            abort(403, __('You are not authorized'));
+        }
+
+        CompanyScope::assertCompanyAccess($id);
+
+        app(ProjectTimelineService::class)->syncAll();
+
+        $company = company::query()
+            ->with(['Location.Country', 'companyType:id,type_name'])
+            ->findOrFail($id);
+
+        $dashboard = app(EntityDashboardService::class)->buildCompanyDashboard($company);
+
+        return view('dashboard.entity_dashboard', compact('dashboard'));
+    }
+
+    public function clientOverviewDashboard(int $id)
+    {
+        if (! auth()->user()->can('view-client')) {
+            abort(403, __('You are not authorized'));
+        }
+
+        $client = Client::query()->findOrFail($id);
+
+        app(ProjectTimelineService::class)->syncAll();
+
+        $dashboard = app(EntityDashboardService::class)->buildClientDashboard($client);
+
+        return view('dashboard.entity_dashboard', compact('dashboard'));
     }
 
     protected function canAccessHrDashboard(): bool
@@ -988,7 +1025,10 @@ class DashboardController extends Controller {
 				->where('employee_id', $employee->id)->orderBy('id', 'desc')->first() ?? null;
 
 		$shift_ended = $shift_out ? AttendanceOvertimeService::isShiftEnded($shift_out) : false;
-		$can_overtime_clock_in = $shift_out && AttendanceOvertimeService::canStartOvertime($shift_out, $employee_attendance);
+		$is_off_day = AttendanceOvertimeService::isOffDay($shift_in, $shift_out);
+		$can_overtime_clock_in = $is_off_day
+			? AttendanceOvertimeService::canOvertimeOnOffDay($employee_attendance)
+			: ($shift_out && AttendanceOvertimeService::canStartOvertime($shift_out, $employee_attendance));
 		$is_on_overtime_session = AttendanceOvertimeService::isActiveOvertimeSession($employee_attendance);
 		$today_overtime_total = AttendanceOvertimeService::sumTodayOvertime($employee->id, now()->format('Y-m-d'));
 		$is_past_shift_while_clocked_in = $shift_ended
@@ -1037,7 +1077,7 @@ class DashboardController extends Controller {
 			'employee_award_count', 'holidays', 'leave_types', 'travel_types',
 			'assigned_projects', 'assigned_projects_count',
 			'assigned_tasks', 'assigned_tasks_count', 'assigned_tickets', 'assigned_tickets_count', 'ipCheck', 'general_setting',
-			'shift_ended', 'can_overtime_clock_in', 'is_on_overtime_session', 'today_overtime_total', 'is_past_shift_while_clocked_in',
+			'shift_ended', 'is_off_day', 'can_overtime_clock_in', 'is_on_overtime_session', 'today_overtime_total', 'is_past_shift_while_clocked_in',
 			'is_location_head', 'location_head_employee_count', 'can_manage_location_scope'));
 	}
 

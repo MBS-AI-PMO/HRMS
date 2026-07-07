@@ -408,7 +408,8 @@
                                                                     data-live-search-style="contains"
                                                                     title="{{ __('Selecting', ['key' => trans('file.Office Shift')]) }}...">
                                                                     @foreach ($office_shifts as $office_shift)
-                                                                        <option value="{{ $office_shift->id }}">
+                                                                        <option value="{{ $office_shift->id }}"
+                                                                            @selected((int) $employee->office_shift_id === (int) $office_shift->id)>
                                                                             {{ $office_shift->shift_name }}</option>
                                                                     @endforeach
                                                                 </select>
@@ -655,6 +656,7 @@
             </div>
         @endif
 
+        @include('employee.leave.info_modal')
     </section>
 
 

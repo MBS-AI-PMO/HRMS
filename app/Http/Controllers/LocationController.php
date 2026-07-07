@@ -67,7 +67,7 @@ class LocationController extends Controller
             && location::userCanAccessMyLocationsPage((int) $user->id);
     }
 
-	public function index()
+	public function index(Request $request)
 	{
         if (! auth()->user()->can('view-location')) {
             abort(403, __('You are not authorized'));
@@ -75,7 +75,7 @@ class LocationController extends Controller
 
 		if (request()->ajax()) {
             try {
-                $relations = array_merge(['Country:id,name'], $this->locationListRelations());
+                $relations = array_merge(['country:id,name'], $this->locationListRelations());
 
                 $locationsQuery = location::with($relations)->latest();
 
@@ -122,32 +122,32 @@ class LocationController extends Controller
 
                 return datatables()->of($locationsQuery->get())
                     ->addColumn('country', function ($row) {
-                        return optional($row->Country)->name ?? '';
+                        return optional($row->country)->name ?? '';
                     })
                     ->addColumn('location_head', function ($row) {
                         return $row->locationHeadsLabel();
-                    })
-                    ->addColumn('companies', function ($row) {
+				})
+                ->addColumn('companies', function ($row) {
                         return $this->locationClientLabel($row);
-                    })
+                })
                     ->addColumn('action', function ($data) {
-                        $button = '';
+					$button = '';
                         if (auth()->user()->can('edit-location')) {
                             $button = '<button type="button" name="edit" id="'.$data->id.'" class="edit btn btn-primary btn-sm"><i class="dripicons-pencil"></i></button>';
                             $button .= '&nbsp;&nbsp;';
                         }
                         if (auth()->user()->can('view-location')) {
                             $button .= '<button type="button" name="assign_shift" id="'.$data->id.'" class="assign_shift btn btn-info btn-sm" title="'.__('Assign Shift').'"><i class="fa fa-clock-o"></i></button>';
-                            $button .= '&nbsp;&nbsp;';
-                        }
+						$button .= '&nbsp;&nbsp;';
+					}
                         if (auth()->user()->can('delete-location')) {
                             $button .= '<button type="button" name="delete" id="'.$data->id.'" class="delete btn btn-danger btn-sm"><i class="dripicons-trash"></i></button>';
-                        }
+					}
 
-                        return $button;
-                    })
-                    ->rawColumns(['action'])
-                    ->make(true);
+					return $button;
+				})
+				->rawColumns(['action'])
+				->make(true);
             } catch (\Throwable $e) {
                 report($e);
 
@@ -553,7 +553,7 @@ class LocationController extends Controller
         ])->values();
 
         return response()->json(['items' => $items]);
-    }
+	}
 
     public function employeesByCompanies(Request $request)
     {
@@ -1071,23 +1071,7 @@ class LocationController extends Controller
 
     private function clientIdsForCompany(int $companyId): array
     {
-        return Project::query()
-            ->where('company_id', $companyId)
-            ->whereNotNull('client_id')
-            ->distinct()
-            ->pluck('client_id')
-            ->merge(
-                Employee::query()
-                    ->where('company_id', $companyId)
-                    ->whereNotNull('client_id')
-                    ->distinct()
-                    ->pluck('client_id')
-            )
-            ->filter()
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->values()
-            ->all();
+        return CompanyScope::clientIdsForCompany($companyId);
     }
 
     private function clientSelectLabel($client): string

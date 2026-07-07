@@ -17,7 +17,8 @@ class EmployeeLeaveController extends Controller {
 			if (request()->ajax())
 			{
 				$isWfhView = request()->boolean('wfh');
-				$leaves = leave::with('department', 'LeaveType', 'approvedByUser:id,first_name,last_name', 'approvedByEmployee:id,first_name,last_name')
+
+				$query = leave::with('department', 'LeaveType', 'approvedByUser:id,first_name,last_name', 'approvedByEmployee:id,first_name,last_name')
 					->where('employee_id', $employee)
 					->when($isWfhView, function ($query) {
 						$query->whereHas('LeaveType', function ($q) {
@@ -32,10 +33,9 @@ class EmployeeLeaveController extends Controller {
 							})
 							->orWhereNull('leave_type_id');
 						});
-					})
-					->get();
+					});
 
-				return datatables()->of($leaves)
+				return datatables()->eloquent($query)
 					->setRowId(function ($leave)
 					{
 						return $leave->id;

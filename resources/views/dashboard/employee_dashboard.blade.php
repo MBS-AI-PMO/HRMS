@@ -50,11 +50,14 @@
                                     @endif
                                 </span>
                             </div>
-                            @if (!empty($shift_out) && ($today_overtime_total ?? '00:00') !== '00:00')
+                            @if (($today_overtime_total ?? '00:00') !== '00:00')
                                 <p class="emp-hero__overtime mb-0 mt-2">
                                     <i class="dripicons-hourglass"></i> {{ __('Today Overtime') }}:
                                     <strong>{{ $today_overtime_total }}</strong>
                                 </p>
+                            @endif
+                            @if (!empty($is_off_day))
+                                <span class="badge badge-info mt-2">{{ __('Off Day') }} — {{ __('Overtime clock-in available') }}</span>
                             @endif
                             @if (!empty($is_past_shift_while_clocked_in))
                                 <span class="badge badge-warning mt-2">{{ __('Overtime in progress (regular shift)') }}</span>

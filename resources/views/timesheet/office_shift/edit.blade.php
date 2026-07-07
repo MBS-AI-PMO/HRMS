@@ -23,18 +23,7 @@
                                 @csrf
                                 <div class="row">
 
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label>{{trans('file.Company')}} *</label>
-                                            <select name="company_id" id="company_id" class="form-control selectpicker"
-                                                    data-live-search="true" data-live-search-style="contains"
-                                                    title='{{__('Selecting',['key'=>trans('file.Company')])}}...'>
-                                                @foreach($companies as $company)
-                                                    <option value="{{$company->id}}" @if($office_shift->company_id==$company->id) selected @endif >{{$company->company_name}}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                    </div>
+                                    @include('timesheet.office_shift.partials.owner_fields', ['office_shift' => $office_shift])
 
                                     <div class="col-md-6 form-group">
                                         <label>{{trans('file.Shift')}} *</label>

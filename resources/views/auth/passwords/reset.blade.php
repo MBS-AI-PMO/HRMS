@@ -1,93 +1,79 @@
-<?php $general_setting = DB::table('general_settings')->find(1); ?>
-        <!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>{{$general_setting->site_title}}</title>
-    <meta name="description" content="">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="all,follow">
-    <!-- Bootstrap CSS-->
-    <link rel="stylesheet" href="<?php echo asset('vendor/bootstrap/css/bootstrap.min.css') ?>" type="text/css">
-    <!-- Google fonts - Roboto -->
-    <!--<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700">-->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+@extends('layout.auth')
 
-    <!-- theme stylesheet-->
-    <link rel="stylesheet" href="<?php echo asset('css/style.default.css') ?>" id="theme-stylesheet"
-          type="text/css">
-    <!-- Custom stylesheet - for your changes-->
-    <link rel="stylesheet" href="<?php echo asset('css/custom-' . $general_setting->theme) ?>" type="text/css">
-    <!-- Favicon-->
-    <link rel="shortcut icon" href="img/favicon.ico">
-</head>
-<body>
+@section('title', __('Set New Password'))
 
+@section('brand_headline', __('Create a new password'))
+@section('brand_tagline', __('Choose a strong password to keep your HRMS account secure.'))
 
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">{{ __('Reset Password') }}</div>
+@section('card_eyebrow', __('Almost done'))
+@section('card_title', __('Set new password'))
+@section('card_subtitle', __('Enter your email and choose a new password for your account.'))
 
-                <div class="card-body">
-                    <form method="POST" action="{{ route('password.update') }}">
-                        @csrf
+@section('content')
+    <form method="POST" action="{{ route('password.update') }}">
+        @csrf
+        <input type="hidden" name="token" value="{{ $token }}">
 
-                        <input type="hidden" name="token" value="{{ $token }}">
+        <div class="auth-field">
+            <label for="email">{{ __('E-Mail Address') }}</label>
+            <input id="email" type="email"
+                   class="form-control @error('email') is-invalid @enderror"
+                   name="email" value="{{ $email ?? old('email') }}" required autocomplete="email" autofocus
+                   placeholder="{{ __('you@company.com') }}">
+            @error('email')
+                <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
+            @enderror
+        </div>
 
-                        <div class="form-group row">
-                            <label for="email" class="col-md-4 col-form-label text-md-right">{{ __('E-Mail Address') }}</label>
+        <div class="auth-field">
+            <label for="password">{{ __('Password') }}</label>
+            <div class="auth-password-wrap">
+                <input id="password" type="password"
+                       class="form-control @error('password') is-invalid @enderror"
+                       name="password" required autocomplete="new-password"
+                       placeholder="{{ __('New password') }}">
+                <button type="button" class="auth-password-toggle" data-target="#password"
+                        aria-label="{{ __('Show password') }}">
+                    <i class="fa fa-eye"></i>
+                </button>
+            </div>
+            @error('password')
+                <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
+            @enderror
+        </div>
 
-                            <div class="col-md-6">
-                                <input id="email" type="email" class="form-control @error('email') is-invalid @enderror" name="email" value="{{ $email ?? old('email') }}" required autocomplete="email" autofocus>
-
-                                @error('email')
-                                    <span class="invalid-feedback" role="alert">
-                                        <strong>{{ $message }}</strong>
-                                    </span>
-                                @enderror
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label for="password" class="col-md-4 col-form-label text-md-right">{{ __('Password') }}</label>
-
-                            <div class="col-md-6">
-                                <input id="password" type="password" class="form-control @error('password') is-invalid @enderror" name="password" required autocomplete="new-password">
-
-                                @error('password')
-                                    <span class="invalid-feedback" role="alert">
-                                        <strong>{{ $message }}</strong>
-                                    </span>
-                                @enderror
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label for="password-confirm" class="col-md-4 col-form-label text-md-right">{{ __('Confirm Password') }}</label>
-
-                            <div class="col-md-6">
-                                <input id="password-confirm" type="password" class="form-control" name="password_confirmation" required autocomplete="new-password">
-                            </div>
-                        </div>
-
-                        <div class="form-group row mb-0">
-                            <div class="col-md-6 offset-md-4">
-                                <button type="submit" class="btn btn-primary">
-                                    {{ __('Reset Password') }}
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
+        <div class="auth-field">
+            <label for="password-confirm">{{ __('Confirm Password') }}</label>
+            <div class="auth-password-wrap">
+                <input id="password-confirm" type="password" class="form-control"
+                       name="password_confirmation" required autocomplete="new-password"
+                       placeholder="{{ __('Confirm new password') }}">
+                <button type="button" class="auth-password-toggle" data-target="#password-confirm"
+                        aria-label="{{ __('Show password') }}">
+                    <i class="fa fa-eye"></i>
+                </button>
             </div>
         </div>
-    </div>
-</div>
 
+        <button type="submit" class="auth-btn">{{ __('Reset Password') }}</button>
 
-<script type="text/javascript" src="<?php echo asset('vendor/jquery/jquery.min.js') ?>"></script>
-</body>
-</html>
+        <div class="auth-links">
+            <a href="{{ route('login') }}">&larr; {{ __('Back to login') }}</a>
+        </div>
+    </form>
+@endsection
+
+@push('scripts')
+<script>
+(function ($) {
+    'use strict';
+    $('.auth-password-toggle').on('click', function () {
+        var $input = $($(this).data('target'));
+        var $icon = $(this).find('i');
+        var isHidden = $input.attr('type') === 'password';
+        $input.attr('type', isHidden ? 'text' : 'password');
+        $icon.toggleClass('fa-eye', !isHidden).toggleClass('fa-eye-slash', isHidden);
+    });
+})(jQuery);
+</script>
+@endpush

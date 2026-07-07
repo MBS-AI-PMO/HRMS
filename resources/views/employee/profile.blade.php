@@ -130,9 +130,7 @@
                                             $statusLabel =
                                                 optional($statuses->firstWhere('id', $employee->status_id))
                                                     ->status_title ?? '—';
-                                            $shiftLabel =
-                                                optional($office_shifts->firstWhere('id', $employee->office_shift_id))
-                                                    ->shift_name ?? '—';
+                                            $shiftLabel = optional($employee->officeShift)->shift_name ?? '—';
                                             $locationLabel =
                                                 optional($locations->firstWhere('id', $employee->location_id))
                                                     ->location_name ?? '—';
@@ -501,7 +499,8 @@
                                                         data-live-search-style="contains"
                                                         title="{{ __('Selecting', ['key' => trans('file.Office Shift')]) }}...">
                                                         @foreach ($office_shifts as $office_shift)
-                                                            <option value="{{ $office_shift->id }}">
+                                                            <option value="{{ $office_shift->id }}"
+                                                                @selected((int) $employee->office_shift_id === (int) $office_shift->id)>
                                                                 {{ $office_shift->shift_name }}</option>
                                                         @endforeach
                                                     </select>
@@ -712,6 +711,8 @@
                     </div>
                 </div>
             </div>
+
+            @include('employee.leave.info_modal')
         </div>
     </section>
 

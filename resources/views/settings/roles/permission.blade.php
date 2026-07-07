@@ -1119,6 +1119,34 @@
                                         ]
                                     },
                                     {
+                                        id: 'project-category',
+                                        text: "{{__('Project Category')}}",
+                                        expanded: true,
+                                        checked: ($.inArray('project-category', result) >= 0) ? true : false,
+                                        items: [
+                                            {
+                                                id: 'view-project-category',
+                                                text: '{{__('View Project Category')}}',
+                                                checked: ($.inArray('view-project-category', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'store-project-category',
+                                                text: '{{__('Add Project Category')}}',
+                                                checked: ($.inArray('store-project-category', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'edit-project-category',
+                                                text: '{{__('Edit Project Category')}}',
+                                                checked: ($.inArray('edit-project-category', result) >= 0) ? true : false
+                                            },
+                                            {
+                                                id: 'delete-project-category',
+                                                text: "{{__('Delete Project Category')}}",
+                                                checked: ($.inArray('delete-project-category', result) >= 0) ? true : false
+                                            },
+                                        ]
+                                    },
+                                    {
                                         id: 'invoice',
                                         text: "{{trans('Invoice')}}",
                                         expanded: true,

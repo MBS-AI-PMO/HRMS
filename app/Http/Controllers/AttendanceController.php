@@ -23,10 +23,12 @@ use Maatwebsite\Excel\Validators\ValidationException;
 
 use App\Http\traits\MonthlyWorkedHours;
 use App\Services\AttendanceOvertimeService;
+use App\Scopes\AuthCompanyScope;
 use App\Support\AttendanceLocationCapture;
 use App\Support\CompanyScope;
 use App\Support\ManagedEmployeeScope;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use App\Models\location;
 
 class AttendanceController extends Controller {
@@ -36,6 +38,33 @@ class AttendanceController extends Controller {
 	public $date_attendance = [];
 	public $date_range = [];
 	public $work_days = 0;
+	protected $monthlyAbbreviationCounts = [];
+	protected $currentEmployeeHolidays;
+	protected $employeeHolidaysCache = [];
+	protected $date_attendance_iso = [];
+	protected static $employeesHaveCnicColumn;
+
+	protected function monthlyAbbreviationKeys(): array
+	{
+		return ['P', 'A', 'CL', 'SL', 'ML', 'SPL', 'WFH', 'LT', 'HD', 'EL', 'OFF'];
+	}
+
+	protected function resetMonthlyAbbreviationCounts(): void
+	{
+		$this->monthlyAbbreviationCounts = array_fill_keys($this->monthlyAbbreviationKeys(), 0);
+	}
+
+	protected function incrementMonthlyAbbreviationCount(string $code): void
+	{
+		if (array_key_exists($code, $this->monthlyAbbreviationCounts)) {
+			$this->monthlyAbbreviationCounts[$code]++;
+		}
+	}
+
+	protected function monthlyAbbreviationCount(string $code): int
+	{
+		return (int) ($this->monthlyAbbreviationCounts[$code] ?? 0);
+	}
 
     protected function getLateGraceMinutes(): int
     {
@@ -182,6 +211,80 @@ class AttendanceController extends Controller {
         $data = array_merge($data, AttendanceLocationCapture::clockOutFields($request));
     }
 
+    protected function handleOffDayEmployeeAttendance(Request $request, $id, Employee $employee, ?Attendance $employee_attendance_last)
+    {
+        $current_day = now()->format(env('Date_Format'));
+        $current_time = new DateTime(now()->format('H:i'));
+
+        if (! $employee_attendance_last || (int) $employee_attendance_last->clock_in_out === 0) {
+            if (! AttendanceOvertimeService::canOvertimeOnOffDay($employee_attendance_last)) {
+                return redirect()->back()->withErrors([__('Already clocked in. Please clock out first.')]);
+            }
+
+            $data = AttendanceOvertimeService::applyOvertimeClockInDefaults([
+                'employee_id' => $id,
+                'attendance_date' => $current_day,
+                'attendance_status' => 'present',
+                'clock_in_out' => 1,
+                'clock_in_ip' => $request->ip(),
+            ], $current_time);
+            $this->mergeClockInLocation($data, $request);
+
+            $attendance = Attendance::create($data);
+            $this->logEmployeeActivity($id, 'attendance.overtime_clock_in', 'Employee started overtime on off day.', array_merge([
+                'attendance_id' => $attendance->id,
+                'attendance_date' => $data['attendance_date'] ?? null,
+                'clock_in' => $data['clock_in'] ?? null,
+            ], AttendanceLocationCapture::metaFromRequest($request)));
+            $this->setSuccessMessage(__('Overtime Clocked In Successfully'));
+
+            return redirect()->back();
+        }
+
+        if (AttendanceOvertimeService::isActiveOvertimeSession($employee_attendance_last)) {
+            $data = AttendanceOvertimeService::buildOvertimeClockOutUpdate(
+                $employee_attendance_last,
+                $current_time,
+                $request->ip()
+            );
+            $this->mergeClockOutLocation($data, $request);
+
+            $attendance = Attendance::findOrFail($employee_attendance_last->id);
+            $attendance->update($data);
+            $this->logEmployeeActivity($id, 'attendance.overtime_clock_out', 'Employee ended overtime on off day.', array_merge([
+                'attendance_id' => $attendance->id,
+                'attendance_date' => $attendance->attendance_date,
+                'clock_out' => $data['clock_out'] ?? null,
+                'overtime' => $data['overtime'] ?? null,
+            ], AttendanceLocationCapture::metaFromRequest($request)));
+            $this->setSuccessMessage(__('Overtime Clocked Out Successfully'));
+
+            return redirect()->back();
+        }
+
+        return redirect()->back()->withErrors([__('Regular attendance is not available on off days. Please use overtime clock-in.')]);
+    }
+
+    protected function attendanceEmployeeBaseQuery()
+    {
+        return Employee::withoutGlobalScope(AuthCompanyScope::class);
+    }
+
+    protected function parseAttendanceFilterMonthYear(?string $monthYear): string
+    {
+        if (! $monthYear) {
+            return date('F Y');
+        }
+
+        $monthYear = trim($monthYear);
+
+        if (preg_match('/^(\d{1,2})\s+(\d{4})$/', $monthYear, $matches)) {
+            return Carbon::createFromDate((int) $matches[2], (int) $matches[1], 1)->format('F Y');
+        }
+
+        return $monthYear;
+    }
+
     /**
      * Apply company / client / location / department / employee filters to an employee query.
      */
@@ -198,18 +301,183 @@ class AttendanceController extends Controller {
             return;
         }
 
-        if ($request->filled($companyKey)) {
-            $query->where('company_id', (int) $request->input($companyKey));
-        }
         if ($request->filled($clientKey)) {
             $query->where('client_id', (int) $request->input($clientKey));
+        } elseif ($request->filled($companyKey)) {
+            $companyId = (int) $request->input($companyKey);
+            $linkedClientIds = CompanyScope::clientIdsForCompany($companyId);
+
+            $query->where(function ($q) use ($companyId, $linkedClientIds) {
+                $q->where('company_id', $companyId);
+
+                if ($linkedClientIds !== []) {
+                    $q->orWhereIn('client_id', $linkedClientIds);
+                }
+            });
         }
+
         if ($request->filled($locationKey)) {
             $query->where('location_id', (int) $request->input($locationKey));
         }
         if ($request->filled('department_id')) {
             $query->where('department_id', (int) $request->input('department_id'));
         }
+    }
+
+    protected function canUseAttendanceFilters($logged_user): bool
+    {
+        return (int) $logged_user->role_users_id === 1
+            || ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
+    }
+
+    protected function employeeCompanyLabel(Employee $employee): string
+    {
+        if ($employee->company?->company_name) {
+            return (string) $employee->company->company_name;
+        }
+
+        if ($employee->client?->company_name) {
+            return (string) $employee->client->company_name;
+        }
+
+        return '—';
+    }
+
+    protected function holidaysForEmployee(Employee $employee)
+    {
+        $cacheKey = (int) $employee->id;
+
+        if (array_key_exists($cacheKey, $this->employeeHolidaysCache)) {
+            return $this->employeeHolidaysCache[$cacheKey];
+        }
+
+        if ($employee->company?->relationLoaded('companyHolidays')) {
+            return $this->employeeHolidaysCache[$cacheKey] = $employee->company->companyHolidays;
+        }
+
+        if ($employee->company_id) {
+            return $this->employeeHolidaysCache[$cacheKey] = Holiday::query()
+                ->where('company_id', $employee->company_id)
+                ->get();
+        }
+
+        if ($employee->client_id) {
+            $companyId = CompanyScope::resolveCompanyIdForClient((int) $employee->client_id);
+
+            if ($companyId) {
+                return $this->employeeHolidaysCache[$cacheKey] = Holiday::query()
+                    ->where('company_id', $companyId)
+                    ->get();
+            }
+        }
+
+        return $this->employeeHolidaysCache[$cacheKey] = collect();
+    }
+
+    protected function monthlyEmployeeSelectColumns(): array
+    {
+        $columns = [
+            'id', 'company_id', 'client_id', 'first_name', 'last_name',
+            'department_id', 'designation_id', 'office_shift_id',
+        ];
+
+        if ($this->employeesHaveCnicColumn()) {
+            $columns[] = 'cnic';
+        }
+
+        return $columns;
+    }
+
+    protected function employeesHaveCnicColumn(): bool
+    {
+        if (static::$employeesHaveCnicColumn === null) {
+            static::$employeesHaveCnicColumn = Schema::hasColumn('employees', 'cnic');
+        }
+
+        return static::$employeesHaveCnicColumn;
+    }
+
+    protected function monthlyLeaveAbbreviation($leaveItem): string
+    {
+        $leaveType = strtolower(trim((string) optional($leaveItem->LeaveType)->leave_type));
+
+        if (str_contains($leaveType, 'wfh') || str_contains($leaveType, 'work from home')) {
+            return 'WFH';
+        }
+
+        if ((float) ($leaveItem->total_days ?? 0) > 0 && (float) $leaveItem->total_days < 1) {
+            return 'HD';
+        }
+
+        if (str_contains($leaveType, 'half')) {
+            return 'HD';
+        }
+
+        if (str_contains($leaveType, 'casual') || $leaveType === 'cl') {
+            return 'CL';
+        }
+
+        if (str_contains($leaveType, 'sick') || $leaveType === 'sl') {
+            return 'SL';
+        }
+
+        if (str_contains($leaveType, 'maternity') || $leaveType === 'ml') {
+            return 'ML';
+        }
+
+        if (str_contains($leaveType, 'special') || $leaveType === 'spl') {
+            return 'SPL';
+        }
+
+        return 'CL';
+    }
+
+    protected function monthlyPresentAbbreviation($attendance): string
+    {
+        $timeLate = trim((string) ($attendance->time_late ?? '00:00'));
+        $earlyLeaving = trim((string) ($attendance->early_leaving ?? '00:00'));
+
+        $isLate = $timeLate !== '' && ! in_array($timeLate, ['00:00', '00:00:00', '---'], true);
+        $isEarly = $earlyLeaving !== '' && ! in_array($earlyLeaving, ['00:00', '00:00:00', '---'], true);
+
+        if ($isLate) {
+            return 'LT';
+        }
+
+        if ($isEarly) {
+            return 'EL';
+        }
+
+        return 'P';
+    }
+
+    protected function countMonthlyWorkedDay(string $code): void
+    {
+        if (in_array($code, ['P', 'LT', 'EL', 'WFH'], true)) {
+            $this->work_days++;
+
+            return;
+        }
+
+        if ($code === 'HD') {
+            $this->work_days += 0.5;
+        }
+    }
+
+    protected function employeeAttendanceRelations(string $selectedDate): array
+    {
+        return [
+            'officeShift',
+            'company:id,company_name',
+            'client:id,company_name',
+            'employeeAttendance' => function ($query) use ($selectedDate) {
+                $query->whereDate('attendance_date', $selectedDate);
+            },
+            'employeeLeave' => function ($query) use ($selectedDate) {
+                $query->where('start_date', '<=', $selectedDate)
+                    ->where('end_date', '>=', $selectedDate);
+            },
+        ];
     }
 
 	public function index(Request $request)
@@ -221,12 +489,19 @@ class AttendanceController extends Controller {
         }
 
 		$canManageScopedAttendance = ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
+		$canUseAttendanceFilters = $this->canUseAttendanceFilters($logged_user);
 		$managedEmployeeIds = $canManageScopedAttendance
 			? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
 			: [];
-		//checking if date is selected else date is current
-		// if ($logged_user->can('view-attendance'))
-		// {
+
+        $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
+        $companies = $isLocationHead
+            ? CompanyScope::companiesForLocationHead((int) $logged_user->id)
+            : CompanyScope::companiesForSelect();
+        if ($companies->isEmpty()) {
+            $companies = company::all('id', 'company_name');
+        }
+
 			$selected_date = $this->resolveAttendanceListDate($request->filter_month_year);
 
 			$day = strtolower(Carbon::parse($selected_date)->format('l')).'_in';
@@ -234,62 +509,37 @@ class AttendanceController extends Controller {
 
 			if (request()->ajax())
 			{
-				//employee attendance of selected date
+                if (! $canUseAttendanceFilters) {
+                    $request->merge(['employee_id' => (int) $logged_user->id]);
+                }
 
-				// if($logged_user->role_users_id != 1){
-				if(!($logged_user->can('daily-attendances'))){ //Correction
-					$employee = Employee::with(['officeShift', 'employeeAttendance' => function ($query) use ($selected_date)
-					{
-						$query->whereDate('attendance_date', $selected_date);
-					},
-						'officeShift',
-						'company:id,company_name',
-						'employeeLeave' => function ($query) use ($selected_date)
-						{
-							$query->where('start_date', '<=', $selected_date)
-								->where('end_date', '>=', $selected_date);
-						}]
-					)
-					->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id')
+				$employeeQuery = $this->attendanceEmployeeBaseQuery()
+                    ->with($this->employeeAttendanceRelations($selected_date))
+					->select('id', 'company_id', 'client_id', 'first_name', 'last_name', 'office_shift_id')
 					->where('joining_date', '<=', $selected_date)
-                    ->where('is_active',1)
+                    ->where('is_active', 1)
                     ->where(function ($query) use ($selected_date) {
 						$query->whereNull('exit_date')
 							->orWhere('exit_date', '>=', $selected_date)
 							->orWhere('exit_date', '0000-00-00');
 					});
 
-					if ($canManageScopedAttendance) {
-						$employee = $employee->whereIn('id', $managedEmployeeIds);
-					} else {
-						$employee = $employee->where('id', '=', $logged_user->id);
-					}
+				if ((int) $logged_user->role_users_id === 1) {
+                    if ($request->filled('company_id') || $request->filled('client_id')
+                        || $request->filled('location_id') || $request->filled('employee_id')) {
+                        $this->applyAttendanceEmployeeFilters($employeeQuery, $request);
+                    }
+				} elseif ($canManageScopedAttendance) {
+					$employeeQuery->whereIn('id', $managedEmployeeIds);
+                    if ($request->filled('company_id') || $request->filled('client_id')
+                        || $request->filled('location_id') || $request->filled('employee_id')) {
+                        $this->applyAttendanceEmployeeFilters($employeeQuery, $request);
+                    }
+				} else {
+					$employeeQuery->where('id', (int) $logged_user->id);
+				}
 
-					$employee = $employee->get();
-				}
-				else{
-					$employee = Employee::with(['officeShift', 'employeeAttendance' => function ($query) use ($selected_date)
-					{
-						$query->whereDate('attendance_date', $selected_date);
-					},
-						'officeShift',
-						'company:id,company_name',
-						'employeeLeave' => function ($query) use ($selected_date)
-						{
-							$query->where('start_date', '<=', $selected_date)
-								->where('end_date', '>=', $selected_date);
-						}]
-					)
-					->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id')
-					->where('joining_date', '<=', $selected_date)
-                    ->where('is_active',1)
-                    ->where(function ($query) use ($selected_date) {
-						$query->whereNull('exit_date')
-							->orWhere('exit_date', '>=', $selected_date)
-							->orWhere('exit_date', '0000-00-00');
-					})
-					->get();
-				}
+				$employee = $employeeQuery->get();
 
 
 
@@ -310,7 +560,7 @@ class AttendanceController extends Controller {
 					})
 					->addColumn('company', function ($employee)
 					{
-						return $employee->company->company_name;
+						return $this->employeeCompanyLabel($employee);
 					})
 					->addColumn('attendance_date', function ($employee) use ($selected_date)
 					{
@@ -331,14 +581,15 @@ class AttendanceController extends Controller {
 						//if there are employee attendance,get the first record
 						if ($employee->employeeAttendance->isEmpty())
 						{
-							if (is_null($employee->officeShift->$day ?? null) || ($employee->officeShift->$day == ''))
+							$shiftDay = optional($employee->officeShift)->$day ?? null;
+							if (is_null($shiftDay) || $shiftDay === '')
 							{
 								return __('Off Day');
 							}
 
 							if ($holidays)
 							{
-								if ($employee->company_id == $holidays->company_id)
+								if ($employee->company_id && (int) $employee->company_id === (int) $holidays->company_id)
 								{
 									return trans('file.Holiday');
 								}
@@ -479,7 +730,7 @@ class AttendanceController extends Controller {
 					->make(true);
 			}
 
-			return view('timesheet.attendance.attendance');
+			return view('timesheet.attendance.attendance', compact('companies', 'canUseAttendanceFilters'));
 		// }
 
 		return response()->json(['success' => __('You are not authorized')]);
@@ -514,6 +765,13 @@ class AttendanceController extends Controller {
 
 		$employee_attendance_last = Attendance::where('attendance_date', now()->format('Y-m-d'))
 				->where('employee_id', $id)->orderBy('id', 'desc')->first() ?? null;
+
+		$shiftInRaw = trim((string) $request->office_shift_in);
+		$shiftOutRaw = trim((string) $request->office_shift_out);
+
+		if (AttendanceOvertimeService::isOffDay($shiftInRaw ?: null, $shiftOutRaw ?: null)) {
+			return $this->handleOffDayEmployeeAttendance($request, $id, $employee, $employee_attendance_last);
+		}
 
 		try
 		{
@@ -1179,6 +1437,7 @@ class AttendanceController extends Controller {
 
         $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
         $canManageScopedAttendance = ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
+        $canUseAttendanceFilters = $this->canUseAttendanceFilters($logged_user);
         $managedEmployeeIds = $canManageScopedAttendance
             ? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
             : [];
@@ -1189,18 +1448,24 @@ class AttendanceController extends Controller {
         if ($companies->isEmpty()) {
             $companies = company::all('id', 'company_name');
         }
-        $start_date = Carbon::parse($request->filter_start_date)->format('Y-m-d') ?? '';
-        $end_date = Carbon::parse($request->filter_end_date)->format('Y-m-d') ?? '';
-        // $start_date = Carbon::parse('2023-02-18')->format('Y-m-d') ?? '';
-        // $end_date = Carbon::parse('2023-02-20')->format('Y-m-d') ?? '';
 
-        // Test START
-        // return $this->test($request, $companies, $start_date, $end_date);
-        // Test END
-
+        $start_date = null;
+        $end_date = null;
+        if ($request->filled('filter_start_date') && $request->filled('filter_end_date')) {
+            $start_date = $this->parseAttendanceFilterDate($request->filter_start_date);
+            $end_date = $this->parseAttendanceFilterDate($request->filter_end_date);
+        }
 
         if (request()->ajax())
         {
+            if (! $start_date || ! $end_date) {
+                return datatables()->of([])->make(true);
+            }
+
+            if (! $canUseAttendanceFilters) {
+                $request->merge(['employee_id' => (int) $logged_user->id]);
+            }
+
             if (!$request->company_id && !$request->department_id && !$request->employee_id
                 && !$request->client_id && !$request->location_id)
             {
@@ -1208,22 +1473,28 @@ class AttendanceController extends Controller {
             }
             else
             {
-                $employee = Employee::with(['officeShift', 'employeeAttendance' => function ($query) use ($start_date, $end_date)
+                $employee = $this->attendanceEmployeeBaseQuery()
+                ->with(['officeShift', 'employeeAttendance' => function ($query) use ($start_date, $end_date)
                 {
                     $query->whereBetween('attendance_date', [$start_date, $end_date]);
                 },
                     'employeeLeave',
                     'company:id,company_name',
+                    'client:id,company_name',
                     'company.companyHolidays'
                 ])
-                ->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id', 'joining_date')
+                ->select('id', 'company_id', 'client_id', 'first_name', 'last_name', 'office_shift_id', 'joining_date')
                 ->where('is_active', '=', 1);
 
-                if ($canManageScopedAttendance) {
+                if ((int) $logged_user->role_users_id === 1) {
+                    $this->applyAttendanceEmployeeFilters($employee, $request);
+                } elseif ($canManageScopedAttendance) {
                     $employee->whereIn('id', $managedEmployeeIds);
+                    $this->applyAttendanceEmployeeFilters($employee, $request);
+                } else {
+                    $employee->where('id', (int) $logged_user->id);
                 }
 
-                $this->applyAttendanceEmployeeFilters($employee, $request);
                 $employee = $employee->get();
 
                 $begin = new DateTime($start_date);
@@ -1240,13 +1511,13 @@ class AttendanceController extends Controller {
                 foreach ($employee as $key1 => $emp) {
                     $all_attendances_array = $emp->employeeAttendance->groupBy('attendance_date')->toArray();
                     $leaves = $emp->employeeLeave;
-                    $shift = $emp->officeShift->toArray();
-                    $holidays = $emp->company->companyHolidays;
+                    $shift = $emp->officeShift ? $emp->officeShift->toArray() : [];
+                    $holidays = $emp->company?->companyHolidays ?? collect();
                     $joining_date = Carbon::parse($emp->joining_date)->format(env('Date_Format'));
                     foreach ($date_range as $key2 => $dt_r) {
                         $emp_attendance_date_range[$key1*count($date_range)+$key2]['id'] = $emp->id;
                         $emp_attendance_date_range[$key1*count($date_range)+$key2]['employee_name'] = ($key2==0) ? '<strong>'.$emp->full_name.'</strong>' : $emp->full_name;
-                        $emp_attendance_date_range[$key1*count($date_range)+$key2]['company'] = $emp->company->company_name;
+                        $emp_attendance_date_range[$key1*count($date_range)+$key2]['company'] = $this->employeeCompanyLabel($emp);
                         $emp_attendance_date_range[$key1*count($date_range)+$key2]['attendance_date'] = Carbon::parse($dt_r)->format(env('Date_Format'));
 
                         //attendance status
@@ -1452,7 +1723,7 @@ class AttendanceController extends Controller {
                 ->make(true);
         }
 
-        return view('timesheet.dateWiseAttendance.index', compact('companies', 'canManageScopedAttendance'));
+        return view('timesheet.dateWiseAttendance.index', compact('companies', 'canManageScopedAttendance', 'canUseAttendanceFilters'));
 
 	}
 
@@ -1467,6 +1738,7 @@ class AttendanceController extends Controller {
 
         $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
         $canManageScopedAttendance = ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
+        $canUseAttendanceFilters = $this->canUseAttendanceFilters($logged_user);
         $managedEmployeeIds = $canManageScopedAttendance
             ? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
             : [];
@@ -1479,103 +1751,100 @@ class AttendanceController extends Controller {
         }
 
 
-		$month_year = $request->filter_month_year;
+		$month_year = $this->parseAttendanceFilterMonthYear($request->filter_month_year);
 		$this->date_range = [];
 		$this->date_attendance = [];
+		$this->date_attendance_iso = [];
 
-		$first_date = date('Y-m-d', strtotime('first day of ' . $month_year));
-		$last_date = date('Y-m-d', strtotime('last day of ' . $month_year));
+		$monthStart = Carbon::parse('first day of '.$month_year);
+		$monthEnd = $monthStart->copy()->endOfMonth();
+		$first_date = $monthStart->format('Y-m-d');
+		$last_date = $monthEnd->format('Y-m-d');
+		$dateFormat = env('Date_Format', 'd-m-Y');
 
-		$begin = new DateTime($first_date);
-		$end = new DateTime($last_date);
-
-		$end->modify('+1 day');
-
-		$interval = DateInterval::createFromDateString('1 day');
-		$period = new DatePeriod($begin, $interval, $end);
-
-
-		foreach ($period as $dt)
-		{
-			$this->date_range[] = $dt->format("d D");
-			$this->date_attendance[] = $dt->format(env('Date_Format'));
+		for ($current = $monthStart->copy(); $current->lte($monthEnd); $current->addDay()) {
+			$this->date_range[] = $current->format('d D');
+			$this->date_attendance_iso[] = $current->format('Y-m-d');
+			$this->date_attendance[] = $current->format($dateFormat);
 		}
 
 
 		// if ($logged_user->can('view-attendance'))
 		// {
-			if (request()->ajax())
+			if ($request->ajax())
 			{
-				if(!($logged_user->can('monthly-attendances'))) //Correction
-				{
-					$employee = Employee::with(['officeShift', 'employeeAttendance' => function ($query) use ($first_date, $last_date)
+				try {
+				$this->employeeHolidaysCache = [];
+
+				$employeeQuery = $this->attendanceEmployeeBaseQuery()
+				->with(['officeShift', 'department:id,department_name', 'designation:id,designation_name', 'employeeAttendance' => function ($query) use ($first_date, $last_date)
 					{
 						$query->whereBetween('attendance_date', [$first_date, $last_date]);
 					},
 						'employeeLeave.LeaveType',
 						'company:id,company_name',
-						'company.companyHolidays'
+						'company.companyHolidays',
+						'client:id,company_name',
 					])
-					->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id')
-                    ->where('is_active',1)
+					->select($this->monthlyEmployeeSelectColumns())
+                    ->where('is_active', 1)
                     ->where(function ($query) use ($last_date) {
 						$query->whereNull('exit_date')
 							->orWhere('exit_date', '>=', $last_date)
 							->orWhere('exit_date', '0000-00-00');
 					});
 
-					if ($canManageScopedAttendance) {
-						$employee = $employee->whereIn('id', $managedEmployeeIds);
-					} else {
-						$employee = $employee->whereId($logged_user->id);
+				if ((int) $logged_user->role_users_id === 1) {
+					if (! $request->filter_company && ! $request->filter_employee
+						&& ! $request->filter_client && ! $request->filter_location) {
+						return datatables()->of(collect())
+							->with(['date_range' => $this->date_range])
+							->make(true);
 					}
 
-					$employee = $employee->get();
-				}
-				else
-				{
-					$employee = Employee::with(['officeShift', 'employeeAttendance' => function ($query) use ($first_date, $last_date)
-					{
-						$query->whereBetween('attendance_date', [$first_date, $last_date]);
-					},
-						'employeeLeave.LeaveType',
-						'company:id,company_name',
-						'company.companyHolidays'
-					])
-						->select('id', 'company_id', 'first_name', 'last_name', 'office_shift_id')
-						->where('is_active', 1)
-						->where(function ($query) use ($last_date) {
-							$query->whereNull('exit_date')
-								->orWhere('exit_date', '>=', $last_date)
-								->orWhere('exit_date', '0000-00-00');
-						});
+					$this->applyAttendanceEmployeeFilters($employeeQuery, $request, 'filter_');
+				} elseif ($canManageScopedAttendance) {
+					if ($managedEmployeeIds === []) {
+						return datatables()->of(collect())
+							->with(['date_range' => $this->date_range])
+							->make(true);
+					}
 
+					$employeeQuery->whereIn('id', $managedEmployeeIds);
 					if ($request->filter_company || $request->filter_employee
 						|| $request->filter_client || $request->filter_location) {
-						$this->applyAttendanceEmployeeFilters($employee, $request, 'filter_');
+						$this->applyAttendanceEmployeeFilters($employeeQuery, $request, 'filter_');
 					}
-
-					$employee = $employee->get();
+				} else {
+					$employeeQuery->where('id', (int) $logged_user->id);
 				}
 
-                if ($canManageScopedAttendance) {
-                    $employee = $employee->whereIn('id', $managedEmployeeIds)->values();
-                }
+				$employee = $employeeQuery->get();
 
 				return datatables()->of($employee)
 					->setRowId(function ($row)
 					{
 						$this->work_days = 0;
+						$this->resetMonthlyAbbreviationCounts();
+						$this->currentEmployeeHolidays = $this->holidaysForEmployee($row);
 
 						return $row->id;
 					})
 					->addColumn('employee_name', function ($row)
 					{
-						$name = $row->full_name;
-						$company_name = $row->company->company_name;
-
-						return $name . '(' . $company_name . ')';
-
+						return $row->full_name;
+					})
+					->addColumn('department_name', function ($row)
+					{
+						return $row->department->department_name ?? '—';
+					})
+					->addColumn('designation_name', function ($row)
+					{
+						return $row->designation->designation_name ?? '—';
+					})
+					->addColumn('cnic', function ($row)
+					{
+						return $this->employeesHaveCnicColumn() ? ($row->cnic ?: '—') : '—';
 					})
 					->addColumn('day1', function ($row)
 					{
@@ -1703,11 +1972,59 @@ class AttendanceController extends Controller {
 					})
 					->addColumn('worked_days', function ($row)
 					{
-						return $this->work_days;
+						$days = $this->work_days;
+
+						return abs($days - round($days)) < 0.001
+							? (string) (int) round($days)
+							: number_format($days, 1);
 					})
 					->addColumn('total_worked_hours', function ($row)
 					{
 						return $this->totalWorkedHours($row);
+					})
+					->addColumn('count_p', function ($row)
+					{
+						return $this->monthlyAbbreviationCount('P');
+					})
+					->addColumn('count_a', function ($row)
+					{
+						return $this->monthlyAbbreviationCount('A');
+					})
+					->addColumn('count_cl', function ($row)
+					{
+						return $this->monthlyAbbreviationCount('CL');
+					})
+					->addColumn('count_sl', function ($row)
+					{
+						return $this->monthlyAbbreviationCount('SL');
+					})
+					->addColumn('count_ml', function ($row)
+					{
+						return $this->monthlyAbbreviationCount('ML');
+					})
+					->addColumn('count_spl', function ($row)
+					{
+						return $this->monthlyAbbreviationCount('SPL');
+					})
+					->addColumn('count_wfh', function ($row)
+					{
+						return $this->monthlyAbbreviationCount('WFH');
+					})
+					->addColumn('count_lt', function ($row)
+					{
+						return $this->monthlyAbbreviationCount('LT');
+					})
+					->addColumn('count_hd', function ($row)
+					{
+						return $this->monthlyAbbreviationCount('HD');
+					})
+					->addColumn('count_el', function ($row)
+					{
+						return $this->monthlyAbbreviationCount('EL');
+					})
+					->addColumn('count_off', function ($row)
+					{
+						return $this->monthlyAbbreviationCount('OFF');
 					})
 					// ->addColumn('total_worked_hours', function ($row) use ($month_year)
 					// {
@@ -1722,9 +2039,21 @@ class AttendanceController extends Controller {
 						'date_range' => $this->date_range,
 					])
 					->make(true);
+				} catch (\Throwable $e) {
+					report($e);
+
+					return response()->json([
+						'draw' => (int) $request->input('draw', 0),
+						'recordsTotal' => 0,
+						'recordsFiltered' => 0,
+						'data' => [],
+						'date_range' => $this->date_range,
+						'error' => config('app.debug') ? $e->getMessage() : __('Failed to load monthly attendance.'),
+					], 200);
+				}
 			}
 
-			return view('timesheet.monthlyAttendance.index', compact('companies', 'canManageScopedAttendance'));
+			return view('timesheet.monthlyAttendance.index', compact('companies', 'canManageScopedAttendance', 'canUseAttendanceFilters'));
 		// }
 		// return response()->json(['success' => __('You are not authorized')]);
 	}
@@ -1732,56 +2061,68 @@ class AttendanceController extends Controller {
 
 	public function checkAttendanceStatus($emp, $index)
 	{
-
-		if (count($this->date_attendance) <= $index)
-		{
+		if (count($this->date_attendance) <= $index) {
 			return '';
-		} else
-		{
-			$present = $emp->employeeAttendance->where('attendance_date', $this->date_attendance[$index]);
-
-			$leave = $emp->employeeLeave->where('start_date', '<=', $this->date_attendance[$index])
-				->where('end_date', '>=', $this->date_attendance[$index]);
-
-			$holiday = $emp->company->companyHolidays->where('start_date', '<=', $this->date_attendance[$index])
-				->where('end_date', '>=', $this->date_attendance[$index]);
-
-			$day = strtolower(Carbon::parse($this->date_attendance[$index])->format('l')) . '_in';
-
-			if ($present->isNotEmpty())
-			{
-				$this->work_days++;
-
-                $firstAttendance = $present->sortBy('clock_in')->first();
-                $isLateArrival = $firstAttendance && ($firstAttendance->time_late ?? '00:00') !== '00:00';
-
-				return $isLateArrival ? 'LA' : 'P';
-			} elseif (!$emp->officeShift || !$emp->officeShift->$day)
-			{
-				return 'O';
-			} elseif ($leave->isNotEmpty())
-			{
-                $hasWfhLeave = $leave->contains(function ($leaveItem) {
-                    $leaveType = strtolower(optional($leaveItem->LeaveType)->leave_type ?? '');
-
-                    return str_contains($leaveType, 'wfh') || str_contains($leaveType, 'work from home');
-                });
-
-                if ($hasWfhLeave) {
-                    $this->work_days++;
-
-                    return 'WFH';
-                }
-
-				return 'L';
-			} elseif ($holiday->isNotEmpty())
-			{
-				return 'H';
-			} else
-			{
-				return 'A';
-			}
 		}
+
+		$displayDate = $this->date_attendance[$index];
+		$isoDate = $this->date_attendance_iso[$index] ?? null;
+
+		if (! $isoDate) {
+			return '';
+		}
+
+		$present = $emp->employeeAttendance->filter(function ($attendance) use ($displayDate) {
+			return $attendance->attendance_date === $displayDate;
+		});
+
+		$leave = $emp->employeeLeave->filter(function ($leaveItem) use ($isoDate) {
+			$start = $this->parseAttendanceFilterDate($leaveItem->start_date);
+			$end = $this->parseAttendanceFilterDate($leaveItem->end_date);
+
+			return $start && $end && $isoDate >= $start && $isoDate <= $end;
+		});
+
+		$holidays = $this->currentEmployeeHolidays ?? $this->holidaysForEmployee($emp);
+		$holiday = $holidays->filter(function ($holidayItem) use ($isoDate) {
+			$start = $holidayItem->getAttributes()['start_date'] ?? null;
+			$end = $holidayItem->getAttributes()['end_date'] ?? null;
+
+			return $start && $end && $isoDate >= $start && $isoDate <= $end;
+		});
+
+		$day = strtolower(Carbon::parse($isoDate)->format('l')) . '_in';
+		$isOffDay = ! $emp->officeShift || ! $emp->officeShift->$day;
+
+		if ($present->isNotEmpty()) {
+			$firstAttendance = $present->sortBy('clock_in')->first();
+			$code = $this->monthlyPresentAbbreviation($firstAttendance);
+			$this->incrementMonthlyAbbreviationCount($code);
+			$this->countMonthlyWorkedDay($code);
+
+			return $code;
+		}
+
+		if ($isOffDay) {
+			$this->incrementMonthlyAbbreviationCount('OFF');
+			return 'OFF';
+		}
+
+		if ($holiday->isNotEmpty()) {
+			$this->incrementMonthlyAbbreviationCount('OFF');
+			return 'OFF';
+		}
+
+		if ($leave->isNotEmpty()) {
+			$code = $this->monthlyLeaveAbbreviation($leave->first());
+			$this->incrementMonthlyAbbreviationCount($code);
+			$this->countMonthlyWorkedDay($code);
+
+			return $code;
+		}
+
+		$this->incrementMonthlyAbbreviationCount('A');
+		return 'A';
 	}
 
 	public function updateAttendance(Request $request)

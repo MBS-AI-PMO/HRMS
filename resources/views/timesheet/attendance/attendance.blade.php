@@ -4,13 +4,6 @@
     <section>
         <div class="container-fluid">
 
-            {{-- <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                <strong>Holy guacamole!</strong> You should check in on some of those fields below.
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                  <span aria-hidden="true">&times;</span>
-                </button>
-              </div> --}}
-
             <div class="card">
                 <div class="card-body">
 
@@ -19,12 +12,68 @@
                     <form method="post" id="filter_form" class="form-horizontal">
                         @csrf
                         <div class="row">
-                            <div class="col-md-6 offset-md-3 mb-2">
-                                <label for="day_month_year">{{__('Select Date')}}</label>
-                                <div class="input-group">
-                                    <input class="form-control month_year date" placeholder="{{__('Select Date')}}" readonly="" id="day_month_year" name="day_month_year" type="text" value="{{now()->format(env('Date_Format'))}}">
-                                    <button type="submit" class="filtering btn btn-primary"><i class="fa fa-search"></i> {{trans('file.Search')}}
-                                        </button>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="day_month_year">{{__('Select Date')}}</label>
+                                    <input class="form-control month_year date" placeholder="{{__('Select Date')}}" readonly=""
+                                           id="day_month_year" name="day_month_year" type="text"
+                                           value="{{ now()->format(env('Date_Format')) }}">
+                                </div>
+                            </div>
+
+                            @if (!empty($canUseAttendanceFilters) && $canUseAttendanceFilters)
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>{{ trans('file.Company') }}</label>
+                                        <select name="company_id" id="company_id" class="form-control selectpicker"
+                                                data-live-search="true" data-live-search-style="contains"
+                                                title="{{ __('Selecting', ['key' => trans('file.Company')]) }}...">
+                                            @foreach ($companies as $company)
+                                                <option value="{{ $company->id }}">{{ $company->company_name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>{{ trans('file.Client') }}</label>
+                                        <select name="client_id" id="client_id" class="selectpicker form-control"
+                                                data-live-search="true" data-live-search-style="contains"
+                                                title="{{ __('Selecting', ['key' => trans('file.Client')]) }}...">
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>{{ trans('file.Location') }}</label>
+                                        <select name="location_id" id="location_id" class="selectpicker form-control"
+                                                data-live-search="true" data-live-search-style="contains"
+                                                title="{{ __('Selecting', ['key' => trans('file.Location')]) }}...">
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-2">
+                                    <div class="form-group">
+                                        <label>{{ trans('file.Employee') }}</label>
+                                        <select name="employee_id" id="employee_id" class="selectpicker form-control"
+                                                data-live-search="true" data-live-search-style="contains"
+                                                title="{{ __('Selecting', ['key' => trans('file.Employee')]) }}...">
+                                        </select>
+                                    </div>
+                                </div>
+                            @else
+                                <input type="hidden" name="employee_id" id="employee_id" value="{{ Auth::user()->id }}">
+                            @endif
+
+                            <div class="col-md-1">
+                                <div class="form-group">
+                                    <label>&nbsp;</label>
+                                    <button type="submit" class="filtering btn btn-primary btn-block">
+                                        <i class="fa fa-search"></i> {{ trans('file.Search') }}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -72,10 +121,9 @@
                 endDate: new Date()
             });
 
+            fill_datatable($('#day_month_year').val());
 
-            fill_datatable();
-
-            function fill_datatable(filter_month_year = '') {
+            function fill_datatable(filter_month_year = '', company_id = '', client_id = '', location_id = '', employee_id = '') {
 
                 let table_table = $('#daily_attendance-table').DataTable({
                 initComplete: function () {
@@ -110,6 +158,10 @@
                         url: "{{ route('attendances.index') }}",
                         data: {
                             filter_month_year: filter_month_year,
+                            company_id: company_id,
+                            client_id: client_id,
+                            location_id: location_id,
+                            employee_id: employee_id,
                             "_token": "{{ csrf_token()}}"
                         }
                     },
@@ -214,18 +266,108 @@
                         },
                     ],
                 });
+
+                new $.fn.dataTable.FixedHeader(table_table);
             }
 
-            new $.fn.dataTable.FixedHeader($('#daily_attendance-table').DataTable());
+            function resetSelect($select, allLabel) {
+                $select.selectpicker('destroy');
+                $select.html('<option value="">' + allLabel + '</option>');
+                $select.selectpicker();
+            }
 
-            $('#filter_form').on('submit',function (e) {
+            function loadClients(companyId) {
+                resetSelect($('#client_id'), @json(__('All')));
+
+                if (!companyId) {
+                    return $.Deferred().resolve().promise();
+                }
+
+                return $.post("{{ route('dynamic_clients') }}", {
+                    value: companyId,
+                    _token: '{{ csrf_token() }}'
+                }).done(function(result) {
+                    $('#client_id').selectpicker('destroy');
+                    $('#client_id').html('<option value="">' + @json(__('All')) + '</option>' + result);
+                    $('#client_id').selectpicker();
+                });
+            }
+
+            function loadLocations(companyId, clientId) {
+                resetSelect($('#location_id'), @json(__('All')));
+
+                if (!companyId && !clientId) {
+                    return $.Deferred().resolve().promise();
+                }
+
+                return $.post("{{ route('dynamic_locations') }}", {
+                    company_id: companyId || '',
+                    client_id: clientId || '',
+                    _token: '{{ csrf_token() }}'
+                }).done(function(result) {
+                    $('#location_id').selectpicker('destroy');
+                    $('#location_id').html('<option value="">' + @json(__('All')) + '</option>' + result);
+                    $('#location_id').selectpicker();
+                });
+            }
+
+            function loadEmployees(companyId, clientId, locationId) {
+                resetSelect($('#employee_id'), @json(__('All')));
+
+                if (!companyId && !clientId) {
+                    return $.Deferred().resolve().promise();
+                }
+
+                return $.post("{{ route('dynamic_employee') }}", {
+                    value: companyId || '',
+                    client_id: clientId || '',
+                    location_id: locationId || '',
+                    first_name: 'first_name',
+                    last_name: 'last_name',
+                    _token: '{{ csrf_token() }}'
+                }).done(function(result) {
+                    $('#employee_id').selectpicker('destroy');
+                    $('#employee_id').html('<option value="">' + @json(__('All')) + '</option>' + result);
+                    $('#employee_id').selectpicker();
+                });
+            }
+
+            $('#company_id').on('changed.bs.select', function() {
+                var companyId = $(this).val();
+                loadClients(companyId).always(function() {
+                    loadLocations(companyId, '').always(function() {
+                        loadEmployees(companyId, '', '');
+                    });
+                });
+            });
+
+            $('#client_id').on('changed.bs.select', function() {
+                var companyId = $('#company_id').val();
+                var clientId = $(this).val();
+                loadLocations(companyId, clientId).always(function() {
+                    loadEmployees(companyId, clientId, $('#location_id').val());
+                });
+            });
+
+            $('#location_id').on('changed.bs.select', function() {
+                loadEmployees($('#company_id').val(), $('#client_id').val(), $(this).val());
+            });
+
+            $('#filter_form').on('submit', function (e) {
                 e.preventDefault();
                 var filter_month_year = $('#day_month_year').val();
+                var company_id = $('#company_id').val() || '';
+                var client_id = $('#client_id').val() || '';
+                var location_id = $('#location_id').val() || '';
+                var employee_id = $('#employee_id').val() || '';
+
                 if (filter_month_year !== '') {
-                    $('#daily_attendance-table').DataTable().destroy();
-                    fill_datatable(filter_month_year);
+                    if ($.fn.DataTable.isDataTable('#daily_attendance-table')) {
+                        $('#daily_attendance-table').DataTable().destroy();
+                    }
+                    fill_datatable(filter_month_year, company_id, client_id, location_id, employee_id);
                 } else {
-                    alert('{{__('Select Both filter option')}}');
+                    alert(@json(__('Select date to search')));
                 }
             });
         });

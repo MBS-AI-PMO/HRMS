@@ -1,217 +1,117 @@
-<?php $general_setting = DB::table('general_settings')->latest()->first(); ?>
+@extends('layout.auth')
 
+@section('title', __('Sign in'))
 
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>{{$general_setting->site_title}}</title>
-    <meta name="description" content="">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="all,follow">
-    <!-- Bootstrap CSS-->
-    <link rel="stylesheet" href="<?php echo asset('vendor/bootstrap/css/bootstrap.min.css') ?>" type="text/css">
-    <!-- Google fonts - Roboto -->
-    <!--<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700">-->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+@section('card_eyebrow', __('Welcome back'))
+@section('card_title', __('Sign in to your account'))
+@section('card_subtitle', __('Enter your credentials to access the HRMS dashboard.'))
 
-    <!-- theme stylesheet-->
-    <link rel="stylesheet" href="<?php echo asset('css/style.default.css') ?>" id="theme-stylesheet"
-          type="text/css">
-    <!-- Custom stylesheet - for your changes-->
-    <link rel="stylesheet" href="<?php echo asset('css/custom-' . $general_setting->theme) ?>" type="text/css">
-    <!-- Favicon-->
-    <link rel="shortcut icon" href="img/favicon.ico">
-    <link rel="stylesheet" href="{{ asset('vendor/font-awesome/css/font-awesome.min.css') }}" type="text/css">
-    <style>
-        .password-field-wrap {
-            position: relative;
-        }
+@section('content')
+    @include('shared.errors')
+    @include('shared.flash_message')
 
-        .password-field-wrap .input-material {
-            padding-right: 2.25rem;
-        }
-
-        .password-toggle-btn {
-            position: absolute;
-            right: 0;
-            bottom: 0.35rem;
-            background: transparent;
-            border: none;
-            color: #6c757d;
-            cursor: pointer;
-            padding: 0.25rem 0.5rem;
-            line-height: 1;
-            z-index: 2;
-        }
-
-        .password-toggle-btn:hover,
-        .password-toggle-btn:focus {
-            color: #333;
-            outline: none;
-        }
-    </style>
-</head>
-<body>
-<div class="page login-page">
-    <div class="container">
-        <div class="form-outer text-center d-flex align-items-center">
-            <div class="form-inner">
-                <div class="logo"><span>{{$general_setting->site_title}}</span></div>
-                @include('shared.errors')
-                @include('shared.flash_message')
-                @if (session('error'))
-                    <div class="alert alert-danger alert-dismissible text-center" role="alert">
-                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                        {{ session('error') }}
-                    </div>
-                @endif
-                <div id="registration_success_alert" class="alert alert-success" style="display:none;"></div>
-                <form method="POST" action="{{ route('login') }}" id="login-form">
-                    @csrf
-                    <div class="form-group-material">
-
-
-                        <input id="username" type="text" class="input-material @error('username') is-invalid @enderror"
-                               name="username" value="{{ old('username') }}" required autofocus>
-                        <label for="username" class="label-material">{{ __('Username') }}</label>
-
-                        @error('username')
-                        <span class="invalid-feedback" role="alert">
-                            <strong>{{ $message }}</strong>
-                        </span>
-                        @enderror
-                    </div>
-
-                    <div class="form-group-material password-field-wrap">
-                        <input id="password" type="password"
-                               class="input-material @error('password') is-invalid @enderror" name="password" required
-                               autocomplete="current-password">
-                        <label for="password" class="label-material">{{ __('Password') }}</label>
-                        <button type="button" class="password-toggle-btn" id="password-toggle"
-                                aria-label="{{ __('Show password') }}" title="{{ __('Show password') }}">
-                            <i class="fa fa-eye" aria-hidden="true"></i>
-                        </button>
-
-                        @error('password')
-                        <span class="invalid-feedback" role="alert">
-                            <strong>{{ $message }}</strong>
-                        </span>
-                        @enderror
-                    </div>
-
-                    {{-- <div class="custom-control custom-checkbox">
-                        <input type="checkbox" class="custom-control-input" name="remember"
-                               id="remember" {{ old('remember') ? 'checked' : '' }}>
-                        <label class="custom-control-label" for="remember">{{ __('Remember Me') }}</label>
-                    </div> --}}
-                    <br>
-                    <div class="form-group mb-0">
-                        <button type="submit" class="btn btn-primary btn-block">
-                            {{ __('Login') }}
-                        </button>
-                    </div>
-                    <div class="form-group mt-3 mb-0 text-center">
-                        <a href="{{ route('employee.register') }}">{{ __('New employee? Register here') }}</a>
-                    </div>
-                </form>
-                <!-- This three buttons for demo only-->
-
-                @if (!env('USER_VERIFIED'))
-                    <button type="submit" class="btn btn-success btn-sm default admin-btn">LogIn as Admin</button>
-                    <button type="submit" class="btn btn-info btn-sm default staff-btn">LogIn as Staff</button>
-                    <button type="submit" class="btn btn-warning btn-sm default client-btn">LogIn as Client</button>
-                    <p class="text-center mt-4 text-danger font-weight-bold font-italic">[For attendance device related features, Need to purchase attendance device addon.]</p>
-                @endif
-
-                <br><br>
-                @if (Route::has('password.request'))
-                    <a class="forgot-pass" href="{{ route('password.request') }}">
-                        {{ __('Forgot Your Password?') }}
-                    </a>
-                @endif
-            </div>
-            @php
-                $general_settings = \App\Models\GeneralSetting::latest()->first();
-            @endphp
-            <div class="copyrights text-center">
-                <p>{{ __('Developed by')}} <a href={{$general_settings->footer_link}} class="external">{{$general_settings->footer}}</a></p>
-            </div>
+    @if (session('error'))
+        <div class="alert alert-danger auth-alert alert-dismissible text-center" role="alert">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            {{ session('error') }}
         </div>
-    </div>
-</div>
-<script type="text/javascript" src="<?php echo asset('vendor/jquery/jquery.min.js') ?>"></script>
-</body>
-</html>
+    @endif
 
-<script type="text/javascript">
-    (function($) {
+    <div id="registration_success_alert" class="alert alert-success auth-alert" style="display:none;"></div>
 
-        "use strict";
+    <form method="POST" action="{{ route('login') }}" id="login-form">
+        @csrf
 
-        $('.admin-btn').on('click', function () {
-            $("input[name='username']").focus().val('admin');
-            $("input[name='password']").focus().val('admin');
+        <div class="auth-field">
+            <label for="username">{{ __('Username') }}</label>
+            <input id="username" type="text"
+                   class="form-control @error('username') is-invalid @enderror"
+                   name="username" value="{{ old('username') }}" required autofocus
+                   placeholder="{{ __('Enter your username') }}">
+            @error('username')
+                <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
+            @enderror
+        </div>
+
+        <div class="auth-field">
+            <label for="password">{{ __('Password') }}</label>
+            <div class="auth-password-wrap">
+                <input id="password" type="password"
+                       class="form-control @error('password') is-invalid @enderror"
+                       name="password" required autocomplete="current-password"
+                       placeholder="{{ __('Enter your password') }}">
+                <button type="button" class="auth-password-toggle" id="password-toggle"
+                        aria-label="{{ __('Show password') }}" title="{{ __('Show password') }}">
+                    <i class="fa fa-eye" aria-hidden="true"></i>
+                </button>
+            </div>
+            @error('password')
+                <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
+            @enderror
+        </div>
+
+        <button type="submit" class="auth-btn">{{ __('Login') }}</button>
+
+        <div class="auth-links auth-links--split">
+            @if (Route::has('password.request'))
+                <a href="{{ route('password.request') }}">{{ __('Forgot password?') }}</a>
+            @endif
+            <a href="{{ route('employee.register') }}">{{ __('New employee? Register') }}</a>
+        </div>
+    </form>
+
+    @if (! env('USER_VERIFIED'))
+        <div class="auth-demo-btns">
+            <button type="button" class="btn btn-success btn-sm admin-btn">{{ __('Admin') }}</button>
+            <button type="button" class="btn btn-info btn-sm staff-btn">{{ __('Staff') }}</button>
+            <button type="button" class="btn btn-warning btn-sm client-btn">{{ __('Client') }}</button>
+        </div>
+        <p class="auth-demo-note">{{ __('For attendance device related features, purchase the attendance device addon.') }}</p>
+    @endif
+@endsection
+
+@push('scripts')
+<script>
+(function ($) {
+    'use strict';
+
+    $('.admin-btn').on('click', function () {
+        $("input[name='username']").val('admin');
+        $("input[name='password']").val('admin');
+    });
+
+    $('.staff-btn').on('click', function () {
+        $("input[name='username']").val('staff');
+        $("input[name='password']").val('staff');
+    });
+
+    $('.client-btn').on('click', function () {
+        $("input[name='username']").val('client');
+        $("input[name='password']").val('client');
+    });
+
+    $('#password-toggle').on('click', function () {
+        var $password = $('#password');
+        var $icon = $(this).find('i');
+        var isHidden = $password.attr('type') === 'password';
+
+        $password.attr('type', isHidden ? 'text' : 'password');
+        $icon.toggleClass('fa-eye', !isHidden).toggleClass('fa-eye-slash', isHidden);
+        $(this).attr({
+            'aria-label': isHidden ? @json(__('Hide password')) : @json(__('Show password')),
+            'title': isHidden ? @json(__('Hide password')) : @json(__('Show password'))
         });
+    });
 
-        $('.staff-btn').on('click', function () {
-            $("input[name='username']").focus().val('staff');
-            $("input[name='password']").focus().val('staff');
-        });
-        $('.client-btn').on('click', function () {
-            $("input[name='username']").focus().val('client');
-            $("input[name='password']").focus().val('client');
-        });
-
-        $('#password-toggle').on('click', function () {
-            var $password = $('#password');
-            var $icon = $(this).find('i');
-            var isHidden = $password.attr('type') === 'password';
-
-            $password.attr('type', isHidden ? 'text' : 'password');
-            $icon.toggleClass('fa-eye', !isHidden).toggleClass('fa-eye-slash', isHidden);
-            $(this).attr({
-                'aria-label': isHidden ? '{{ __('Hide password') }}' : '{{ __('Show password') }}',
-                'title': isHidden ? '{{ __('Hide password') }}' : '{{ __('Show password') }}'
-            });
-        });
-
-        // ------------------------------------------------------- //
-        // Material Inputs
-        // ------------------------------------------------------ //
-
-        let materialInputs = $('input.input-material');
-
-        // activate labels for prefilled values
-        materialInputs.filter(function () {
-            return $(this).val() !== "";
-        }).siblings('.label-material').addClass('active');
-
-        // move label on focus
-        materialInputs.on('focus', function () {
-            $(this).siblings('.label-material').addClass('active');
-        });
-
-        // remove/keep label on blur
-        materialInputs.on('blur', function () {
-            $(this).siblings('.label-material').removeClass('active');
-
-            if ($(this).val() !== '') {
-                $(this).siblings('.label-material').addClass('active');
-            } else {
-                $(this).siblings('.label-material').removeClass('active');
-            }
-        });
-
-        try {
-            var regMsg = sessionStorage.getItem('registration_success');
-            if (regMsg) {
-                sessionStorage.removeItem('registration_success');
-                $('#registration_success_alert').text(regMsg).show();
-            }
-        } catch (e) {}
-    })(jQuery);
+    try {
+        var regMsg = sessionStorage.getItem('registration_success');
+        if (regMsg) {
+            sessionStorage.removeItem('registration_success');
+            $('#registration_success_alert').text(regMsg).show();
+        }
+    } catch (e) {}
+})(jQuery);
 </script>
+@endpush

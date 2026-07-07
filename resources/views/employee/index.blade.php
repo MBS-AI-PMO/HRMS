@@ -42,12 +42,36 @@
                 <div class="card card-body">
                     <form action="" method="GET" id="filter_form">
                         <div class="row">
+                            <!-- Client -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="text-bold"><strong>{{ trans('file.Client') }}</strong></label>
+                                    <select name="client_id" id="client_id_filter"
+                                            class="form-control selectpicker"
+                                            data-live-search="true" data-live-search-style="contains"
+                                            title="{{ __('Selecting', ['key' => trans('file.Client')]) }}...">
+                                        <option value=""></option>
+                                        @foreach ($clients as $client)
+                                            @php
+                                                $clientName = trim(($client->first_name ?? '').' '.($client->last_name ?? ''));
+                                                $clientCompany = trim((string) ($client->company_name ?? ''));
+                                                $clientLabel = ($clientName !== '' && $clientCompany !== '')
+                                                    ? $clientName.' — '.$clientCompany
+                                                    : ($clientName !== '' ? $clientName : $clientCompany);
+                                            @endphp
+                                            <option value="{{ $client->id }}">{{ $clientLabel }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <!--/ Client -->
+
                             <!-- Company -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label class="text-bold"><strong>{{trans('file.Company')}}</strong></label>
                                     <select name="company_id" id="company_id_filter"
-                                            class="form-control selectpicker dynamic"
+                                            class="form-control selectpicker"
                                             data-live-search="true" data-live-search-style="contains"
                                             data-shift_name="shift_name" data-dependent="department_name"
                                             title="{{__('Selecting',['key'=>trans('file.Company')])}}...">
@@ -83,9 +107,10 @@
                                 </select>
                             </div>
                             <!--/ Designation -->
-
+                        </div>
+                        <div class="row">
                             <!-- Office Shift -->
-                            <div class="col-md-2 form-group">
+                            <div class="col-md-3 form-group">
                                 <label class="text-bold"><b>{{__('Office Shift')}}</b></label>
                                 <select name="office_shift_id" id="office_shift_id_filter" class="selectpicker form-control"
                                         data-live-search="true" data-live-search-style="contains"
@@ -94,7 +119,7 @@
                             </div>
                             <!--/ Office Shift -->
 
-                            <div class="col-md-1">
+                            <div class="col-md-2">
                                 <label class="text-bold"></label><br>
                                 <button type="button" class="btn btn-dark" id="filterSubmit">
                                     <i class="fa fa-arrow-right" aria-hidden="true"></i> &nbsp; GET
@@ -210,7 +235,7 @@
                                         <div class="col-md-8 form-group mb-0" id="employee_owner_company_wrap">
                                             <label class="text-bold small">{{ trans('file.Company') }} <span class="text-danger">*</span></label>
                                             <select name="company_id" id="company_id" required
-                                                    class="form-control selectpicker employee-company-select dynamic"
+                                                    class="form-control selectpicker dynamic employee-company-select"
                                                     data-live-search="true" data-live-search-style="contains"
                                                     data-shift_name="shift_name" data-dependent="department_name"
                                                     title="{{__('Selecting',['key'=>trans('file.Company')])}}...">
@@ -439,6 +464,32 @@
 
 @push('scripts')
 <script type="text/javascript">
+    var hrmsClientCompanyMap = @json($clients->mapWithKeys(fn ($client) => [(string) $client->id => $client->resolved_company_id])->filter());
+
+    function hrmsCsrfToken() {
+        return $('meta[name="csrf-token"]').attr('content') || $('#sample_form input[name="_token"]').val() || '';
+    }
+
+    function repopulateEmployeeSelect($select, html) {
+        if ($select.data('selectpicker')) {
+            $select.selectpicker('destroy');
+        }
+        $select.html(html);
+        $select.selectpicker({
+            width: '100%',
+            liveSearch: true,
+            liveSearchStyle: 'contains'
+        });
+    }
+
+    function refreshFormSelectpicker($select) {
+        if ($select.data('selectpicker')) {
+            $select.selectpicker('refresh');
+        } else {
+            $select.selectpicker({ width: '100%', liveSearch: true, liveSearchStyle: 'contains' });
+        }
+    }
+
     function formatCnicValue(value) {
         const digits = (value || '').replace(/\D/g, '').slice(0, 13);
         if (digits.length <= 5) return digits;
@@ -501,6 +552,7 @@
                 url: "{{ route('employees.index') }}",
                 type: 'GET',
                 data: function (d) {
+                    d.client_id      = $('#client_id_filter').val();
                     d.company_id     = $("#company_id_filter").val();
                     d.department_id  = $('#department_id_filter').val();
                     d.designation_id = $('#designation_id_filter').val();
@@ -646,6 +698,24 @@
     $('#filterSubmit').on("click",function(e){
         $('#employee-table').DataTable().draw(true);
     });
+
+    $('#client_id_filter').on('changed.bs.select', function () {
+        if ($(this).val()) {
+            $('#company_id_filter').selectpicker('val', '');
+            $('#department_id_filter').html('');
+            $('#designation_id_filter').html('');
+            $('#office_shift_id_filter').html('');
+            refreshFormSelectpicker($('#department_id_filter'));
+            refreshFormSelectpicker($('#designation_id_filter'));
+            refreshFormSelectpicker($('#office_shift_id_filter'));
+        }
+    });
+
+    $('#company_id_filter').on('changed.bs.select', function () {
+        if ($(this).val()) {
+            $('#client_id_filter').selectpicker('val', '');
+        }
+    });
     //--------------/ Filter ----------------------
 
 
@@ -660,7 +730,7 @@
     $('#formModal').on('shown.bs.modal', function () {
         $('#formModal .selectpicker').each(function () {
             if (!$(this).data('selectpicker')) {
-                $(this).selectpicker({ width: '100%' });
+                $(this).selectpicker({ width: '100%', liveSearch: true, liveSearchStyle: 'contains' });
             } else {
                 $(this).selectpicker('render');
             }
@@ -685,14 +755,20 @@
             $('#company_id').selectpicker('val', '');
         }
 
-        $('#department_id').html('');
-        $('#designation_id').html('');
-        $('#office_shift_id').html('');
-        $('#formModal .selectpicker').each(function () {
-            if ($(this).data('selectpicker')) {
-                $(this).selectpicker('render');
-            }
-        });
+        repopulateEmployeeSelect($('#department_id'), '');
+        repopulateEmployeeSelect($('#designation_id'), '');
+        repopulateEmployeeSelect($('#office_shift_id'), '');
+
+        if ($('#company_id').data('selectpicker')) {
+            $('#company_id').selectpicker('destroy');
+        }
+        $('#company_id').selectpicker({ width: '100%', liveSearch: true, liveSearchStyle: 'contains' });
+
+        if ($('#employee_client_id').data('selectpicker')) {
+            $('#employee_client_id').selectpicker('destroy');
+        }
+        $('#employee_client_id').selectpicker({ width: '100%', liveSearch: true, liveSearchStyle: 'contains' });
+
         filterLocationOptionsByCompany();
     }
 
@@ -700,70 +776,137 @@
         toggleEmployeeOwnerType($(this).val());
     });
 
-    function refreshFormSelectpicker($select) {
-        if ($select.data('selectpicker')) {
-            $select.selectpicker('destroy');
-        }
-        $select.selectpicker({ width: '100%' });
-    }
-
     function getEmployeeFormCompanyId() {
         if ($('input[name="employee_owner_type"]:checked').val() === 'client') {
-            return String($('#employee_client_id option:selected').data('company-id') || '');
+            var clientId = String($('#employee_client_id').val() || '');
+            return String(hrmsClientCompanyMap[clientId] || $('#employee_client_id option:selected').attr('data-company-id') || '');
         }
 
         return String($('#company_id').val() || '');
     }
 
-    function loadEmployeeDepartments(companyId) {
-        if (!companyId) {
-            return;
+    function loadEmployeeDepartments() {
+        var ownerType = $('input[name="employee_owner_type"]:checked').val();
+        var payload = {
+            _token: hrmsCsrfToken(),
+            dependent: 'department_name'
+        };
+
+        if (ownerType === 'client') {
+            payload.client_id = $('#employee_client_id').val();
+            payload.value = hrmsClientCompanyMap[payload.client_id]
+                || $('#employee_client_id option:selected').attr('data-company-id')
+                || '';
+
+            if (!payload.client_id) {
+                return;
+            }
+        } else {
+            payload.value = $('#company_id').val();
+
+            if (!payload.value) {
+                return;
+            }
         }
 
         $.ajax({
             url: "{{ route('dynamic_department') }}",
-            method: "POST",
-            data: {
-                value: companyId,
-                _token: $('input[name="_token"]').val(),
-                dependent: 'department_name'
-            },
+            method: 'POST',
+            data: payload,
             success: function (result) {
-                $('#department_id').html(result);
-                $('#designation_id').html('');
-                $('#office_shift_id').html('');
-                refreshFormSelectpicker($('#department_id'));
-                refreshFormSelectpicker($('#designation_id'));
-                refreshFormSelectpicker($('#office_shift_id'));
+                repopulateEmployeeSelect($('#department_id'), result);
+                repopulateEmployeeSelect($('#designation_id'), '');
+                loadEmployeeOfficeShifts();
+            },
+            error: function (xhr) {
+                console.error('Department load failed', xhr.status, xhr.responseText);
+                repopulateEmployeeSelect($('#department_id'), '');
+                repopulateEmployeeSelect($('#designation_id'), '');
             }
         });
     }
 
-    function loadEmployeeOfficeShifts(companyId) {
-        if (!companyId) {
-            return;
+    function loadEmployeeOfficeShifts() {
+        var ownerType = $('input[name="employee_owner_type"]:checked').val();
+        var payload = {
+            _token: hrmsCsrfToken(),
+            dependent: 'shift_name'
+        };
+
+        if (ownerType === 'client') {
+            payload.client_id = $('#employee_client_id').val();
+
+            if (!payload.client_id) {
+                repopulateEmployeeSelect($('#office_shift_id'), '');
+                return;
+            }
+        } else {
+            payload.value = $('#company_id').val();
+
+            if (!payload.value) {
+                repopulateEmployeeSelect($('#office_shift_id'), '');
+                return;
+            }
         }
 
         $.ajax({
             url: "{{ route('dynamic_office_shifts') }}",
-            method: "POST",
-            data: {
-                value: companyId,
-                _token: $('input[name="_token"]').val(),
-                dependent: 'shift_name'
-            },
+            method: 'POST',
+            data: payload,
             success: function (result) {
-                $('#office_shift_id').html(result);
-                refreshFormSelectpicker($('#office_shift_id'));
+                repopulateEmployeeSelect($('#office_shift_id'), result);
+            },
+            error: function (xhr) {
+                console.error('Office shift load failed', xhr.status, xhr.responseText);
+                repopulateEmployeeSelect($('#office_shift_id'), '');
             }
         });
     }
 
-    $('#employee_client_id').on('changed.bs.select', function () {
-        var companyId = getEmployeeFormCompanyId();
-        loadEmployeeDepartments(companyId);
-        loadEmployeeOfficeShifts(companyId);
+    $(document).on('change changed.bs.select', '#sample_form #company_id', function () {
+        if ($('input[name="employee_owner_type"]:checked').val() !== 'company') {
+            return;
+        }
+
         filterLocationOptionsByCompany();
+
+        if ($(this).val()) {
+            loadEmployeeDepartments();
+        }
+    });
+
+    $(document).on('change changed.bs.select', '#sample_form #employee_client_id', function () {
+        if ($('input[name="employee_owner_type"]:checked').val() !== 'client') {
+            return;
+        }
+
+        if ($(this).val()) {
+            loadEmployeeDepartments();
+            filterLocationOptionsByCompany();
+        }
+    });
+
+    $(document).on('change changed.bs.select', '#sample_form #department_id', function () {
+        if (!$(this).val()) {
+            return;
+        }
+
+        $.ajax({
+            url: "{{ route('dynamic_designation_department') }}",
+            method: 'POST',
+            data: {
+                value: $(this).val(),
+                _token: hrmsCsrfToken(),
+                designation_name: $(this).data('designation_name')
+            },
+            success: function (result) {
+                repopulateEmployeeSelect($('#designation_id'), result);
+            },
+            error: function (xhr) {
+                console.error('Designation load failed', xhr.status, xhr.responseText);
+                repopulateEmployeeSelect($('#designation_id'), '');
+            }
+        });
     });
 
     $('#sample_form').on('submit', function (event) {
@@ -915,34 +1058,6 @@
     });
 
 
-    $('.dynamic').change(function () {
-        if ($(this).val() !== '') {
-            let value = $(this).val();
-            let dependent = $(this).data('dependent');
-            let _token = $('input[name="_token"]').val();
-            let $trigger = $(this);
-            $.ajax({
-                url: "{{ route('dynamic_department') }}",
-                method: "POST",
-                data: {value: value, _token: _token, dependent: dependent},
-                success: function (result) {
-                    if ($trigger.attr('id') === 'company_id') {
-                        $('#department_id').html(result);
-                        $('#designation_id').html('');
-                        $('#office_shift_id').html('');
-                        refreshFormSelectpicker($('#department_id'));
-                        refreshFormSelectpicker($('#designation_id'));
-                        refreshFormSelectpicker($('#office_shift_id'));
-                    }
-                    if ($trigger.attr('id') === 'company_id_filter') {
-                        $('#department_id_filter').html(result);
-                        refreshFormSelectpicker($('#department_id_filter'));
-                    }
-                }
-            });
-        }
-    });
-
     function filterLocationOptionsByCompany() {
         const selectedCompany = getEmployeeFormCompanyId();
         $('#location_id option').each(function () {
@@ -954,58 +1069,51 @@
         $('#location_id').selectpicker('refresh');
     }
 
-    $('#company_id').on('changed.bs.select', function () {
-        filterLocationOptionsByCompany();
-    });
     toggleEmployeeOwnerType('company');
 
 
-    $('.dynamic').change(function () {
-        if ($(this).val() !== '') {
-            let value = $(this).val();
-            let dependent = $(this).data('shift_name');
-            let _token = $('input[name="_token"]').val();
-            let $trigger = $(this);
-            $.ajax({
-                url: "{{ route('dynamic_office_shifts') }}",
-                method: "POST",
-                data: {value: value, _token: _token, dependent: dependent},
-                success: function (result) {
-                    if ($trigger.attr('id') === 'company_id') {
-                        $('#office_shift_id').html(result);
-                        refreshFormSelectpicker($('#office_shift_id'));
-                    }
-                    if ($trigger.attr('id') === 'company_id_filter') {
-                        $('#office_shift_id_filter').html(result);
-                        refreshFormSelectpicker($('#office_shift_id_filter'));
-                    }
-                }
-            });
+    $('#company_id_filter').on('changed.bs.select', function () {
+        if ($(this).val() === '') {
+            return;
         }
+
+        let value = $(this).val();
+        let _token = $('input[name="_token"]').val();
+
+        $.post("{{ route('dynamic_department') }}", {
+            value: value,
+            _token: _token,
+            dependent: 'department_name'
+        }).done(function (result) {
+            repopulateEmployeeSelect($('#department_id_filter'), result);
+        });
+
+        $.post("{{ route('dynamic_office_shifts') }}", {
+            value: value,
+            _token: _token,
+            dependent: 'shift_name'
+        }).done(function (result) {
+            repopulateEmployeeSelect($('#office_shift_id_filter'), result);
+        });
     });
 
-    $('.designation').change(function () {
-        if ($(this).val() !== '') {
-            let value = $(this).val();
-            let designation_name = $(this).data('designation_name');
-            let _token = $('input[name="_token"]').val();
-            let $trigger = $(this);
-            $.ajax({
-                url: "{{ route('dynamic_designation_department') }}",
-                method: "POST",
-                data: {value: value, _token: _token, designation_name: designation_name},
-                success: function (result) {
-                    if ($trigger.attr('id') === 'department_id') {
-                        $('#designation_id').html(result);
-                        refreshFormSelectpicker($('#designation_id'));
-                    }
-                    if ($trigger.attr('id') === 'department_id_filter') {
-                        $('#designation_id_filter').html(result);
-                        refreshFormSelectpicker($('#designation_id_filter'));
-                    }
-                }
-            });
+    $(document).on('change', '#department_id_filter', function () {
+        if (!$(this).val()) {
+            return;
         }
+
+        $.ajax({
+            url: "{{ route('dynamic_designation_department') }}",
+            method: 'POST',
+            data: {
+                value: $(this).val(),
+                _token: hrmsCsrfToken(),
+                designation_name: $(this).data('designation_name')
+            },
+            success: function (result) {
+                repopulateEmployeeSelect($('#designation_id_filter'), result);
+            }
+        });
     });
 
     $('.designationFilter').change(function () {

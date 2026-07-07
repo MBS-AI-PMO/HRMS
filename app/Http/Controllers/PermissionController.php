@@ -104,6 +104,11 @@ class PermissionController extends Controller {
 			'daily-attendances',
 			'date-wise-attendances',
 			'monthly-attendances',
+			'project-category',
+			'view-project-category',
+			'store-project-category',
+			'edit-project-category',
+			'delete-project-category',
 		]);
 	}
 

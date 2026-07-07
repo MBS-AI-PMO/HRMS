@@ -30,7 +30,10 @@
                     statusBadge = '<span class="badge badge-secondary">' + data.status + '</span>';
                 }
 
-                return data.leave_type + "<br>" + statusBadge + "<br><b><i>Reason:</i></b> " + (data.leave_reason || '');
+                let reason = (data.leave_reason || '').trim();
+
+                return data.leave_type + "<br>" + statusBadge
+                    + (reason ? "<br><b><i>Reason:</i></b> " + reason : '');
             }
         },
         {
@@ -134,8 +137,11 @@
                     off: '{{ __('Off') }}'
                 });
 
-                $('#leave_model').modal('show');
-                $('#leave_model .modal-title').text(infoTitle || "{{ __('Leave Info') }}");
+                hrmsOpenLeaveInfoModal('#leave_model', infoTitle || "{{ __('Leave Info') }}");
+            },
+            error: function () {
+                $('.modal-backdrop').remove();
+                $('body').removeClass('modal-open').css('padding-right', '');
             }
         });
     };

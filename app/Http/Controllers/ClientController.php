@@ -63,7 +63,9 @@ class ClientController extends Controller {
 					})
 					->addColumn('name', function ($data)
 					{
-						return trim($data->first_name.' '.($data->last_name ?? ''));
+						$label = e(trim($data->first_name.' '.($data->last_name ?? '')));
+
+						return '<a href="'.route('clients.dashboard', $data->id).'" class="font-weight-bold">'.$label.'</a>';
 					})
 					->addColumn('action', function ($data)
 					{
@@ -79,7 +81,7 @@ class ClientController extends Controller {
 						}
 						return $button;
 					})
-					->rawColumns(['action'])
+					->rawColumns(['action', 'name'])
 					->make(true);
 			}
 

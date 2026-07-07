@@ -77,6 +77,7 @@ use App\Http\Controllers\Performance\IndicatorController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\PolicyController;
 use App\Http\Controllers\ProjectBugController;
+use App\Http\Controllers\ProjectCategoryController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectDiscussionController;
 use App\Http\Controllers\ProjectFileController;
@@ -550,6 +551,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::post('locations/delete/selected', [LocationController::class, 'delete_by_selection'])->name('mass_delete_location');
 
         Route::get('companies', [CompanyController::class, 'index'])->name('companies.index');
+        Route::get('companies/{id}/dashboard', [DashboardController::class, 'companyDashboard'])->where('id', '[0-9]+')->name('companies.dashboard');
         Route::post('companies', [CompanyController::class, 'store'])->name('companies.store');
         Route::get('companies/{id}', [CompanyController::class, 'show'])->name('companies.show');
         Route::get('companies/edit/{id}', [CompanyController::class, 'edit'])->name('companies.edit');
@@ -811,9 +813,15 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
 
 
         Route::post('clients/update', [ClientController::class, 'update'])->name('clients.update');
+        Route::get('clients/{id}/dashboard', [DashboardController::class, 'clientOverviewDashboard'])->where('id', '[0-9]+')->name('clients.dashboard');
         Route::resource('clients', ClientController::class)->except(['destroy', 'create', 'update', 'show']);
         Route::get('clients/{id}/delete', [ClientController::class, 'destroy'])->name('clients.destroy');
         Route::post('clients/delete/selected', [ClientController::class, 'delete_by_selection'])->name('mass_delete_clients');
+
+        Route::post('project_categories/update', [ProjectCategoryController::class, 'update'])->name('project_categories.update');
+        Route::resource('project_categories', ProjectCategoryController::class)->except(['destroy', 'create', 'update', 'show']);
+        Route::get('project_categories/{id}/delete', [ProjectCategoryController::class, 'destroy'])->name('project_categories.destroy');
+        Route::post('project_categories/delete/selected', [ProjectCategoryController::class, 'delete_by_selection'])->name('mass_delete_project_categories');
 
 
         // ---------- Test End ------------------
@@ -827,6 +835,8 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::post('dynamic_dependent/fetch_clients', [DynamicDependent::class, 'fetchClients'])->name('dynamic_clients');
     Route::post('dynamic_dependent/fetch_locations', [DynamicDependent::class, 'fetchLocations'])->name('dynamic_locations');
     Route::post('dynamic_dependent/fetch_employee_department', [DynamicDependent::class, 'fetchEmployeeDepartment'])->name('dynamic_employee_department');
+    Route::post('dynamic_dependent/fetch_project_categories', [DynamicDependent::class, 'fetchProjectCategories'])->name('dynamic_project_categories');
+    Route::post('dynamic_dependent/fetch_project_employees', [DynamicDependent::class, 'fetchProjectEmployees'])->name('dynamic_project_employees');
     Route::post('dynamic_dependent/fetch_designation_department', [DynamicDependent::class, 'fetchDesignationDepartment'])->name('dynamic_designation_department');
     Route::post('dynamic_dependent/fetch_office_shifts', [DynamicDependent::class, 'fetchOfficeShifts'])->name('dynamic_office_shifts');
     Route::post('dynamic_dependent/fetch_balance', [DynamicDependent::class, 'fetchBalance'])->name('dynamic_balance');
@@ -852,6 +862,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
 
         Route::get('mail_setting', [GeneralSettingController::class, 'mailSetting'])->name('setting.mail');
         Route::post('setting/mail_setting_store', [GeneralSettingController::class, 'mailSettingStore'])->name('setting.mailStore');
+        Route::post('setting/mail_setting_test', [GeneralSettingController::class, 'mailSettingSendTest'])->name('setting.mailTest');
         Route::get('general_settings/change-theme/{theme}', [GeneralSettingController::class, 'change_theme'])->name('change_theme');
         Route::resource('variables', VariableController::class);
         Route::resource('variables_method', VariableMethodController::class);

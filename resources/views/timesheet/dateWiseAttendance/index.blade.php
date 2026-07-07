@@ -15,13 +15,13 @@
                                 <div class="row">
 
 
-                                    @if (Auth::user()->can('date-wise-attendances'))
+                                    @if (!empty($canUseAttendanceFilters) && $canUseAttendanceFilters)
                                     {{-- @if (Auth::user()->role_users_id==1) --}}
 
                                         <div class="col-md-2">
                                             <div class="form-group">
                                                 <label>{{trans('file.Company')}} *</label>
-                                                <select name="company_id" id="company_id"  class="form-control selectpicker dynamic" required
+                                                <select name="company_id" id="company_id"  class="form-control selectpicker dynamic"
                                                         data-live-search="true" data-live-search-style="contains"  data-first_name="first_name" data-last_name="last_name" data-dependent="department_name"
                                                         title='{{__('Selecting',['key'=>trans('file.Company')])}}...'>
                                                     @foreach($companies as $company)
@@ -366,7 +366,7 @@
                 let location_id = $('#location_id').val();
                 let department_id = $('#department_id').val();
                 let employee_id = $('#employee_id').val();
-                if (filter_start_date !== '' && filter_end_date !== '' && company_id !== '') {
+                if (filter_start_date !== '' && filter_end_date !== '' && (company_id !== '' || client_id !== '' || employee_id !== '')) {
                     $('#date_wise_attendance-table').DataTable().destroy();
                     fill_datatable(filter_start_date, filter_end_date, company_id, client_id, location_id, department_id, employee_id);
                 } else {
@@ -422,12 +422,12 @@
             function loadEmployees(companyId, clientId, locationId) {
                 resetSelect($('#employee_id'), @json(__('All')));
 
-                if (!companyId) {
+                if (!companyId && !clientId) {
                     return $.Deferred().resolve().promise();
                 }
 
                 return $.post("{{ route('dynamic_employee') }}", {
-                    value: companyId,
+                    value: companyId || '',
                     client_id: clientId || '',
                     location_id: locationId || '',
                     first_name: 'first_name',

@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Client;
 use App\Models\company;
 use App\Models\office_shift;
+use App\Support\ClientDisplay;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
@@ -114,6 +116,45 @@ class OfficeShiftController extends Controller {
 		return ['data' => $data];
 	}
 
+	protected function clientsForShiftSelect()
+	{
+		return Client::query()
+			->select('id', 'company_name', 'first_name', 'last_name')
+			->orderBy('first_name')
+			->orderBy('last_name')
+			->orderBy('company_name')
+			->get();
+	}
+
+	protected function shiftOwnerValidationRules(): array
+	{
+		return [
+			'shift_owner_type' => 'required|in:company,client',
+			'company_id' => 'required_if:shift_owner_type,company|nullable|exists:companies,id',
+			'client_id' => 'required_if:shift_owner_type,client|nullable|exists:clients,id',
+		];
+	}
+
+	protected function assignShiftOwnerFromRequest(array &$data, Request $request): void
+	{
+		if ($request->input('shift_owner_type') === 'client') {
+			$data['client_id'] = (int) $request->client_id;
+			$data['company_id'] = null;
+		} else {
+			$data['company_id'] = (int) $request->company_id;
+			$data['client_id'] = null;
+		}
+	}
+
+	protected function shiftOwnerLabel(office_shift $shift): string
+	{
+		if ($shift->client_id) {
+			return $shift->client ? ClientDisplay::label($shift->client) : '—';
+		}
+
+		return $shift->company->company_name ?? '—';
+	}
+
 	/**
 	 * Display a listing of the resource.
 	 *
@@ -128,14 +169,14 @@ class OfficeShiftController extends Controller {
 		{
 			if (request()->ajax())
 			{
-				return datatables()->of(office_shift::with('company')->get())
+				return datatables()->of(office_shift::with(['company', 'client'])->get())
 					->setRowId(function ($office_shift)
 					{
 						return $office_shift->id;
 					})
 					->addColumn('company', function ($row)
 					{
-						return $row->company->company_name ?? ' ';
+						return $this->shiftOwnerLabel($row);
 					})
 					->addColumn('action', function ($data)
 					{
@@ -172,12 +213,13 @@ class OfficeShiftController extends Controller {
 		//
 		$logged_user = auth()->user();
 		$companies = company::select('id', 'company_name')->get();
+		$clients = $this->clientsForShiftSelect();
 
 		if ($logged_user->can('store-office_shift'))
 		{
 			$shiftFormState = $this->buildShiftFormState();
 
-			return view('timesheet.office_shift.create', compact('companies', 'shiftFormState'));
+			return view('timesheet.office_shift.create', compact('companies', 'clients', 'shiftFormState'));
 		}
 
 		return abort('403', __('You are not authorized'));
@@ -195,10 +237,9 @@ class OfficeShiftController extends Controller {
 
 		if ($logged_user->can('store-office_shift'))
 		{
-			$validator = Validator::make($request->only('shift_name', 'company_id'), [
+			$validator = Validator::make($request->only('shift_name', 'shift_owner_type', 'company_id', 'client_id'), array_merge([
 				'shift_name' => 'required',
-				'company_id' => 'required|exists:companies,id',
-			]);
+			], $this->shiftOwnerValidationRules()));
 
 			if ($validator->fails())
 			{
@@ -213,8 +254,8 @@ class OfficeShiftController extends Controller {
 
 			$data = array_merge($timing['data'], [
 				'shift_name' => $request->shift_name,
-				'company_id' => $request->company_id,
 			]);
+			$this->assignShiftOwnerFromRequest($data, $request);
 
 			office_shift::create($data);
 
@@ -249,11 +290,11 @@ class OfficeShiftController extends Controller {
 		if ($logged_user->can('edit-office_shift'))
 		{
 			$office_shift = office_shift::findOrFail($id);
-			$company_name = $office_shift->company->company_name ?? '';
 			$companies = company::select('id', 'company_name')->get();
+			$clients = $this->clientsForShiftSelect();
 			$shiftFormState = $this->buildShiftFormState($office_shift);
 
-			return view('timesheet.office_shift.edit', compact('office_shift', 'company_name', 'companies', 'shiftFormState'));
+			return view('timesheet.office_shift.edit', compact('office_shift', 'companies', 'clients', 'shiftFormState'));
 		}
 		return response()->json(['success' => __('You are not authorized')]);
 	}
@@ -274,10 +315,9 @@ class OfficeShiftController extends Controller {
 		{
 			$id = $request->hidden_id;
 
-			$validator = Validator::make($request->only('shift_name', 'company_id'), [
+			$validator = Validator::make($request->only('shift_name', 'shift_owner_type', 'company_id', 'client_id'), array_merge([
 				'shift_name' => 'required',
-				'company_id' => 'required|exists:companies,id',
-			]);
+			], $this->shiftOwnerValidationRules()));
 
 			if ($validator->fails())
 			{
@@ -292,8 +332,8 @@ class OfficeShiftController extends Controller {
 
 			$data = array_merge($timing['data'], [
 				'shift_name' => $request->shift_name,
-				'company_id' => $request->company_id,
 			]);
+			$this->assignShiftOwnerFromRequest($data, $request);
 
 			office_shift::whereId($id)->update($data);
 

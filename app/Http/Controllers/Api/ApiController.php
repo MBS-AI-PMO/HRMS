@@ -299,15 +299,14 @@ class ApiController extends Controller
     public function employeeDetails()
     {
         try {
-            $id = auth()->user()->id;
-            $employee = Employee::with([
+            $employee = $this->resolveEmployeeForUser(auth()->user(), [
                 'company:id,company_name',
                 'department:id,department_name',
                 'designation:id,designation_name',
                 'officeShift:id,shift_name',
                 'status:id,status_title',
                 'role:id,name',
-            ])->find($id);
+            ]);
 
             if (! $employee) {
                 return response()->json([
@@ -571,7 +570,7 @@ class ApiController extends Controller
             }
 
             $user = $request->user();
-            $employee = Employee::with('officeShift')->find($user->id);
+            $employee = $this->resolveEmployeeForUser($user, ['officeShift']);
             if (! $employee) {
                 return response()->json([
                     'status' => false,
@@ -580,12 +579,6 @@ class ApiController extends Controller
             }
 
             [$shiftInValue, $shiftOutValue] = $this->getTodayShiftTimes($employee);
-            if (! $shiftInValue || ! $shiftOutValue) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No office shift assigned for today.',
-                ], 422);
-            }
 
             $typeError = $this->checkAttendanceTypeRules($request, $employee);
             if ($typeError) {
@@ -620,6 +613,40 @@ class ApiController extends Controller
                 return response()->json([
                     'status' => false,
                     'message' => 'Already clocked in. Please clock out first.',
+                ], 422);
+            }
+
+            if (AttendanceOvertimeService::isOffDay($shiftInValue, $shiftOutValue)) {
+                if (! AttendanceOvertimeService::canOvertimeOnOffDay($last)) {
+                    return response()->json([
+                        'status' => false,
+                        'message' => 'Already clocked in. Please clock out first.',
+                    ], 422);
+                }
+
+                $currentTime = new \DateTime(now()->format('H:i'));
+                $data = AttendanceOvertimeService::applyOvertimeClockInDefaults([
+                    'employee_id' => $employee->id,
+                    'attendance_date' => $attendanceDateForMutator,
+                    'clock_in_out' => 1,
+                    'clock_in_ip' => $request->ip(),
+                    'attendance_status' => 'present',
+                ], $currentTime);
+                $data = array_merge($data, AttendanceLocationCapture::clockInFields($request));
+
+                $attendance = Attendance::create($data);
+
+                return response()->json([
+                    'status' => true,
+                    'message' => 'Overtime clocked in successfully.',
+                    'data' => $attendance,
+                ]);
+            }
+
+            if (! $shiftInValue || ! $shiftOutValue) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'No office shift assigned for today.',
                 ], 422);
             }
 
@@ -699,7 +726,7 @@ class ApiController extends Controller
             }
 
             $user = $request->user();
-            $employee = Employee::with('officeShift')->find($user->id);
+            $employee = $this->resolveEmployeeForUser($user, ['officeShift']);
             if (! $employee) {
                 return response()->json([
                     'status' => false,
@@ -708,12 +735,6 @@ class ApiController extends Controller
             }
 
             [$shiftInValue, $shiftOutValue] = $this->getTodayShiftTimes($employee);
-            if (! $shiftInValue || ! $shiftOutValue) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'No office shift assigned for today.',
-                ], 422);
-            }
 
             $typeError = $this->checkAttendanceTypeRules($request, $employee);
             if ($typeError) {
@@ -736,8 +757,6 @@ class ApiController extends Controller
                 ], 422);
             }
 
-            $shiftIn = new \DateTime($shiftInValue);
-            $shiftOut = new \DateTime($shiftOutValue);
             $currentTime = new \DateTime(now()->format('H:i'));
 
             if (AttendanceOvertimeService::isActiveOvertimeSession($attendance)) {
@@ -756,6 +775,16 @@ class ApiController extends Controller
                     'data' => $attendance,
                 ]);
             }
+
+            if (! $shiftInValue || ! $shiftOutValue) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'No office shift assigned for today.',
+                ], 422);
+            }
+
+            $shiftIn = new \DateTime($shiftInValue);
+            $shiftOut = new \DateTime($shiftOutValue);
 
             if ($currentTime <= $shiftIn && env('ENABLE_EARLY_CLOCKIN') === null) {
                 Attendance::whereKey($attendance->id)->delete();
@@ -1464,15 +1493,50 @@ class ApiController extends Controller
      */
     private function resolveEmployeeIdForLeaveApi(User $user): ?int
     {
-        $id = (int) $user->id;
-        if (Employee::whereKey($id)->exists()) {
-            return $id;
+        return $this->resolveEmployeeForUser($user)?->id;
+    }
+
+    /**
+     * Resolve employee profile even if users.id != employees.id after migrations/data moves.
+     */
+    private function resolveEmployeeForUser(User $user, array $with = []): ?Employee
+    {
+        $query = Employee::query();
+
+        if ($with !== []) {
+            $query->with($with);
+        }
+
+        $byId = (clone $query)->whereKey((int) $user->id)->first();
+        if ($byId) {
+            return $byId;
         }
 
         if (! empty($user->email)) {
-            $byEmail = (int) (Employee::where('email', $user->email)->value('id') ?? 0);
-            if ($byEmail > 0) {
+            $byEmail = (clone $query)->whereRaw('LOWER(email) = ?', [strtolower((string) $user->email)])->first();
+            if ($byEmail) {
                 return $byEmail;
+            }
+        }
+
+        if (! empty($user->username)) {
+            $username = strtolower(trim((string) $user->username));
+            $byStaffId = (clone $query)->whereRaw('LOWER(staff_id) = ?', [$username])->first();
+            if ($byStaffId) {
+                return $byStaffId;
+            }
+        }
+
+        if (! empty($user->contact_no)) {
+            $digits = preg_replace('/\D+/', '', (string) $user->contact_no);
+            if ($digits !== '') {
+                $byPhone = (clone $query)->whereRaw(
+                    "REPLACE(REPLACE(REPLACE(REPLACE(contact_no, ' ', ''), '-', ''), '(', ''), ')', '') = ?",
+                    [$digits]
+                )->first();
+                if ($byPhone) {
+                    return $byPhone;
+                }
             }
         }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\traits\LeaveTypeDataManageTrait;
 use App\Http\traits\SendsEmployeeCredentialsTrait;
 use App\Scopes\AuthCompanyScope;
+use App\Support\ClientDisplay;
 use App\Support\CompanyScope;
 use App\Imports\UsersImport;
 use App\Models\Client;
@@ -120,10 +121,10 @@ class EmployeeController extends Controller
     {
         if ($crossCompany) {
             return Employee::withoutGlobalScope(AuthCompanyScope::class)
-                ->with('user:id,profile_photo,username', 'company:id,company_name', 'department:id,department_name', 'designation:id,designation_name', 'officeShift:id,shift_name');
+                ->with('user:id,profile_photo,username', 'company:id,company_name', 'client:id,first_name,last_name,company_name', 'department:id,department_name', 'designation:id,designation_name', 'officeShift:id,shift_name');
         }
 
-        return Employee::with('user:id,profile_photo,username', 'company:id,company_name', 'department:id,department_name', 'designation:id,designation_name', 'officeShift:id,shift_name');
+        return Employee::with('user:id,profile_photo,username', 'company:id,company_name', 'client:id,first_name,last_name,company_name', 'department:id,department_name', 'designation:id,designation_name', 'officeShift:id,shift_name');
     }
 
     protected function userCanViewEmployeesAtLocation(int $userId, int $locationId): bool
@@ -168,76 +169,45 @@ class EmployeeController extends Controller
 
     protected function getEmployees($request, $currentDate, bool $crossCompany = false, ?array $locationIds = null)
     {
-        if ($request->company_id && $request->department_id && $request->designation_id && $request->office_shift_id) {
-            $employees = $this->scopedEmployeeListQuery($crossCompany, $locationIds)
-                ->where('company_id', '=', $request->company_id)
-                ->where('department_id', '=', $request->department_id)
-                ->where('designation_id', '=', $request->designation_id)
-                ->where('office_shift_id', '=', $request->office_shift_id)
-                ->where('is_active', 1)
-                ->where(function($query) use ($currentDate) {
-                    $query->whereNull('exit_date')
-                    ->orWhere('exit_date', '>=', $currentDate)
-                    ->orWhere('exit_date', '0000-00-00');
-                })
-                ->get();
-        } elseif ($request->company_id && $request->department_id && $request->designation_id) {
-            $employees = $this->scopedEmployeeListQuery($crossCompany, $locationIds)
-                ->where('company_id', '=', $request->company_id)
-                ->where('department_id', '=', $request->department_id)
-                ->where('designation_id', '=', $request->designation_id)
-                ->where('is_active', 1)
-                ->where(function($query) use ($currentDate) {
-                    $query->whereNull('exit_date')
-                    ->orWhere('exit_date', '>=', $currentDate)
-                    ->orWhere('exit_date', '0000-00-00');
-                })
-                ->get();
-        } elseif ($request->company_id && $request->department_id) {
-            $employees = $this->scopedEmployeeListQuery($crossCompany, $locationIds)
-                ->where('company_id', '=', $request->company_id)
-                ->where('department_id', '=', $request->department_id)
-                ->where('is_active', 1)
-                ->where(function($query) use ($currentDate) {
-                    $query->whereNull('exit_date')
-                    ->orWhere('exit_date', '>=', $currentDate)
-                    ->orWhere('exit_date', '0000-00-00');
-                })
-                ->get();
-        } elseif ($request->company_id && $request->office_shift_id) {
-            $employees = $this->scopedEmployeeListQuery($crossCompany, $locationIds)
-                ->where('company_id', '=', $request->company_id)
-                ->where('office_shift_id', '=', $request->office_shift_id)
-                ->where('is_active', 1)
-                ->where(function($query) use ($currentDate) {
-                    $query->whereNull('exit_date')
-                    ->orWhere('exit_date', '>=', $currentDate)
-                    ->orWhere('exit_date', '0000-00-00');
-                })
-                ->get();
-        } elseif ($request->company_id) {
-            $employees = $this->scopedEmployeeListQuery($crossCompany, $locationIds)
-                ->where('company_id', '=', $request->company_id)
-                ->where('is_active', 1)
-                ->where(function($query) use ($currentDate) {
-                    $query->whereNull('exit_date')
-                    ->orWhere('exit_date', '>=', $currentDate)
-                    ->orWhere('exit_date', '0000-00-00');
-                })
-                ->get();
-        } else {
-            $employees = $this->scopedEmployeeListQuery($crossCompany, $locationIds)
-                ->orderBy('company_id')
-                ->where('is_active', 1)
-                ->where(function($query) use ($currentDate) {
-                    $query->whereNull('exit_date')
-                    ->orWhere('exit_date', '>=', $currentDate)
-                    ->orWhere('exit_date', '0000-00-00');
-                })
-                ->get();
+        if ($request->filled('client_id')) {
+            $crossCompany = true;
         }
 
-        return $employees;
+        $query = $this->scopedEmployeeListQuery($crossCompany, $locationIds)
+            ->where('is_active', 1)
+            ->where(function ($q) use ($currentDate) {
+                $q->whereNull('exit_date')
+                    ->orWhere('exit_date', '>=', $currentDate)
+                    ->orWhere('exit_date', '0000-00-00');
+            });
+
+        if ($request->filled('client_id')) {
+            $query->where('client_id', (int) $request->client_id);
+        }
+
+        if ($request->filled('company_id')) {
+            $query->where('company_id', (int) $request->company_id);
+        }
+
+        if ($request->filled('department_id')) {
+            $query->where('department_id', (int) $request->department_id);
+        }
+
+        if ($request->filled('designation_id')) {
+            $query->where('designation_id', (int) $request->designation_id);
+        }
+
+        if ($request->filled('office_shift_id')) {
+            $query->where('office_shift_id', (int) $request->office_shift_id);
+        }
+
+        if ($request->filled('client_id')) {
+            $query->orderBy('client_id');
+        } else {
+            $query->orderBy('company_id');
+        }
+
+        return $query->get();
     }
 
     public function index(Request $request)
@@ -346,7 +316,11 @@ class EmployeeController extends Controller
 
                     })
                     ->addColumn('company', function ($row) {
-                        $company = "<span class='text-bold'>".strtoupper($row->company->company_name ?? '').'</span>';
+                        if ($row->client_id && $row->client) {
+                            $company = "<span class='text-bold'>".strtoupper(__('Client')).': '.e(ClientDisplay::label($row->client)).'</span>';
+                        } else {
+                            $company = "<span class='text-bold'>".strtoupper($row->company->company_name ?? '').'</span>';
+                        }
                         $department = '<span>'.__('file.Department').' : '.($row->department->department_name ?? '').'</span>';
                         $designation = '<span>'.__('file.Designation').' : '.($row->designation->designation_name ?? '').'</span>';
 
@@ -585,9 +559,7 @@ class EmployeeController extends Controller
                 ->where('department_id', $employee->department_id)
                 ->get();
 
-            $office_shifts = office_shift::select('id', 'shift_name')
-                ->where('company_id', $employee->company_id)
-                ->get();
+            $office_shifts = $this->officeShiftsForEmployee($employee);
 
             $statuses = status::select('id', 'status_title')->get();
             // $roles = Role::select('id', 'name')->get();
@@ -615,7 +587,7 @@ class EmployeeController extends Controller
      public function profile()
     {
         $user = Auth::user();
-        $employee = Employee::with('client')->find($user->id);
+        $employee = Employee::with(['client', 'officeShift'])->find($user->id);
 
         if (! $employee) {
             $companies = CompanyScope::companiesForSelect();
@@ -638,9 +610,7 @@ class EmployeeController extends Controller
                 ->where('department_id', $employee->department_id)
                 ->get();
 
-            $office_shifts = office_shift::select('id', 'shift_name')
-                ->where('company_id', $employee->company_id)
-                ->get();
+            $office_shifts = $this->officeShiftsForEmployee($employee);
 
             $statuses = status::select('id', 'status_title')->get();
             // $roles = Role::select('id', 'name')->get();
@@ -1409,7 +1379,8 @@ return response()->json([
             }
 
             $data['client_id'] = (int) $request->client_id;
-            $data['company_id'] = $this->resolveCompanyIdFromClient((int) $request->client_id);
+            // Client-owned employees must not depend on companies.id (company delete must not remove them).
+            $data['company_id'] = null;
         } else {
             if (Schema::hasColumn('employees', 'client_id')) {
                 $data['client_id'] = null;
@@ -1430,6 +1401,33 @@ return response()->json([
         return $data;
     }
 
+    private function officeShiftsForEmployee(Employee $employee)
+    {
+        $query = office_shift::query()->select('id', 'shift_name');
+
+        if ($employee->client_id) {
+            $query->where('client_id', $employee->client_id);
+        } elseif ($employee->company_id) {
+            $query->where('company_id', $employee->company_id)->whereNull('client_id');
+        } else {
+            return collect();
+        }
+
+        $shifts = $query->orderBy('shift_name')->get();
+
+        if ($employee->office_shift_id && ! $shifts->contains('id', $employee->office_shift_id)) {
+            $current = office_shift::query()
+                ->select('id', 'shift_name')
+                ->find($employee->office_shift_id);
+
+            if ($current) {
+                $shifts->push($current);
+            }
+        }
+
+        return $shifts;
+    }
+
     private function clientsForEmployeeSelect()
     {
         return Client::query()
@@ -1439,11 +1437,7 @@ return response()->json([
             ->orderBy('company_name')
             ->get()
             ->map(function ($client) {
-                $companyId = company::query()
-                    ->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower(trim((string) $client->company_name))])
-                    ->value('id');
-
-                $client->resolved_company_id = $companyId ? (int) $companyId : null;
+                $client->resolved_company_id = CompanyScope::resolveCompanyIdForClient((int) $client->id);
 
                 return $client;
             });
@@ -1451,10 +1445,7 @@ return response()->json([
 
     private function resolveCompanyIdFromClient(int $clientId): int
     {
-        $client = Client::query()->findOrFail($clientId);
-        $companyId = company::query()
-            ->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower(trim((string) $client->company_name))])
-            ->value('id');
+        $companyId = CompanyScope::resolveCompanyIdForClient($clientId);
 
         if (! $companyId) {
             throw new Exception(__('No company found for the selected client.'));

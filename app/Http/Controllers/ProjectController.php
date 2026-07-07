@@ -8,6 +8,7 @@ use App\Notifications\ProjectCreatedNotifiaction;
 use App\Notifications\ProjectUpdatedNotification;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\ProjectTimelineService;
 use DB;
 use Exception;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class ProjectController extends Controller {
 
@@ -26,12 +28,24 @@ class ProjectController extends Controller {
 	public function index()
 	{
 		$logged_user = auth()->user();
-		$companies = company::select('id', 'company_name')->get();
-		$clients = Client::select('id', 'first_name', 'last_name')->get(); //Correction
-        $projects = Project::with('client:id,first_name,last_name', 'assignedEmployees')->get();
+		$clients = Client::query()
+			->select('id', 'first_name', 'last_name', 'company_name')
+			->orderBy('first_name')
+			->get()
+			->map(function (Client $client) {
+				$client->resolved_company_id = $this->resolveCompanyIdFromClient($client);
 
+				return $client;
+			});
 		if ($logged_user->can('view-project')){
 			if (request()->ajax()){
+				app(ProjectTimelineService::class)->syncAll();
+
+				$projects = Project::with(
+					'client:id,first_name,last_name',
+					'assignedEmployees',
+					'projectCategory:id,category_name'
+				)->get();
 
                 return datatables()->of($projects)
 					->setRowId(function ($project)
@@ -41,6 +55,10 @@ class ProjectController extends Controller {
 					->addColumn('summary', function ($row)
 					{
 						return '<br><h6><a href="' . route('projects.show', $row->id) . '">' . $row->title . '</a></h6>';
+					})
+					->addColumn('project_category', function ($row)
+					{
+						return $row->projectCategory->category_name ?? ' ';
 					})
 					->addColumn('client', function ($row)
 					{
@@ -83,7 +101,7 @@ class ProjectController extends Controller {
 					->make(true);
 			}
 
-			return view('projects.project.index', compact('companies', 'clients'));
+			return view('projects.project.index', compact('clients'));
 		}
 
 		return abort('403', __('You are not authorized'));
@@ -104,18 +122,21 @@ class ProjectController extends Controller {
 				'end_date' => $request->filled('end_date') ? $request->end_date : null,
 			]);
 
-			$validator = Validator::make($request->only('title', 'company_id', 'department_id', 'client_id', 'employee_id', 'project_priority', 'description', 'start_date'
-				, 'end_date', 'summary'),
+			$validator = Validator::make($request->only(
+				'title', 'client_id', 'project_category_id', 'employee_id', 'description', 'start_date', 'end_date', 'summary', 'total_revenue'
+			),
 				[
 					'title' => 'required',
-					'company_id' => 'required',
-					'department_id' => 'required|exists:departments,id',
-					'client_id' => 'required',
+					'client_id' => 'required|exists:clients,id',
+					'project_category_id' => [
+						'required',
+						Rule::exists('project_categories', 'id')->where('is_active', true),
+					],
 					'employee_id' => 'required|array|min:1',
 					'employee_id.*' => 'exists:employees,id',
-					'project_priority' => 'required',
 					'start_date' => 'required',
 					'end_date' => 'nullable|after_or_equal:start_date',
+					'total_revenue' => 'nullable|numeric|min:0',
 				]
 			);
 
@@ -128,19 +149,21 @@ class ProjectController extends Controller {
 
 			$data = [];
 
+			$client = Client::query()->findOrFail((int) $request->client_id);
+
 			$data['summary'] = $request->summary;
 			$data['title'] = $request->title;
-			$data['company_id'] = $request->company_id;
-			$data['department_id'] = $request->department_id;
+			$data['company_id'] = $this->resolveCompanyIdFromClient($client);
+			$data['department_id'] = null;
 			$data['client_id'] = $request->client_id;
+			$data['project_category_id'] = (int) $request->project_category_id;
 			$data ['start_date'] = $request->start_date;
 			$data ['end_date'] = $request->end_date;
 
 			$data ['description'] = $request->description;
-			$data ['project_priority'] = $request->project_priority;
-			$data['project_status'] = $request->filled('project_status')
-				? $request->project_status
-				: 'not_started';
+			$data ['project_priority'] = 'medium';
+			$data['total_revenue'] = $request->filled('total_revenue') ? $request->total_revenue : null;
+			$data['project_status'] = 'in_progress';
 
 			try {
 				$project = Project::create($data);
@@ -195,6 +218,14 @@ class ProjectController extends Controller {
 
 		if ($logged_user->can('view-project') || in_array($logged_user->id, $name))
 		{
+			app(ProjectTimelineService::class)->apply($project);
+			$project->saveQuietly();
+
+			$project->load([
+				'client:id,first_name,last_name',
+				'company:id,company_name',
+				'projectCategory:id,category_name',
+			]);
 
 			$company_name = $project->company->company_name ?? '';
 
@@ -245,18 +276,20 @@ class ProjectController extends Controller {
 			]);
 
 			$validator = Validator::make($request->only(
-				'edit_title', 'edit_client_id', 'edit_company_id', 'edit_department_id',
-				'edit_project_priority', 'edit_description', 'edit_start_date', 'edit_end_date',
-				'edit_summary', 'edit_project_status', 'edit_project_progress'
+				'edit_title', 'edit_client_id', 'edit_project_category_id',
+				'edit_description', 'edit_start_date', 'edit_end_date',
+				'edit_summary', 'edit_project_status', 'edit_project_progress', 'edit_total_revenue'
 			),
 				[
 					'edit_title' => 'required',
-					'edit_client_id' => 'required',
-					'edit_company_id' => 'required|exists:companies,id',
-					'edit_department_id' => 'required|exists:departments,id',
-					'edit_project_priority' => 'required',
+					'edit_client_id' => 'required|exists:clients,id',
+					'edit_project_category_id' => [
+						'required',
+						Rule::exists('project_categories', 'id')->where('is_active', true),
+					],
 					'edit_start_date' => 'required',
 					'edit_end_date' => 'nullable|after_or_equal:edit_start_date',
+					'edit_total_revenue' => 'nullable|numeric|min:0',
 				]
 			);
 
@@ -269,11 +302,14 @@ class ProjectController extends Controller {
 
 			$data = [];
 
+			$client = Client::query()->findOrFail((int) $request->edit_client_id);
+
 			$data['summary'] = $request->edit_summary;
 			$data['title'] = $request->edit_title;
 			$data['client_id'] = $request->edit_client_id;
-			$data['company_id'] = $request->edit_company_id;
-			$data['department_id'] = $request->edit_department_id;
+			$data['company_id'] = $this->resolveCompanyIdFromClient($client);
+			$data['department_id'] = null;
+			$data['project_category_id'] = (int) $request->edit_project_category_id;
 			$data ['start_date'] = $request->edit_start_date;
 			$data ['end_date'] = $request->edit_end_date;
 
@@ -282,13 +318,8 @@ class ProjectController extends Controller {
 				$data ['description'] = $request->edit_description;
 			}
 
-			$data ['project_priority'] = $request->edit_project_priority;
+			$data['total_revenue'] = $request->filled('edit_total_revenue') ? $request->edit_total_revenue : null;
 			$data ['project_status'] = $request->edit_project_status;
-			if ($request->edit_project_progress)
-			{
-				$data ['project_progress'] = $request->edit_project_progress;
-			}
-
 
 			$project = Project::findOrFail($id);
 			$project->update($data);
@@ -328,10 +359,6 @@ class ProjectController extends Controller {
 	{
 
 		$data = [];
-		if ($request->project_progress)
-		{
-			$data['project_progress'] = $request->project_progress;
-		}
 		if ($request->project_priority)
 		{
 			$data['project_priority'] = $request->project_priority;
@@ -340,7 +367,6 @@ class ProjectController extends Controller {
 		{
 			$data['project_status'] = $request->project_status;
 		}
-
 
 		$project->update($data);
 
@@ -387,6 +413,21 @@ class ProjectController extends Controller {
 		$project->update($data);
 
 		return response()->json(['success' => __('Data is successfully updated')]);
+	}
+
+	protected function resolveCompanyIdFromClient(Client $client): ?int
+	{
+		$companyName = trim((string) $client->company_name);
+
+		if ($companyName === '') {
+			return null;
+		}
+
+		$id = company::query()
+			->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower($companyName)])
+			->value('id');
+
+		return $id ? (int) $id : null;
 	}
 
 

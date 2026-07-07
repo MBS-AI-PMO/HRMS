@@ -1,75 +1,37 @@
-<?php $general_setting = DB::table('general_settings')->find(1); ?>
-        <!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>{{$general_setting->site_title}}</title>
-    <meta name="description" content="">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="robots" content="all,follow">
-    <!-- Bootstrap CSS-->
-    <link rel="stylesheet" href="<?php echo asset('vendor/bootstrap/css/bootstrap.min.css') ?>" type="text/css">
-    <!-- Google fonts - Roboto -->
-    <!--<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700">-->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+@extends('layout.auth')
 
-    <!-- theme stylesheet-->
-    <link rel="stylesheet" href="<?php echo asset('css/style.default.css') ?>" id="theme-stylesheet"
-          type="text/css">
-    <!-- Custom stylesheet - for your changes-->
-    <link rel="stylesheet" href="<?php echo asset('css/custom-' . $general_setting->theme) ?>" type="text/css">
-    <!-- Favicon-->
-    <link rel="shortcut icon" href="img/favicon.ico">
-</head>
-<body>
+@section('title', __('Reset Password'))
 
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">{{ __('Reset Password') }}</div>
+@section('brand_headline', __('Forgot your password?'))
+@section('brand_tagline', __('No worries — we will send you a secure link to reset your password and get back into your account.'))
 
-                <div class="card-body">
-                    @if (session('status'))
-                        <div class="alert alert-success" role="alert">
-                            {{ session('status') }}
-                        </div>
-                    @endif
+@section('card_eyebrow', __('Account recovery'))
+@section('card_title', __('Reset password'))
+@section('card_subtitle', __('Enter the email address linked to your account and we will email you a reset link.'))
 
-                    <form method="POST" action="{{ route('password.email') }}">
-                        @csrf
+@section('content')
+    @if (session('status'))
+        <div class="alert alert-success auth-alert" role="alert">{{ session('status') }}</div>
+    @endif
 
-                        <div class="form-group row">
-                            <label for="email" class="col-md-4 col-form-label text-md-right">{{ __('E-Mail Address') }}</label>
+    <form method="POST" action="{{ route('password.email') }}">
+        @csrf
 
-                            <div class="col-md-6">
-                                <input id="email" type="email" class="form-control @error('email') is-invalid @enderror" name="email" value="{{ old('email') }}" required autocomplete="email" autofocus>
-
-                                @error('email')
-                                    <span class="invalid-feedback" role="alert">
-                                        <strong>{{ $message }}</strong>
-                                    </span>
-                                @enderror
-                            </div>
-                        </div>
-
-                        <div class="form-group row mb-0">
-                            <div class="col-md-6 offset-md-4">
-                                <button type="submit" class="btn btn-primary">
-                                    {{ __('Send Password Reset Link') }}
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
+        <div class="auth-field">
+            <label for="email">{{ __('E-Mail Address') }}</label>
+            <input id="email" type="email"
+                   class="form-control @error('email') is-invalid @enderror"
+                   name="email" value="{{ old('email') }}" required autocomplete="email" autofocus
+                   placeholder="{{ __('you@company.com') }}">
+            @error('email')
+                <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
+            @enderror
         </div>
-    </div>
-</div>
 
-<script type="text/javascript" src="<?php echo asset('vendor/jquery/jquery.min.js') ?>"></script>
-</body>
-</html>
+        <button type="submit" class="auth-btn">{{ __('Send Password Reset Link') }}</button>
 
-
+        <div class="auth-links">
+            <a href="{{ route('login') }}">&larr; {{ __('Back to login') }}</a>
+        </div>
+    </form>
+@endsection

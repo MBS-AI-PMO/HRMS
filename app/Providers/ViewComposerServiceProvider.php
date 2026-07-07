@@ -23,14 +23,18 @@ class ViewComposerServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if (Schema::hasTable('general_settings')){
-
-            $isCrmModuleExist = false;
-
-            $this->loadGeneralSettingAndCheckCRM($isCrmModuleExist);
-            $this->loadAddFormLinkOnHeader($isCrmModuleExist);
-
+        try {
+            if (! Schema::hasTable('general_settings')) {
+                return;
+            }
+        } catch (\Throwable $e) {
+            return;
         }
+
+        $isCrmModuleExist = false;
+
+        $this->loadGeneralSettingAndCheckCRM($isCrmModuleExist);
+        $this->loadAddFormLinkOnHeader($isCrmModuleExist);
     }
 
     protected function loadGeneralSettingAndCheckCRM(bool $isCrmModuleExist) : void

@@ -20,7 +20,7 @@
                 <tr>
                     <th class="not-exported"></th>
                     <th>{{__('Project Name')}}</th>
-                    <th>{{trans('file.Priority')}}</th>
+                    <th>{{__('Project Category')}}</th>
                     <th>{{__('Assigned Employees')}}</th>
                     <th>{{trans('file.Client')}}</th>
                     <th>{{__('Start Date')}}</th>
@@ -62,14 +62,25 @@
 
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>{{trans('file.Client')}}*</label>
-                                    <select name="client_id" id="client_id"
+                                    <label>{{trans('file.Client')}} *</label>
+                                    <select name="client_id" id="client_id" required
                                             class="form-control selectpicker"
                                             data-live-search="true" data-live-search-style="contains"
                                             title='{{__('Selecting',['key'=>trans('file.Client')])}}...'>
                                         @foreach($clients as $client)
-                                            <option value="{{$client->id}}">{{$client->first_name}} {{$client->last_name}}</option>
+                                            <option value="{{$client->id}}" data-company-id="{{ $client->resolved_company_id ?? '' }}">{{$client->first_name}} {{$client->last_name}}</option>
                                         @endforeach
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>{{__('Project Category')}} *</label>
+                                    <select name="project_category_id" id="project_category_id" required
+                                            class="form-control selectpicker"
+                                            data-live-search="true" data-live-search-style="contains"
+                                            title='{{__('Selecting',['key'=>__('Project Category')])}}...'>
                                     </select>
                                 </div>
                             </div>
@@ -89,43 +100,10 @@
                                        value="">
                             </div>
 
-                            <div class="col-md-4 form-group">
-                                <label>{{trans('file.Priority')}}</label>
-                                <select name="project_priority" id="project_priority" class="form-control selectpicker "
-                                        data-live-search="true" data-live-search-style="contains"
-                                        title='{{__('Selecting',['key'=>trans('file.Priority')])}}...'>
-                                    <option value="low">{{trans('file.Low')}}</option>
-                                    <option value="medium">{{trans('file.Medium')}}</option>
-                                    <option value="high">{{trans('file.High')}}</option>
-                                    <option value="highest">{{trans('file.Highest')}}</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>{{trans('file.Company')}} *</label>
-                                    <select name="company_id" id="company_id" required
-                                            class="form-control selectpicker"
-                                            data-live-search="true" data-live-search-style="contains"
-                                            data-dependent="department_name"
-                                            title='{{__('Selecting',['key'=>trans('file.Company')])}}...'>
-                                        @foreach($companies as $company)
-                                            <option value="{{$company->id}}">{{$company->company_name}}</option>
-                                        @endforeach
-
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>{{trans('file.Department')}} *</label>
-                                    <select name="department_id" id="department_id" required
-                                            class="form-control selectpicker"
-                                            data-live-search="true" data-live-search-style="contains"
-                                            title='{{__('Selecting',['key'=>trans('file.Department')])}}...'>
-                                    </select>
-                                </div>
+                            <div class="col-md-6 form-group">
+                                <label>{{__('Total Revenue')}}</label>
+                                <input type="number" name="total_revenue" id="total_revenue" min="0" step="0.01"
+                                       class="form-control" placeholder="{{__('Total Revenue')}}">
                             </div>
 
                             <div class="col-md-12 form-group">
@@ -190,14 +168,25 @@
 
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>{{trans('file.Client')}}*</label>
-                                    <select name="edit_client_id" id="edit_client_id"
+                                    <label>{{trans('file.Client')}} *</label>
+                                    <select name="edit_client_id" id="edit_client_id" required
                                             class="form-control selectpicker dynamic"
                                             data-live-search="true" data-live-search-style="contains"
                                             title='{{__('Selecting',['key'=>trans('file.Client')])}}...'>
                                         @foreach($clients as $client)
-                                            <option value="{{$client->id}}">{{$client->first_name}} {{$client->last_name}}</option>
+                                            <option value="{{$client->id}}" data-company-id="{{ $client->resolved_company_id ?? '' }}">{{$client->first_name}} {{$client->last_name}}</option>
                                         @endforeach
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>{{__('Project Category')}} *</label>
+                                    <select name="edit_project_category_id" id="edit_project_category_id" required
+                                            class="form-control selectpicker"
+                                            data-live-search="true" data-live-search-style="contains"
+                                            title='{{__('Selecting',['key'=>__('Project Category')])}}...'>
                                     </select>
                                 </div>
                             </div>
@@ -217,19 +206,12 @@
                                        value="">
                             </div>
 
-
                             <div class="col-md-6 form-group">
-                                <label>{{trans('file.Priority')}}</label>
-                                <select name="edit_project_priority" id="edit_project_priority"
-                                        class="form-control selectpicker "
-                                        data-live-search="true" data-live-search-style="contains"
-                                        title='{{__('Selecting',['key'=>trans('file.Priority')])}}...'>
-                                    <option value="low">{{trans('file.Low')}}</option>
-                                    <option value="medium">{{trans('file.Medium')}}</option>
-                                    <option value="high">{{trans('file.High')}}</option>
-                                    <option value="highest">{{trans('file.Highest')}}</option>
-                                </select>
+                                <label>{{__('Total Revenue')}}</label>
+                                <input type="number" name="edit_total_revenue" id="edit_total_revenue" min="0" step="0.01"
+                                       class="form-control" placeholder="{{__('Total Revenue')}}">
                             </div>
+
 
                             <div class="col-md-6 form-group">
                                 <label>{{trans('file.Status')}}</label>
@@ -242,32 +224,6 @@
                                     <option value="completed">{{trans('file.Completed')}}</option>
                                     <option value="deferred">{{trans('file.Deferred')}}</option>
                                 </select>
-                            </div>
-
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>{{trans('file.Company')}} *</label>
-                                    <select name="edit_company_id" id="edit_company_id" required
-                                            class="form-control selectpicker"
-                                            data-live-search="true" data-live-search-style="contains"
-                                            data-dependent="department_name"
-                                            title='{{__('Selecting',['key'=>trans('file.Company')])}}...'>
-                                        @foreach($companies as $company)
-                                            <option value="{{$company->id}}">{{$company->company_name}}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label>{{trans('file.Department')}} *</label>
-                                    <select name="edit_department_id" id="edit_department_id" required
-                                            class="form-control selectpicker"
-                                            data-live-search="true" data-live-search-style="contains"
-                                            title='{{__('Selecting',['key'=>trans('file.Department')])}}...'>
-                                    </select>
-                                </div>
                             </div>
 
                             <div class="col-md-12">
@@ -398,8 +354,8 @@
 
                     },
                     {
-                        data: 'project_priority',
-                        name: 'project_priority',
+                        data: 'project_category',
+                        name: 'project_category',
                     },
                     {
                         data: 'assigned_employee',
@@ -594,10 +550,10 @@
 
 
         $('#create_record').on('click', function () {
-            $('#department_id').html('');
+            $('#project_category_id').html('');
             $('#employee_id').html('');
             $('#employee_id').val(null).trigger('change');
-            $('#department_id').selectpicker('refresh');
+            $('#project_category_id').selectpicker('refresh');
             $('#formModal').modal('show');
         });
 
@@ -624,7 +580,7 @@
                     if (data.success) {
                         html = '<div class="alert alert-success">' + data.success + '</div>';
                         $('#sample_form')[0].reset();
-                        $('#department_id').html('');
+                        $('#project_category_id').html('');
                         $('#employee_id').html('');
                         $('select').selectpicker('refresh');
                         $('#employee_id').val(null).trigger('change');
@@ -668,8 +624,8 @@
                         setTimeout(function () {
                             $('#editModal').modal('hide');
                             $('select').selectpicker('refresh');
-                            $('#edit_department_id').html('');
-                            $('#edit_department_id').selectpicker('refresh');
+                            $('#edit_project_category_id').html('');
+                            $('#edit_project_category_id').selectpicker('refresh');
                             $('#project-table').DataTable().ajax.reload();
                             $('#edit_sample_form')[0].reset();
                         }, 2000);
@@ -695,7 +651,6 @@
                 success: function (html) {
 
                     $('#edit_title').val(html.data.title);
-                    $('#edit_project_priority').selectpicker('val', html.data.project_priority);
                     if (html.data.description) {
                         function htmlDecode(input){
                             var e = document.createElement('div');
@@ -706,8 +661,15 @@
                     }
                     $('#edit_client_id').selectpicker('val', html.data.client_id);
 
+                    loadProjectCategories(
+                        html.data.client_id,
+                        '#edit_project_category_id',
+                        html.data.project_category_id || ''
+                    );
+
                     $('#edit_start_date').val(html.data.start_date);
                     $('#edit_end_date').val(html.data.end_date);
+                    $('#edit_total_revenue').val(html.data.total_revenue ?? '');
                     if (html.data.project_status) {
                         $('#edit_project_status').selectpicker('val', html.data.project_status);
                     }
@@ -718,18 +680,6 @@
                         });
                     }
                     $('#edit_summary').val(html.data.summary);
-
-                    if (html.data.company_id) {
-                        $('#edit_company_id').selectpicker('val', String(html.data.company_id));
-                        loadProjectDepartments(
-                            html.data.company_id,
-                            '#edit_department_id',
-                            html.data.department_id || ''
-                        );
-                    } else {
-                        $('#edit_department_id').html('');
-                        $('#edit_department_id').selectpicker('refresh');
-                    }
 
                     $('#hidden_id').val(html.data.id);
                     $('select').selectpicker('refresh');
@@ -786,28 +736,32 @@
         });
 
 
-        function loadProjectDepartments(companyId, departmentSelector, selectedDepartmentId) {
-            var $department = $(departmentSelector);
+        function loadProjectCategories(clientId, categorySelector, selectedCategoryId) {
+            var $category = $(categorySelector);
             var deferred = $.Deferred();
             var _token = $('input[name="_token"]').val();
 
-            $department.html('');
-            $department.selectpicker('refresh');
+            $category.html('');
+            $category.selectpicker('refresh');
 
-            if (!companyId) {
+            if (!clientId) {
                 deferred.resolve();
                 return deferred.promise();
             }
 
             $.ajax({
-                url: "{{ route('dynamic_department') }}",
+                url: "{{ route('dynamic_project_categories') }}",
                 method: "POST",
-                data: {value: companyId, _token: _token, dependent: 'department_name'},
+                data: {
+                    value: clientId,
+                    include_id: selectedCategoryId || '',
+                    _token: _token
+                },
                 success: function (result) {
-                    $department.html(result);
-                    $department.selectpicker('refresh');
-                    if (selectedDepartmentId) {
-                        $department.selectpicker('val', String(selectedDepartmentId));
+                    $category.html(result);
+                    $category.selectpicker('refresh');
+                    if (selectedCategoryId) {
+                        $category.selectpicker('val', String(selectedCategoryId));
                     }
                     deferred.resolve();
                 },
@@ -819,7 +773,7 @@
             return deferred.promise();
         }
 
-        function loadProjectEmployees(departmentId, employeeSelector, selectedEmployeeIds) {
+        function loadProjectEmployeesByClient(clientId, employeeSelector, selectedEmployeeIds) {
             var $employee = $(employeeSelector);
             var deferred = $.Deferred();
             var _token = $('input[name="_token"]').val();
@@ -827,16 +781,16 @@
             $employee.html('');
             $employee.val(null).trigger('change');
 
-            if (!departmentId) {
+            if (!clientId) {
                 deferred.resolve();
                 return deferred.promise();
             }
 
             $.ajax({
-                url: "{{ route('dynamic_employee_department') }}",
+                url: "{{ route('dynamic_project_employees') }}",
                 method: "POST",
                 data: {
-                    value: departmentId,
+                    value: clientId,
                     _token: _token,
                     first_name: 'first_name',
                     last_name: 'last_name'
@@ -858,18 +812,16 @@
             return deferred.promise();
         }
 
-        $('#company_id').on('change', function () {
+        $('#client_id').on('change', function () {
+            var clientId = $(this).val();
             $('#employee_id').html('');
             $('#employee_id').val(null).trigger('change');
-            loadProjectDepartments($(this).val(), '#department_id');
+            loadProjectCategories(clientId, '#project_category_id');
+            loadProjectEmployeesByClient(clientId, '#employee_id');
         });
 
-        $('#department_id').on('change', function () {
-            loadProjectEmployees($(this).val(), '#employee_id');
-        });
-
-        $('#edit_company_id').on('change', function () {
-            loadProjectDepartments($(this).val(), '#edit_department_id');
+        $('#edit_client_id').on('change', function () {
+            loadProjectCategories($(this).val(), '#edit_project_category_id');
         });
 
     })(jQuery);
