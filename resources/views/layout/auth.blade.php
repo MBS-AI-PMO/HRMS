@@ -404,30 +404,6 @@
             border: none;
         }
 
-        .auth-demo-btns {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            justify-content: center;
-            margin-top: 18px;
-        }
-
-        .auth-demo-btns .btn {
-            border-radius: 8px;
-            font-size: 0.78rem;
-            font-weight: 600;
-            padding: 5px 12px;
-        }
-
-        .auth-demo-note {
-            text-align: center;
-            margin-top: 12px;
-            font-size: 0.75rem;
-            color: #dc2626;
-            font-weight: 500;
-            line-height: 1.4;
-        }
-
         .auth-copyright {
             position: fixed;
             bottom: 20px;
