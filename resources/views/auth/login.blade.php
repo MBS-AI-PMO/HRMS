@@ -61,36 +61,12 @@
             <a href="{{ route('employee.register') }}">{{ __('New employee? Register') }}</a>
         </div>
     </form>
-
-    @if (! env('USER_VERIFIED'))
-        <div class="auth-demo-btns">
-            <button type="button" class="btn btn-success btn-sm admin-btn">{{ __('Admin') }}</button>
-            <button type="button" class="btn btn-info btn-sm staff-btn">{{ __('Staff') }}</button>
-            <button type="button" class="btn btn-warning btn-sm client-btn">{{ __('Client') }}</button>
-        </div>
-        <p class="auth-demo-note">{{ __('For attendance device related features, purchase the attendance device addon.') }}</p>
-    @endif
 @endsection
 
 @push('scripts')
 <script>
 (function ($) {
     'use strict';
-
-    $('.admin-btn').on('click', function () {
-        $("input[name='username']").val('admin');
-        $("input[name='password']").val('admin');
-    });
-
-    $('.staff-btn').on('click', function () {
-        $("input[name='username']").val('staff');
-        $("input[name='password']").val('staff');
-    });
-
-    $('.client-btn').on('click', function () {
-        $("input[name='username']").val('client');
-        $("input[name='password']").val('client');
-    });
 
     $('#password-toggle').on('click', function () {
         var $password = $('#password');

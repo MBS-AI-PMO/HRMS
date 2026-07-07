@@ -211,13 +211,9 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::post('/profile/change_password/{id}', [DashboardController::class, 'change_password'])->name('change_password');
     });
 
-    // Languages Section
+    // Languages Section (create/store/translations index are registered by joedixon/laravel-translation)
     Route::prefix('languages')->group(function () {
-        Route::get('/{language}/translations', [LanguageSettingController::class, 'index'])->name('languages.translations.index');
-        // Route::get('/{language}', [LanguageSettingController::class, 'index'])->name('languages.translations.index');
         Route::post('/update', [LanguageSettingController::class, 'update'])->name('language.translations.update');
-        Route::get('/create', [LanguageSettingController::class, 'create'])->name('languages.create');
-        Route::post('/store', [LanguageSettingController::class, 'store'])->name('languages.store');
         Route::get('/switch/{lang}', [LanguageSettingController::class, 'languageSwitch'])->name('language.switch');
         Route::get('/delete', [LanguageSettingController::class, 'languageDelete'])->name('language.delete');
     });
@@ -461,16 +457,6 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::get('transfers/{id}/delete', [TransferController::class, 'destroy'])->name('transfers.destroy');
         Route::post('transfers/delete/selected', [TransferController::class, 'delete_by_selection'])->name('mass_delete_transfers');
 
-        // Route::controller(ResignationController::class)->group(function () {
-        //     Route::post('resignations/update', 'update')->name('resignations.update');
-        //     Route::resource('resignations')->except([
-        //         'destroy', 'create', 'update',
-        //     ]);
-        //     Route::get('resignations/{id}/delete', 'destroy')->name('resignations.destroy');
-        //     Route::post('resignations/delete/selected', 'delete_by_selection')->name('mass_delete_resignations');
-        //     Route::get('resignations/{resignation}/restore', 'restore')->name('resignations.restore');
-        // });
-
         Route::post('resignations/update', [ResignationController::class, 'update'])->name('resignations.update');
         Route::resource('resignations', ResignationController::class)->except([
             'destroy', 'create', 'update',
@@ -539,7 +525,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::get('locations/hierarchy/employees', [LocationController::class, 'hierarchyEmployees'])->name('locations.hierarchy.employees');
         Route::get('locations/employees/by-companies', [LocationController::class, 'employeesByCompanies'])->name('locations.employees_by_companies');
         Route::resource('locations', LocationController::class)->except([
-            'create', 'show',
+            'create', 'show', 'edit', 'update', 'destroy',
         ]);
         Route::get('locations/edit/{id}', [LocationController::class, 'edit'])->name('locations.edit');
         Route::get('locations/{id}/shift-assignment', [LocationController::class, 'shiftAssignmentForm'])->name('locations.shift_assignment');
@@ -601,10 +587,6 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     });
 
     Route::prefix('timesheet')->middleware(['auth', 'secure.app'])->group(function () {
-        // Route::get('attendances', 'AttendanceController@index')->name('attendances.index');
-        // Route::get('date_wise_attendances', 'AttendanceController@dateWiseAttendance')->name('date_wise_attendances.index');
-        // Route::get('monthly_attendances', 'AttendanceController@monthlyAttendance')->name('monthly_attendances.index');
-
         Route::get('update_attendances', [AttendanceController::class, 'updateAttendance'])->name('update_attendances.index');
         Route::get('update_attendances/{id}/get', [AttendanceController::class, 'updateAttendanceGet'])->name('update_attendances.get');
         Route::post('update_attendances/store', [AttendanceController::class, 'updateAttendanceStore'])->name('update_attendances.store');
@@ -845,7 +827,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::post('dynamic_dependent/fetch_candidate', [DynamicDependent::class, 'fetchCandidate'])->name('dynamic_candidate');
 
     Route::prefix('settings')->middleware(['auth', 'secure.app'])->group(function () {
-        Route::resource('roles', RoleController::class);
+        Route::resource('roles', RoleController::class)->except(['destroy']);
         Route::get('/roles/{id}/delete', [RoleController::class, 'destroy'])->name('roles.destroy');
 
         Route::get('roles/role-permission/{id}', [PermissionController::class, 'rolePermission'])->name('rolePermission');
