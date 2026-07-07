@@ -2,6 +2,8 @@
 !/database/migrations/seeders
 !/database/migrations/note.txt
 /.phpunit.cache
+/bootstrap/cache/*.php
+!bootstrap/cache/.gitignore
 
 /public
 /track
