@@ -287,9 +287,6 @@
                         {
                             data: 'company_name',
                             name: 'company_name',
-                            render: function(data, type, row) {
-                                return $('<textarea/>').html(data).text(); // decodes HTML entities
-                            }
                         },
                         {
                             data: 'email',

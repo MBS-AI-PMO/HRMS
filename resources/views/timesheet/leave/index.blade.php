@@ -694,8 +694,11 @@
                         off: '{{ __('Off') }}'
                     });
 
-                    $('#leave_model').modal('show');
-                    $('#leave_model .modal-title').text(infoLabel);
+                    hrmsOpenLeaveInfoModal('#leave_model', infoLabel);
+                },
+                error: function () {
+                    $('.modal-backdrop').remove();
+                    $('body').removeClass('modal-open').css('padding-right', '');
                 }
             });
         });

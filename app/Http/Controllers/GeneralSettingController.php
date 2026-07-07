@@ -11,7 +11,12 @@ use App\Notifications\EmployeeLeaveNotification;
 use App\Models\User;
 use DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Validator;
+use App\Services\MailSendLogger;
+use Throwable;
 
 use Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables;
 use Illuminate\Support\Facades\App;
@@ -179,13 +184,142 @@ class GeneralSettingController extends Controller
             $this->dataWriteInENVFile('MAIL_FROM_NAME',$request->mail_name);
             $this->dataWriteInENVFile('MAIL_HOST',$request->mail_host);
             $this->dataWriteInENVFile('MAIL_PORT',$request->port);
-            $this->dataWriteInENVFile('MAIL_PASSWORD',$request->password);
+            if ($request->filled('password')) {
+                $this->dataWriteInENVFile('MAIL_PASSWORD',$request->password);
+            }
             $this->dataWriteInENVFile('MAIL_USERNAME',$request->mail_address);
 
 
 			return redirect()->back()->with('message', 'Data updated successfully');
 		}
 		return abort('403', __('You are not authorized'));
+	}
+
+	public function mailSettingSendTest(Request $request)
+	{
+		if (! auth()->user()->can('view-mail-setting')) {
+			return response()->json(['error' => __('You are not authorized')], 403);
+		}
+
+		$validator = Validator::make($request->all(), [
+			'mail_host' => 'required|string|max:255',
+			'mail_address' => 'required|email|max:255',
+			'mail_name' => 'required|string|max:255',
+			'port' => 'required',
+			'encryption' => 'required|string|max:50',
+			'test_email' => 'required|email|max:255',
+			'password' => 'nullable|string',
+		]);
+
+		if ($validator->fails()) {
+			return response()->json(['error' => $validator->errors()->first()], 422);
+		}
+
+		$password = $request->filled('password') ? $request->password : env('MAIL_PASSWORD');
+
+		if ($password === null || $password === '') {
+			return response()->json([
+				'error' => __('Enter SMTP password in the form, or save mail settings first.'),
+			], 422);
+		}
+
+		$mailConfig = $this->applyMailConfigFromRequest($request, $password);
+		$testEmail = strtolower(trim($request->test_email));
+		$sentAt = now()->toDateTimeString();
+		$testedBy = auth()->user();
+
+		$body = implode("\n", [
+			__('Hello'),
+			'',
+			__('This is a test email from HRMS Mail Settings.'),
+			'',
+			__('Sent at').': '.$sentAt,
+			__('Sent by').': '.trim($testedBy->first_name.' '.$testedBy->last_name).' (#'.$testedBy->id.')',
+			__('SMTP host').': '.$mailConfig['host'],
+			__('Mail from').': '.$mailConfig['from_address'],
+			'',
+			__('If you received this message, SMTP configuration is working.'),
+		]);
+
+		try {
+			$mailLogs = (new MailSendLogger)->wrap(
+				'Mail settings test email',
+				[
+					'test_email' => $testEmail,
+					'tested_by' => $testedBy->id,
+					'mail_host' => $mailConfig['host'],
+					'mail_port' => $mailConfig['port'],
+					'mail_encryption' => $mailConfig['encryption'],
+					'mail_from' => $mailConfig['from_address'],
+				],
+				function () use ($body, $testEmail, $mailConfig, $sentAt) {
+					Mail::raw($body, function ($message) use ($testEmail, $mailConfig, $sentAt) {
+						$message->from($mailConfig['from_address'], $mailConfig['from_name'])
+							->replyTo($mailConfig['from_address'], $mailConfig['from_name'])
+							->to($testEmail)
+							->subject(__('HRMS mail test').' - '.$sentAt);
+					});
+				}
+			);
+
+			$message = __('Test email sent to :email. Check inbox and spam folder.', ['email' => $testEmail]);
+			$hint = MailSendLogger::recipientDomainHint($testEmail);
+
+			if ($hint) {
+				$message .= ' '.$hint;
+			}
+
+			return response()->json([
+				'success' => $message,
+				'mail_logs' => $mailLogs,
+			]);
+		} catch (Throwable $e) {
+			Log::error('[MAIL TEST] Mail settings test failed', [
+				'stage' => 'MAIL_SETTINGS_TEST_FAILED',
+				'test_email' => $testEmail,
+				'tested_by' => $testedBy->id,
+				'mail_host' => $mailConfig['host'],
+				'mail_port' => $mailConfig['port'],
+				'mail_encryption' => $mailConfig['encryption'],
+				'mail_from' => $mailConfig['from_address'],
+				'error' => $e->getMessage(),
+				'exception' => get_class($e),
+			]);
+
+			return response()->json([
+				'error' => __('Mail test failed: ').$e->getMessage(),
+			], 422);
+		}
+	}
+
+	/**
+	 * @return array{host: string, port: mixed, encryption: string, username: string, password: string, from_address: string, from_name: string}
+	 */
+	protected function applyMailConfigFromRequest(Request $request, string $password): array
+	{
+		$config = [
+			'host' => trim((string) $request->mail_host),
+			'port' => $request->port,
+			'encryption' => trim((string) $request->encryption),
+			'username' => strtolower(trim((string) $request->mail_address)),
+			'password' => $password,
+			'from_address' => strtolower(trim((string) $request->mail_address)),
+			'from_name' => trim((string) $request->mail_name),
+		];
+
+		config([
+			'mail.default' => 'smtp',
+			'mail.mailers.smtp.transport' => 'smtp',
+			'mail.mailers.smtp.host' => $config['host'],
+			'mail.mailers.smtp.port' => $config['port'],
+			'mail.mailers.smtp.encryption' => $config['encryption'],
+			'mail.mailers.smtp.username' => $config['username'],
+			'mail.mailers.smtp.password' => $config['password'],
+			'mail.from.address' => $config['from_address'],
+			'mail.from.name' => $config['from_name'],
+		]);
+
+		return $config;
 	}
 
 	public function emptyDatabase()

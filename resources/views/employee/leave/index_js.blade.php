@@ -28,7 +28,10 @@ todayHighlight: true
                 {
                     data: null,
                     render: function (data) {
-                        return data.leave_type + '<br><div class="badge badge-success">' + data.status + '</div><br><b><i>Reason:</i></b>' + data.leave_reason;
+                        let reason = (data.leave_reason || '').trim();
+
+                        return data.leave_type + '<br><div class="badge badge-success">' + data.status + '</div>'
+                            + (reason ? '<br><b><i>Reason:</i></b> ' + reason : '');
                     }
 
                 },
@@ -140,8 +143,11 @@ $(document).on('click', '.show_leave', function () {
                 off: '{{ __('Off') }}'
             });
 
-            $('#leave_model').modal('show');
-            $('#leave_model .modal-title').text("{{__('Leave Info')}}");
+            hrmsOpenLeaveInfoModal('#leave_model', "{{ __('Leave Info') }}");
+        },
+        error: function () {
+            $('.modal-backdrop').remove();
+            $('body').removeClass('modal-open').css('padding-right', '');
         }
     });
 });

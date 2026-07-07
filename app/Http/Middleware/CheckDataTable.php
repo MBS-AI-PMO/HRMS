@@ -31,6 +31,7 @@ class CheckDataTable
     {
         return [
             url('admin/dashboard'),
+            url('admin/executive'),
             url('staff/employees/page/import'),
             url('settings/general_settings'),
             url('settings/mail_setting'),

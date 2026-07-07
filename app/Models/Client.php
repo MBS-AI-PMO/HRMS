@@ -10,11 +10,13 @@ class Client extends Model
 		'id',
         'username',
         'company_name',
+        'parent_company_id',
         'first_name',
         'last_name',
         'password',
         'contact_no',
         'email',
+        'gender',
         'website',
         'address1',
         'address2',
@@ -38,5 +40,15 @@ class Client extends Model
 
 	public function user(){
 		return $this->hasOne('App\Models\User','id','id');
+	}
+
+	public function parentCompany()
+	{
+		return $this->belongsTo(company::class, 'parent_company_id');
+	}
+
+	public function employees()
+	{
+		return $this->hasMany(Employee::class, 'client_id');
 	}
 }

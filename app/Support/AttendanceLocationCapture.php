@@ -6,16 +6,28 @@ use Illuminate\Http\Request;
 
 class AttendanceLocationCapture
 {
+    protected static function normalizeCoordinate($value): ?float
+    {
+        if (! is_numeric($value)) {
+            return null;
+        }
+
+        return round((float) $value, 7);
+    }
+
     public static function clockInFields(Request $request): array
     {
         $fields = [];
 
-        if (is_numeric($request->input('latitude'))) {
-            $fields['clock_in_latitude'] = (float) $request->input('latitude');
+        $latitude = static::normalizeCoordinate($request->input('latitude'));
+        $longitude = static::normalizeCoordinate($request->input('longitude'));
+
+        if ($latitude !== null) {
+            $fields['clock_in_latitude'] = $latitude;
         }
 
-        if (is_numeric($request->input('longitude'))) {
-            $fields['clock_in_longitude'] = (float) $request->input('longitude');
+        if ($longitude !== null) {
+            $fields['clock_in_longitude'] = $longitude;
         }
 
         return $fields;
@@ -25,12 +37,15 @@ class AttendanceLocationCapture
     {
         $fields = [];
 
-        if (is_numeric($request->input('latitude'))) {
-            $fields['clock_out_latitude'] = (float) $request->input('latitude');
+        $latitude = static::normalizeCoordinate($request->input('latitude'));
+        $longitude = static::normalizeCoordinate($request->input('longitude'));
+
+        if ($latitude !== null) {
+            $fields['clock_out_latitude'] = $latitude;
         }
 
-        if (is_numeric($request->input('longitude'))) {
-            $fields['clock_out_longitude'] = (float) $request->input('longitude');
+        if ($longitude !== null) {
+            $fields['clock_out_longitude'] = $longitude;
         }
 
         return $fields;
@@ -40,14 +55,34 @@ class AttendanceLocationCapture
     {
         $meta = [];
 
-        if (is_numeric($request->input('latitude'))) {
-            $meta['latitude'] = (float) $request->input('latitude');
+        $latitude = static::normalizeCoordinate($request->input('latitude'));
+        $longitude = static::normalizeCoordinate($request->input('longitude'));
+
+        if ($latitude !== null) {
+            $meta['latitude'] = $latitude;
         }
 
-        if (is_numeric($request->input('longitude'))) {
-            $meta['longitude'] = (float) $request->input('longitude');
+        if ($longitude !== null) {
+            $meta['longitude'] = $longitude;
+        }
+
+        if (is_numeric($request->input('location_accuracy'))) {
+            $meta['gps_accuracy_m'] = round((float) $request->input('location_accuracy'), 2);
+        }
+
+        if ($request->filled('location_captured_at')) {
+            $meta['gps_captured_at'] = (string) $request->input('location_captured_at');
         }
 
         return $meta;
+    }
+
+    public static function gpsValidationError(Request $request): ?string
+    {
+        if (! is_numeric($request->input('latitude')) || ! is_numeric($request->input('longitude'))) {
+            return __('GPS location is required to clock in or out. Please allow location access and try again.');
+        }
+
+        return null;
     }
 }

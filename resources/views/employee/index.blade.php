@@ -42,12 +42,36 @@
                 <div class="card card-body">
                     <form action="" method="GET" id="filter_form">
                         <div class="row">
+                            <!-- Client -->
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="text-bold"><strong>{{ trans('file.Client') }}</strong></label>
+                                    <select name="client_id" id="client_id_filter"
+                                            class="form-control selectpicker"
+                                            data-live-search="true" data-live-search-style="contains"
+                                            title="{{ __('Selecting', ['key' => trans('file.Client')]) }}...">
+                                        <option value=""></option>
+                                        @foreach ($clients as $client)
+                                            @php
+                                                $clientName = trim(($client->first_name ?? '').' '.($client->last_name ?? ''));
+                                                $clientCompany = trim((string) ($client->company_name ?? ''));
+                                                $clientLabel = ($clientName !== '' && $clientCompany !== '')
+                                                    ? $clientName.' — '.$clientCompany
+                                                    : ($clientName !== '' ? $clientName : $clientCompany);
+                                            @endphp
+                                            <option value="{{ $client->id }}">{{ $clientLabel }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <!--/ Client -->
+
                             <!-- Company -->
                             <div class="col-md-3">
                                 <div class="form-group">
                                     <label class="text-bold"><strong>{{trans('file.Company')}}</strong></label>
                                     <select name="company_id" id="company_id_filter"
-                                            class="form-control selectpicker dynamic"
+                                            class="form-control selectpicker"
                                             data-live-search="true" data-live-search-style="contains"
                                             data-shift_name="shift_name" data-dependent="department_name"
                                             title="{{__('Selecting',['key'=>trans('file.Company')])}}...">
@@ -83,9 +107,10 @@
                                 </select>
                             </div>
                             <!--/ Designation -->
-
+                        </div>
+                        <div class="row">
                             <!-- Office Shift -->
-                            <div class="col-md-2 form-group">
+                            <div class="col-md-3 form-group">
                                 <label class="text-bold"><b>{{__('Office Shift')}}</b></label>
                                 <select name="office_shift_id" id="office_shift_id_filter" class="selectpicker form-control"
                                         data-live-search="true" data-live-search-style="contains"
@@ -94,7 +119,7 @@
                             </div>
                             <!--/ Office Shift -->
 
-                            <div class="col-md-1">
+                            <div class="col-md-2">
                                 <label class="text-bold"></label><br>
                                 <button type="button" class="btn btn-dark" id="filterSubmit">
                                     <i class="fa fa-arrow-right" aria-hidden="true"></i> &nbsp; GET
@@ -127,65 +152,57 @@
 
 
     <div id="formModal" class="modal fade" role="dialog">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
             <div class="modal-content">
 
-                <div class="modal-header">
-                    <h5 id="exampleModalLabel" class="modal-title">{{__('Add Employee')}}</h5>
+                <div class="modal-header py-2">
+                    <h5 id="exampleModalLabel" class="modal-title mb-0">{{__('Add Employee')}}</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
 
-                <div class="modal-body">
+                <div class="modal-body employee-add-modal-body">
                     <span id="form_result"></span>
-                    <form method="post" id="sample_form" class="form-horizontal" enctype="multipart/form-data" data-hrms-no-refresh>
+                    <form method="post" id="sample_form" class="form-horizontal employee-add-form" enctype="multipart/form-data" data-hrms-no-refresh>
 
                         @csrf
                         <div class="row">
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-4 form-group">
                                 <label class="text-bold">{{__('First Name')}} <span class="text-danger">*</span></label>
                                 <input type="text" name="first_name" id="first_name" placeholder="{{__('First Name')}}"
-                                       required class="form-control">
+                                       required class="form-control form-control-sm">
                             </div>
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-4 form-group">
                                 <label class="text-bold">{{__('Last Name')}} <span class="text-danger">*</span></label>
                                 <input type="text" name="last_name" id="last_name" placeholder="{{__('Last Name')}}"
-                                       required class="form-control">
+                                       required class="form-control form-control-sm">
                             </div>
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-4 form-group">
+                                <label class="text-bold">{{__('CNIC')}} <span class="text-danger">*</span></label>
+                                <input type="text" name="cnic" id="cnic" class="form-control form-control-sm cnic-input"
+                                       placeholder="35201-1234567-1" maxlength="15" autocomplete="off"
+                                       inputmode="numeric" required title="{{ __('Format: 12345-1234567-1') }}">
+                            </div>
+
+                            <div class="col-md-4 form-group">
                                 <label class="text-bold">{{trans('file.Email')}}</label>
                                 <input type="email" name="email" id="email" placeholder="example@example.com"
-                                       class="form-control">
+                                       class="form-control form-control-sm">
                             </div>
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-4 form-group">
                                 <label class="text-bold">{{trans('file.Phone')}} <span class="text-danger">*</span></label>
                                 <input type="text" name="contact_no" id="contact_no"
                                        placeholder="{{trans('file.Phone')}}" required
-                                       class="form-control" value="{{ old('contact_no') }}">
+                                       class="form-control form-control-sm" value="{{ old('contact_no') }}">
                             </div>
-
-                            <div class="col-md-6 form-group">
-                                <label class="text-bold">{{__('CNIC')}} <span class="text-danger">*</span></label>
-                                <input type="text" name="cnic" id="cnic" class="form-control cnic-input"
-                                       placeholder="35201-1234567-1" maxlength="15" autocomplete="off"
-                                       inputmode="numeric" required>
-                                <small class="text-muted">{{ __('Format: 12345-1234567-1') }}</small>
-                            </div>
-
-                            <div class="col-md-12 form-group">
-                                <label class="text-bold">{{trans('file.Address')}}</label>
-                                <textarea name="address" id="address" rows="2" class="form-control"
-                                          placeholder="{{trans('file.Address')}}"></textarea>
-                            </div>
-
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-4 form-group">
                                 <label class="text-bold">{{__('Date Of Birth')}} <span class="text-danger">*</span></label>
                                 <input type="text" name="date_of_birth" id="date_of_birth" required autocomplete="off"
-                                       class="form-control date" value="">
+                                       class="form-control form-control-sm date" value="">
                             </div>
 
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-4 form-group">
                                 <label class="text-bold">{{trans('file.Gender')}}</label>
                                 <select name="gender" id="gender" class="selectpicker form-control"
                                         data-live-search="true" data-live-search-style="contains"
@@ -195,52 +212,87 @@
                                     <option value="Other">{{trans('file.Other')}}</option>
                                 </select>
                             </div>
-
-
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label class="text-bold">{{trans('file.Company')}} <span class="text-danger">*</span></label>
-                                    <select name="company_id" id="company_id" required
-                                            class="form-control selectpicker dynamic"
-                                            data-live-search="true" data-live-search-style="contains"
-                                            data-shift_name="shift_name" data-dependent="department_name"
-                                            title="{{__('Selecting',['key'=>trans('file.Company')])}}...">
-                                        @foreach($companies as $company)
-                                            <option value="{{$company->id}}">{{$company->company_name}}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label class="text-bold">{{trans('file.Department')}} <span class="text-danger">*</span></label>
-                                    <select name="department_id" id="department_id" required
-                                            class="selectpicker form-control designation"
-                                            data-live-search="true" data-live-search-style="contains"
-                                            data-designation_name="designation_name"
-                                            title="{{__('Selecting',['key'=>trans('file.Department')])}}...">
-                                    </select>
-                                </div>
+                            <div class="col-md-8 form-group">
+                                <label class="text-bold">{{trans('file.Address')}}</label>
+                                <input type="text" name="address" id="address" class="form-control form-control-sm"
+                                       placeholder="{{trans('file.Address')}}">
                             </div>
 
+                            <div class="col-md-12">
+                                <div class="employee-owner-panel border rounded bg-light px-2 py-2 mb-1">
+                                    <div class="row align-items-end">
+                                        <div class="col-md-4 form-group mb-md-0">
+                                            <label class="text-bold small d-block mb-1">{{ __('Belongs To') }}</label>
+                                            <div class="form-check form-check-inline mb-0">
+                                                <input class="form-check-input" type="radio" name="employee_owner_type" id="employee_owner_type_company" value="company" checked>
+                                                <label class="form-check-label small" for="employee_owner_type_company">{{ trans('file.Company') }}</label>
+                                            </div>
+                                            <div class="form-check form-check-inline mb-0">
+                                                <input class="form-check-input" type="radio" name="employee_owner_type" id="employee_owner_type_client" value="client">
+                                                <label class="form-check-label small" for="employee_owner_type_client">{{ trans('file.Client') }}</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-8 form-group mb-0" id="employee_owner_company_wrap">
+                                            <label class="text-bold small">{{ trans('file.Company') }} <span class="text-danger">*</span></label>
+                                            <select name="company_id" id="company_id" required
+                                                    class="form-control selectpicker dynamic employee-company-select"
+                                                    data-live-search="true" data-live-search-style="contains"
+                                                    data-shift_name="shift_name" data-dependent="department_name"
+                                                    title="{{__('Selecting',['key'=>trans('file.Company')])}}...">
+                                                @foreach($companies as $company)
+                                                    <option value="{{$company->id}}">{{$company->company_name}}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-8 form-group mb-0 d-none" id="employee_owner_client_wrap">
+                                            <label class="text-bold small">{{ trans('file.Client') }} <span class="text-danger">*</span></label>
+                                            <select id="employee_client_id"
+                                                    class="form-control selectpicker"
+                                                    data-live-search="true" data-live-search-style="contains"
+                                                    title="{{ __('Selecting', ['key' => trans('file.Client')]) }}..."
+                                                    disabled>
+                                                @foreach ($clients as $client)
+                                                    @php
+                                                        $clientName = trim(($client->first_name ?? '').' '.($client->last_name ?? ''));
+                                                        $clientCompany = trim((string) ($client->company_name ?? ''));
+                                                        $clientLabel = ($clientName !== '' && $clientCompany !== '')
+                                                            ? $clientName.' — '.$clientCompany
+                                                            : ($clientName !== '' ? $clientName : $clientCompany);
+                                                    @endphp
+                                                    <option value="{{ $client->id }}" data-company-id="{{ $client->resolved_company_id }}">
+                                                        {{ $clientLabel }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-3 form-group">
+                                <label class="text-bold">{{trans('file.Department')}} <span class="text-danger">*</span></label>
+                                <select name="department_id" id="department_id" required
+                                        class="selectpicker form-control designation"
+                                        data-live-search="true" data-live-search-style="contains"
+                                        data-designation_name="designation_name"
+                                        title="{{__('Selecting',['key'=>trans('file.Department')])}}...">
+                                </select>
+                            </div>
+                            <div class="col-md-3 form-group">
                                 <label class="text-bold">{{trans('file.Designation')}} <span class="text-danger">*</span></label>
                                 <select name="designation_id" id="designation_id" required class="selectpicker form-control"
                                         data-live-search="true" data-live-search-style="contains"
                                         title="{{__('Selecting',['key'=>trans('file.Designation')])}}...">
                                 </select>
                             </div>
-
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-3 form-group">
                                 <label class="text-bold">{{trans('file.Office_Shift')}} <span class="text-danger">*</span></label>
                                 <select name="office_shift_id" id="office_shift_id" required class="selectpicker form-control"
                                         data-live-search="true" data-live-search-style="contains"
                                         title="{{__('Selecting',['key'=>trans('file.Office_Shift')])}}...">
                                 </select>
                             </div>
-
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-3 form-group">
                                 <label class="text-bold">{{ __('Work Location') }}</label>
                                 <select name="location_id" id="location_id" class="selectpicker form-control"
                                         data-live-search="true" data-live-search-style="contains"
@@ -255,14 +307,13 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-3 form-group">
                                 <label class="text-bold">{{trans('file.Username')}} <span class="text-danger">*</span></label>
                                 <input type="text" name="username" id="username"
-                                       placeholder="{{__('Unique Value',['key'=>trans('file.Username')])}}"
-                                       required class="form-control">
+                                       placeholder="{{__('Username')}}"
+                                       required class="form-control form-control-sm">
                             </div>
-
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-3 form-group">
                                 <label class="text-bold">{{trans('file.Role')}} <span class="text-danger">*</span></label>
                                 <select name="role_users_id" id="role_users_id" required
                                         class="selectpicker form-control"
@@ -271,35 +322,23 @@
                                     @foreach ($roles as $item)
                                         <option value="{{$item->id}}">{{$item->name}}</option>
                                     @endforeach
-                                    {{-- <option value="1">Admin</option>
-                                    <option value="2">Employee</option> --}}
                                 </select>
                             </div>
-
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-3 form-group">
                                 <label class="text-bold">{{trans('file.Password')}} <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <input type="password" name="password" id="password"
-                                           placeholder="{{trans('file.Password')}}"
-                                           required class="form-control">
-                                </div>
+                                <input type="password" name="password" id="password"
+                                       placeholder="{{trans('file.Password')}}"
+                                       required class="form-control form-control-sm">
                             </div>
-
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-3 form-group">
                                 <label class="text-bold">{{__('Confirm Password')}} <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <input id="confirm_pass" type="password"
-                                           class="form-control "
-                                           name="password_confirmation" placeholder="{{__('Re-type Password')}}"
-                                           required autocomplete="new-password">
-                                </div>
-                                <div class="form-group">
-                                    <div class="registrationFormAlert" id="divCheckPasswordMatch">
-                                    </div>
-                                </div>
+                                <input id="confirm_pass" type="password" class="form-control form-control-sm"
+                                       name="password_confirmation" placeholder="{{__('Confirm')}}"
+                                       required autocomplete="new-password">
+                                <small id="divCheckPasswordMatch" class="registrationFormAlert text-muted"></small>
                             </div>
 
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-4 form-group">
                                 <label class="text-bold">{{__('Attendance Type')}} <span class="text-danger">*</span></label>
                                 <select name="attendance_type" id="attendance_type" required class="selectpicker form-control"
                                         data-live-search="true" data-live-search-style="contains" title="{{__('Select Attendance Type...')}}">
@@ -307,28 +346,21 @@
                                     <option value="location_based">{{__('Location Based')}}</option>
                                 </select>
                             </div>
-
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-4 form-group">
                                 <label class="text-bold">{{__('Date Of Joining')}} <span class="text-danger">*</span></label>
-                                <input type="text" name="joining_date" id="joining_date" class="form-control date">
+                                <input type="text" name="joining_date" id="joining_date" class="form-control form-control-sm date">
                             </div>
-
-                            <div class="col-md-6 form-group">
-                                <label for="profile_photo" class=""><strong>{{ __('Image') }}</strong></label>
+                            <div class="col-md-4 form-group">
+                                <label class="text-bold">{{ __('Image') }}</label>
                                 <input type="file" id="profile_photo"
-                                       class="form-control @error('photo') is-invalid @enderror"
-                                       name="profile_photo" placeholder="{{__('Upload',['key'=>trans('file.Photo')])}}">
+                                       class="form-control form-control-sm @error('photo') is-invalid @enderror"
+                                       name="profile_photo">
                             </div>
 
-                            {{-- <div class="col-md-6 form-group"  id="ipField"></div> --}}
-
-
-                            <div class="container">
-                                <div class="form-group" align="center">
-                                    <input type="hidden" name="action" id="action"/>
-                                    <input type="hidden" name="hidden_id" id="hidden_id"/>
-                                    <input type="submit" name="action_button" id="action_button" class="btn btn-warning w-100" value="{{trans('file.Add')}}" />
-                                </div>
+                            <div class="col-12 form-group mb-0 mt-1">
+                                <input type="hidden" name="action" id="action"/>
+                                <input type="hidden" name="hidden_id" id="hidden_id"/>
+                                <input type="submit" name="action_button" id="action_button" class="btn btn-warning btn-sm w-100" value="{{trans('file.Add')}}" />
                             </div>
                         </div>
 
@@ -362,8 +394,102 @@
 
 @endsection
 
+@push('css')
+<style>
+    #formModal .employee-add-modal-body {
+        padding: 0.85rem 1rem 0.65rem;
+        max-height: calc(100vh - 8rem);
+        overflow-y: auto;
+    }
+
+    #formModal .employee-add-form [class*="col-"] {
+        min-width: 0;
+    }
+
+    #formModal .employee-add-form .form-group {
+        margin-bottom: 0.55rem;
+    }
+
+    #formModal .employee-add-form label.text-bold {
+        font-size: 0.8rem;
+        margin-bottom: 0.2rem;
+    }
+
+    #formModal .employee-add-form input.form-control-sm,
+    #formModal .employee-add-form input.form-control.date {
+        height: calc(1.5em + 0.5rem + 2px);
+        font-size: 0.875rem;
+    }
+
+    #formModal .employee-add-form .bootstrap-select {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100%;
+    }
+
+    #formModal .employee-add-form .bootstrap-select > .dropdown-toggle {
+        width: 100% !important;
+        min-height: 34px;
+        padding: 0.35rem 1.85rem 0.35rem 0.55rem;
+        font-size: 0.875rem;
+        position: relative;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+    }
+
+    #formModal .employee-add-form .bootstrap-select .filter-option-inner-inner {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #formModal .employee-add-form .bootstrap-select > .dropdown-toggle::after {
+        position: absolute;
+        right: 0.65rem;
+        top: 50%;
+        margin-top: 0;
+        transform: translateY(-50%);
+    }
+
+    #formModal .employee-owner-panel {
+        background: #f8f9fc;
+    }
+
+    #formModal .bootstrap-select .dropdown-menu {
+        z-index: 1060;
+    }
+</style>
+@endpush
+
 @push('scripts')
 <script type="text/javascript">
+    var hrmsClientCompanyMap = @json($clients->mapWithKeys(fn ($client) => [(string) $client->id => $client->resolved_company_id])->filter());
+
+    function hrmsCsrfToken() {
+        return $('meta[name="csrf-token"]').attr('content') || $('#sample_form input[name="_token"]').val() || '';
+    }
+
+    function repopulateEmployeeSelect($select, html) {
+        if ($select.data('selectpicker')) {
+            $select.selectpicker('destroy');
+        }
+        $select.html(html);
+        $select.selectpicker({
+            width: '100%',
+            liveSearch: true,
+            liveSearchStyle: 'contains'
+        });
+    }
+
+    function refreshFormSelectpicker($select) {
+        if ($select.data('selectpicker')) {
+            $select.selectpicker('refresh');
+        } else {
+            $select.selectpicker({ width: '100%', liveSearch: true, liveSearchStyle: 'contains' });
+        }
+    }
+
     function formatCnicValue(value) {
         const digits = (value || '').replace(/\D/g, '').slice(0, 13);
         if (digits.length <= 5) return digits;
@@ -426,6 +552,7 @@
                 url: "{{ route('employees.index') }}",
                 type: 'GET',
                 data: function (d) {
+                    d.client_id      = $('#client_id_filter').val();
                     d.company_id     = $("#company_id_filter").val();
                     d.department_id  = $('#department_id_filter').val();
                     d.designation_id = $('#designation_id_filter').val();
@@ -571,21 +698,227 @@
     $('#filterSubmit').on("click",function(e){
         $('#employee-table').DataTable().draw(true);
     });
+
+    $('#client_id_filter').on('changed.bs.select', function () {
+        if ($(this).val()) {
+            $('#company_id_filter').selectpicker('val', '');
+            $('#department_id_filter').html('');
+            $('#designation_id_filter').html('');
+            $('#office_shift_id_filter').html('');
+            refreshFormSelectpicker($('#department_id_filter'));
+            refreshFormSelectpicker($('#designation_id_filter'));
+            refreshFormSelectpicker($('#office_shift_id_filter'));
+        }
+    });
+
+    $('#company_id_filter').on('changed.bs.select', function () {
+        if ($(this).val()) {
+            $('#client_id_filter').selectpicker('val', '');
+        }
+    });
     //--------------/ Filter ----------------------
 
 
     $('#create_record').click(function () {
-
         $('.modal-title').text("Add Employee");
         $('#action_button').val('{{trans('file.Add')}}');
         $('#action').val('{{trans('file.Add')}}');
+        toggleEmployeeOwnerType('company');
         $('#formModal').modal('show');
+    });
+
+    $('#formModal').on('shown.bs.modal', function () {
+        $('#formModal .selectpicker').each(function () {
+            if (!$(this).data('selectpicker')) {
+                $(this).selectpicker({ width: '100%', liveSearch: true, liveSearchStyle: 'contains' });
+            } else {
+                $(this).selectpicker('render');
+            }
+        });
+    });
+
+    function toggleEmployeeOwnerType(type) {
+        type = type || 'company';
+        $('input[name="employee_owner_type"][value="' + type + '"]').prop('checked', true);
+
+        if (type === 'client') {
+            $('#employee_owner_company_wrap').addClass('d-none');
+            $('#employee_owner_client_wrap').removeClass('d-none');
+            $('#company_id').prop('disabled', true).removeAttr('name').removeAttr('required');
+            $('#employee_client_id').prop('disabled', false).attr('name', 'client_id').attr('required', 'required');
+            $('#employee_client_id').selectpicker('val', '');
+        } else {
+            $('#employee_owner_client_wrap').addClass('d-none');
+            $('#employee_owner_company_wrap').removeClass('d-none');
+            $('#employee_client_id').prop('disabled', true).removeAttr('name').removeAttr('required');
+            $('#company_id').prop('disabled', false).attr('name', 'company_id').attr('required', 'required');
+            $('#company_id').selectpicker('val', '');
+        }
+
+        repopulateEmployeeSelect($('#department_id'), '');
+        repopulateEmployeeSelect($('#designation_id'), '');
+        repopulateEmployeeSelect($('#office_shift_id'), '');
+
+        if ($('#company_id').data('selectpicker')) {
+            $('#company_id').selectpicker('destroy');
+        }
+        $('#company_id').selectpicker({ width: '100%', liveSearch: true, liveSearchStyle: 'contains' });
+
+        if ($('#employee_client_id').data('selectpicker')) {
+            $('#employee_client_id').selectpicker('destroy');
+        }
+        $('#employee_client_id').selectpicker({ width: '100%', liveSearch: true, liveSearchStyle: 'contains' });
+
+        filterLocationOptionsByCompany();
+    }
+
+    $('input[name="employee_owner_type"]').on('change', function () {
+        toggleEmployeeOwnerType($(this).val());
+    });
+
+    function getEmployeeFormCompanyId() {
+        if ($('input[name="employee_owner_type"]:checked').val() === 'client') {
+            var clientId = String($('#employee_client_id').val() || '');
+            return String(hrmsClientCompanyMap[clientId] || $('#employee_client_id option:selected').attr('data-company-id') || '');
+        }
+
+        return String($('#company_id').val() || '');
+    }
+
+    function loadEmployeeDepartments() {
+        var ownerType = $('input[name="employee_owner_type"]:checked').val();
+        var payload = {
+            _token: hrmsCsrfToken(),
+            dependent: 'department_name'
+        };
+
+        if (ownerType === 'client') {
+            payload.client_id = $('#employee_client_id').val();
+            payload.value = hrmsClientCompanyMap[payload.client_id]
+                || $('#employee_client_id option:selected').attr('data-company-id')
+                || '';
+
+            if (!payload.client_id) {
+                return;
+            }
+        } else {
+            payload.value = $('#company_id').val();
+
+            if (!payload.value) {
+                return;
+            }
+        }
+
+        $.ajax({
+            url: "{{ route('dynamic_department') }}",
+            method: 'POST',
+            data: payload,
+            success: function (result) {
+                repopulateEmployeeSelect($('#department_id'), result);
+                repopulateEmployeeSelect($('#designation_id'), '');
+                loadEmployeeOfficeShifts();
+            },
+            error: function (xhr) {
+                console.error('Department load failed', xhr.status, xhr.responseText);
+                repopulateEmployeeSelect($('#department_id'), '');
+                repopulateEmployeeSelect($('#designation_id'), '');
+            }
+        });
+    }
+
+    function loadEmployeeOfficeShifts() {
+        var ownerType = $('input[name="employee_owner_type"]:checked').val();
+        var payload = {
+            _token: hrmsCsrfToken(),
+            dependent: 'shift_name'
+        };
+
+        if (ownerType === 'client') {
+            payload.client_id = $('#employee_client_id').val();
+
+            if (!payload.client_id) {
+                repopulateEmployeeSelect($('#office_shift_id'), '');
+                return;
+            }
+        } else {
+            payload.value = $('#company_id').val();
+
+            if (!payload.value) {
+                repopulateEmployeeSelect($('#office_shift_id'), '');
+                return;
+            }
+        }
+
+        $.ajax({
+            url: "{{ route('dynamic_office_shifts') }}",
+            method: 'POST',
+            data: payload,
+            success: function (result) {
+                repopulateEmployeeSelect($('#office_shift_id'), result);
+            },
+            error: function (xhr) {
+                console.error('Office shift load failed', xhr.status, xhr.responseText);
+                repopulateEmployeeSelect($('#office_shift_id'), '');
+            }
+        });
+    }
+
+    $(document).on('change changed.bs.select', '#sample_form #company_id', function () {
+        if ($('input[name="employee_owner_type"]:checked').val() !== 'company') {
+            return;
+        }
+
+        filterLocationOptionsByCompany();
+
+        if ($(this).val()) {
+            loadEmployeeDepartments();
+        }
+    });
+
+    $(document).on('change changed.bs.select', '#sample_form #employee_client_id', function () {
+        if ($('input[name="employee_owner_type"]:checked').val() !== 'client') {
+            return;
+        }
+
+        if ($(this).val()) {
+            loadEmployeeDepartments();
+            filterLocationOptionsByCompany();
+        }
+    });
+
+    $(document).on('change changed.bs.select', '#sample_form #department_id', function () {
+        if (!$(this).val()) {
+            return;
+        }
+
+        $.ajax({
+            url: "{{ route('dynamic_designation_department') }}",
+            method: 'POST',
+            data: {
+                value: $(this).val(),
+                _token: hrmsCsrfToken(),
+                designation_name: $(this).data('designation_name')
+            },
+            success: function (result) {
+                repopulateEmployeeSelect($('#designation_id'), result);
+            },
+            error: function (xhr) {
+                console.error('Designation load failed', xhr.status, xhr.responseText);
+                repopulateEmployeeSelect($('#designation_id'), '');
+            }
+        });
     });
 
     $('#sample_form').on('submit', function (event) {
         event.preventDefault();
-        // var attendance_type = $("#attendance_type").val();
-        // console.log(attendance_type);
+
+        var $form = $(this);
+        $form.find('.selectpicker').each(function () {
+            var $select = $(this);
+            if ($select.data('selectpicker')) {
+                $select.selectpicker('refresh');
+            }
+        });
 
         $.ajax({
             url: "{{ route('employees.store') }}",
@@ -608,10 +941,28 @@
                         $('select').selectpicker('refresh');
                         $('.date').datepicker('update');
                         $('#form_result').html('').hide();
+                        toggleEmployeeOwnerType('company');
                     }, 2200);
                 }
             },
-            error: function () {
+            error: function (xhr) {
+                var payload = xhr.responseJSON || null;
+
+                if (!payload && xhr.responseText) {
+                    try {
+                        payload = JSON.parse(xhr.responseText);
+                    } catch (e) {
+                        payload = null;
+                    }
+                }
+
+                if (payload && (payload.errors || payload.error || payload.message)) {
+                    if (typeof window.hrmsSwalResponse === 'function') {
+                        window.hrmsSwalResponse(payload);
+                    }
+                    return;
+                }
+
                 if (typeof window.hrmsSwalResponse === 'function') {
                     window.hrmsSwalResponse(null, {
                         fallbackError: '{{ __('Something went wrong. Please try again.') }}'
@@ -707,28 +1058,8 @@
     });
 
 
-    $('.dynamic').change(function () {
-        if ($(this).val() !== '') {
-            let value = $(this).val();
-            let dependent = $(this).data('dependent');
-            let _token = $('input[name="_token"]').val();
-            $.ajax({
-                url: "{{ route('dynamic_department') }}",
-                method: "POST",
-                data: {value: value, _token: _token, dependent: dependent},
-                success: function (result) {
-
-                    $('select').selectpicker("destroy");
-                    $('#department_id').html(result);
-                    $('select').selectpicker();
-
-                }
-            });
-        }
-    });
-
     function filterLocationOptionsByCompany() {
-        const selectedCompany = String($('#company_id').val() || '');
+        const selectedCompany = getEmployeeFormCompanyId();
         $('#location_id option').each(function () {
             const raw = String($(this).data('company-ids') || '');
             const companyIds = raw ? raw.split(',') : [];
@@ -738,33 +1069,56 @@
         $('#location_id').selectpicker('refresh');
     }
 
-    $('#company_id').on('changed.bs.select', function () {
-        filterLocationOptionsByCompany();
-    });
-    filterLocationOptionsByCompany();
+    toggleEmployeeOwnerType('company');
 
 
-    $('.dynamic').change(function () {
-        if ($(this).val() !== '') {
-            let value = $(this).val();
-            let dependent = $(this).data('shift_name');
-            let _token = $('input[name="_token"]').val();
-            $.ajax({
-                url: "{{ route('dynamic_office_shifts') }}",
-                method: "POST",
-                data: {value: value, _token: _token, dependent: dependent},
-                success: function (result) {
-                    $('select').selectpicker("destroy");
-                    $('#office_shift_id').html(result);
-                    $('select').selectpicker();
-                }
-            });
+    $('#company_id_filter').on('changed.bs.select', function () {
+        if ($(this).val() === '') {
+            return;
         }
+
+        let value = $(this).val();
+        let _token = $('input[name="_token"]').val();
+
+        $.post("{{ route('dynamic_department') }}", {
+            value: value,
+            _token: _token,
+            dependent: 'department_name'
+        }).done(function (result) {
+            repopulateEmployeeSelect($('#department_id_filter'), result);
+        });
+
+        $.post("{{ route('dynamic_office_shifts') }}", {
+            value: value,
+            _token: _token,
+            dependent: 'shift_name'
+        }).done(function (result) {
+            repopulateEmployeeSelect($('#office_shift_id_filter'), result);
+        });
     });
 
-    $('.designation').change(function () {
+    $(document).on('change', '#department_id_filter', function () {
+        if (!$(this).val()) {
+            return;
+        }
+
+        $.ajax({
+            url: "{{ route('dynamic_designation_department') }}",
+            method: 'POST',
+            data: {
+                value: $(this).val(),
+                _token: hrmsCsrfToken(),
+                designation_name: $(this).data('designation_name')
+            },
+            success: function (result) {
+                repopulateEmployeeSelect($('#designation_id_filter'), result);
+            }
+        });
+    });
+
+    $('.designationFilter').change(function () {
         if ($(this).val() !== '') {
-            let value = $(this).val();
+            let value = $('#department_id_filter').val();
             let designation_name = $(this).data('designation_name');
             let _token = $('input[name="_token"]').val();
             $.ajax({
@@ -772,10 +1126,8 @@
                 method: "POST",
                 data: {value: value, _token: _token, designation_name: designation_name},
                 success: function (result) {
-                    $('select').selectpicker("destroy");
-                    $('#designation_id').html(result);
-                    $('select').selectpicker();
-
+                    $('#designation_id_filter').html(result);
+                    refreshFormSelectpicker($('#designation_id_filter'));
                 }
             });
         }
@@ -797,69 +1149,7 @@
 
 
     //--------  Filter  ---------
-
-    // Company--> Department
-    $('.dynamic').change(function () {
-        if ($(this).val() !== '') {
-            let value = $('#company_id_filter').val();
-            let dependent = $(this).data('dependent');
-            let _token = $('input[name="_token"]').val();
-            $.ajax({
-                url: "{{ route('dynamic_department') }}",
-                method: "POST",
-                data: {value: value, _token: _token, dependent: dependent},
-                success: function (result) {
-
-                    $('select').selectpicker("destroy");
-                    $('#department_id_filter').html(result);
-                    $('select').selectpicker();
-
-                }
-            });
-        }
-    });
-
-    //Department--> Designation
-    $('.designationFilter').change(function () {
-        if ($(this).val() !== '') {
-            // let value = $(this).val();
-            // let value = $('#company_id_filter').val();
-            let value = $('#department_id_filter').val();
-            let designation_name = $(this).data('designation_name');
-            let _token = $('input[name="_token"]').val();
-            $.ajax({
-                url: "{{ route('dynamic_designation_department') }}",
-                method: "POST",
-                data: {value: value, _token: _token, designation_name: designation_name},
-                success: function (result) {
-                    $('select').selectpicker("destroy");
-                    $('#designation_id_filter').html(result);
-                    $('select').selectpicker();
-
-                }
-            });
-        }
-    });
-
-    //Company--> Office Shift
-    $('.dynamic').change(function () {
-        if ($(this).val() !== '') {
-            // let value = $(this).val();
-            let value = $('#company_id_filter').val();
-            let dependent = $(this).data('shift_name');
-            let _token = $('input[name="_token"]').val();
-            $.ajax({
-                url: "{{ route('dynamic_office_shifts') }}",
-                method: "POST",
-                data: {value: value, _token: _token, dependent: dependent},
-                success: function (result) {
-                    $('select').selectpicker("destroy");
-                    $('#office_shift_id_filter').html(result);
-                    $('select').selectpicker();
-                }
-            });
-        }
-    });
+    // Handled above in scoped .dynamic / .designation handlers (company_id_filter, etc.)
 
 </script>
 @endpush

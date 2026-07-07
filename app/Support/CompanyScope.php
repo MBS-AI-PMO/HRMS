@@ -2,13 +2,16 @@
 
 namespace App\Support;
 
+use App\Models\Client;
 use App\Models\Employee;
+use App\Models\Project;
 use App\Models\company;
 use App\Models\location;
 use App\Scopes\AuthCompanyScope;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class CompanyScope
 {
@@ -55,6 +58,61 @@ class CompanyScope
         return static::$companyId;
     }
 
+    public static function clientCompaniesForSelect()
+    {
+        $query = company::select('id', 'company_name')
+            ->whereRaw('LOWER(company_name) NOT LIKE ?', ['%solochoice%'])
+            ->orderBy('company_name');
+
+        if (static::applies()) {
+            $companyId = static::companyId();
+
+            if (! $companyId) {
+                return collect();
+            }
+
+            $query->where('id', $companyId);
+        }
+
+        return $query->get();
+    }
+
+    public static function solochoicezCompanyId(): ?int
+    {
+        $id = company::withoutGlobalScopes()
+            ->whereRaw('LOWER(company_name) LIKE ?', ['%solochoice%'])
+            ->value('id');
+
+        return $id ? (int) $id : null;
+    }
+
+    protected static function normalizeCompanyName(string $name): string
+    {
+        $name = strtolower(trim($name));
+        $name = preg_replace('/[.\-_]+/', ' ', $name);
+        $name = preg_replace('/\s+/', ' ', $name);
+
+        return trim($name);
+    }
+
+    public static function solochoicezEmployeesForSelect()
+    {
+        $companyId = static::solochoicezCompanyId();
+
+        if (! $companyId) {
+            return collect();
+        }
+
+        return Employee::withoutGlobalScope(AuthCompanyScope::class)
+            ->select('id', 'first_name', 'last_name')
+            ->where('company_id', $companyId)
+            ->where('is_active', 1)
+            ->whereNull('exit_date')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
+    }
+
     public static function companiesForSelect()
     {
         $query = company::select('id', 'company_name')->orderBy('company_name');
@@ -78,6 +136,36 @@ class CompanyScope
     public static function companiesForLocationHead(int $userId)
     {
         $locationIds = location::locationIdsHeadedByUser($userId);
+
+        if ($locationIds === []) {
+            return collect();
+        }
+
+        $companyIds = DB::table('company_location')
+            ->whereIn('location_id', $locationIds)
+            ->pluck('company_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($companyIds === []) {
+            return collect();
+        }
+
+        return company::withoutGlobalScopes()
+            ->select('id', 'company_name')
+            ->whereIn('id', $companyIds)
+            ->orderBy('company_name')
+            ->get();
+    }
+
+    /**
+     * Companies linked to the given location IDs (for scoped location managers).
+     */
+    public static function companiesForLocationIds(array $locationIds)
+    {
+        $locationIds = array_values(array_filter(array_map('intval', $locationIds)));
 
         if ($locationIds === []) {
             return collect();
@@ -153,6 +241,61 @@ class CompanyScope
             ]);
     }
 
+    /**
+     * Parent company used for departments/designations when employee belongs to a client.
+     */
+    public static function resolveCompanyIdForClient(int $clientId): ?int
+    {
+        $columns = ['id', 'company_name'];
+
+        if (Schema::hasTable('clients') && Schema::hasColumn('clients', 'parent_company_id')) {
+            $columns[] = 'parent_company_id';
+        }
+
+        $client = Client::query()
+            ->select($columns)
+            ->find($clientId);
+
+        if (! $client) {
+            return null;
+        }
+
+        if (! empty($client->parent_company_id)) {
+            return (int) $client->parent_company_id;
+        }
+
+        $fromProject = Project::query()
+            ->where('client_id', $clientId)
+            ->whereNotNull('company_id')
+            ->value('company_id');
+
+        if ($fromProject) {
+            return (int) $fromProject;
+        }
+
+        $organization = static::normalizeCompanyName((string) $client->company_name);
+
+        if ($organization !== '') {
+            foreach (company::withoutGlobalScopes()->select('id', 'company_name')->get() as $company) {
+                $name = static::normalizeCompanyName((string) $company->company_name);
+
+                if ($name === '') {
+                    continue;
+                }
+
+                if ($name === $organization || str_contains($organization, $name) || str_contains($name, $organization)) {
+                    return (int) $company->id;
+                }
+            }
+
+            if (str_contains($organization, 'solochoice')) {
+                return static::solochoicezCompanyId();
+            }
+        }
+
+        return null;
+    }
+
     public static function resolveCompanyIdForInput($requested): int
     {
         $scopedId = static::companyId();
@@ -207,5 +350,57 @@ class CompanyScope
                 ->from('employees')
                 ->where('company_id', $companyId);
         });
+    }
+
+    /**
+     * Client IDs that belong to a company (for filter dropdowns).
+     */
+    public static function clientIdsForCompany(int $companyId): array
+    {
+        $companyName = company::query()->whereKey($companyId)->value('company_name');
+        $normalizedName = $companyName ? strtolower(trim((string) $companyName)) : '';
+
+        $ids = collect();
+
+        $ids = $ids->merge(
+            Project::query()
+                ->where('company_id', $companyId)
+                ->whereNotNull('client_id')
+                ->distinct()
+                ->pluck('client_id')
+        );
+
+        $ids = $ids->merge(
+            Employee::withoutGlobalScope(AuthCompanyScope::class)
+                ->where('company_id', $companyId)
+                ->whereNotNull('client_id')
+                ->distinct()
+                ->pluck('client_id')
+        );
+
+        $clientQuery = Client::query()->select('id');
+
+        $clientQuery->where(function ($query) use ($companyId, $normalizedName) {
+            if (Schema::hasTable('clients') && Schema::hasColumn('clients', 'parent_company_id')) {
+                $query->where('parent_company_id', $companyId);
+            }
+
+            if ($normalizedName !== '') {
+                if (Schema::hasTable('clients') && Schema::hasColumn('clients', 'parent_company_id')) {
+                    $query->orWhereRaw('LOWER(TRIM(company_name)) = ?', [$normalizedName]);
+                } else {
+                    $query->whereRaw('LOWER(TRIM(company_name)) = ?', [$normalizedName]);
+                }
+            }
+        });
+
+        $ids = $ids->merge($clientQuery->pluck('id'));
+
+        return $ids
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 }

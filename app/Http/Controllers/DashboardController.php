@@ -11,6 +11,10 @@ use App\Models\Attendance;
 use App\Models\Award;
 use App\Models\location;
 use App\Services\AttendanceOvertimeService;
+use App\Services\EntityDashboardService;
+use App\Services\ProjectTimelineService;
+use App\Support\ClientDisplay;
+use App\Support\CompanyScope;
 use App\Support\ManagedEmployeeScope;
 use App\Models\Client;
 use App\Models\company;
@@ -86,7 +90,74 @@ class DashboardController extends Controller {
     }
 
 
-	public function index()
+	public function hrDashboard()
+	{
+        if (! $this->canAccessHrDashboard()) {
+            return redirect()->route('employee.EmployeeDashboard');
+        }
+
+        return $this->renderHrDashboard();
+	}
+
+    public function executiveDashboard()
+    {
+        if ((int) auth()->user()->role_users_id !== 1) {
+            abort(403, __('You are not authorized'));
+        }
+
+        $versionUpgradeData = $this->loadVersionUpgradeInfo();
+        $metrics = $this->buildExecutiveDashboardMetrics();
+
+        return view('dashboard.executive_dashboard', compact('metrics', 'versionUpgradeData'));
+    }
+
+    public function companyDashboard(int $id)
+    {
+        if (! auth()->user()->can('view-company')) {
+            abort(403, __('You are not authorized'));
+        }
+
+        CompanyScope::assertCompanyAccess($id);
+
+        app(ProjectTimelineService::class)->syncAll();
+
+        $company = company::query()
+            ->with(['Location.Country', 'companyType:id,type_name'])
+            ->findOrFail($id);
+
+        $dashboard = app(EntityDashboardService::class)->buildCompanyDashboard($company);
+
+        return view('dashboard.entity_dashboard', compact('dashboard'));
+    }
+
+    public function clientOverviewDashboard(int $id)
+    {
+        if (! auth()->user()->can('view-client')) {
+            abort(403, __('You are not authorized'));
+        }
+
+        $client = Client::query()->findOrFail($id);
+
+        app(ProjectTimelineService::class)->syncAll();
+
+        $dashboard = app(EntityDashboardService::class)->buildClientDashboard($client);
+
+        return view('dashboard.entity_dashboard', compact('dashboard'));
+    }
+
+    protected function canAccessHrDashboard(): bool
+    {
+        $user = auth()->user();
+        $roleId = (int) $user->role_users_id;
+
+        if (in_array($roleId, [1, 2], true)) {
+            return true;
+        }
+
+        return $user->can('view-details-employee');
+    }
+
+    protected function renderHrDashboard()
 	{
         $versionUpgradeData = $this->loadVersionUpgradeInfo();
 
@@ -102,17 +173,15 @@ class DashboardController extends Controller {
 		$dept_name_array = [];
 		$dept_bgcolor_array = [];
 		$dept_hover_bgcolor_array = [];
+		$deptColorIndex = 0;
 
-		mt_srand(127);
 		if ($departments)
 		{
 			foreach ($departments as $key => $dept)
 			{
-				$r = mt_rand(0, 255);
-				$g = mt_rand(0, 255);
-				$b = mt_rand(0, 255);
-				$dept_bgcolor_array[] = 'rgba(' . $r . ',' . $g . ',' . $b . ', 0.7)';
-				$dept_hover_bgcolor_array[] = 'rgb(' . $r . ',' . $g . ',' . $b . ')';
+				$colors = $this->hrChartColorForIndex($deptColorIndex++);
+				$dept_bgcolor_array[] = $colors['bg'];
+				$dept_hover_bgcolor_array[] = $colors['hover'];
 
 				$dept_count_array[] = $dept->count();
 				if ($key == null)
@@ -132,16 +201,15 @@ class DashboardController extends Controller {
 		$desig_name_array = [];
 		$desig_bgcolor_array = [];
 		$desig_hover_bgcolor_array = [];
-		mt_srand(200);
+		$desigColorIndex = 0;
+
 		if ($designations)
 		{
 			foreach ($designations as $key => $desig)
 			{
-				$r = mt_rand(0, 255);
-				$g = mt_rand(0, 255);
-				$b = mt_rand(0, 255);
-				$desig_bgcolor_array[] = 'rgba(' . $r . ',' . $g . ',' . $b . ', 0.7)';
-				$desig_hover_bgcolor_array[] = 'rgb(' . $r . ',' . $g . ',' . $b . ')';
+				$colors = $this->hrChartColorForIndex($desigColorIndex++);
+				$desig_bgcolor_array[] = $colors['bg'];
+				$desig_hover_bgcolor_array[] = $colors['hover'];
 				$desig_count_array[] = $desig->count();
 				if ($key == null)
 				{
@@ -267,6 +335,297 @@ class DashboardController extends Controller {
             'versionUpgradeData'
         ));
 	}
+
+    protected function hrChartColorForIndex(int $index): array
+    {
+        $palette = [
+            ['bg' => 'rgba(91, 74, 154, 0.85)', 'hover' => '#5b4a9a'],
+            ['bg' => 'rgba(55, 32, 91, 0.85)', 'hover' => '#37205b'],
+            ['bg' => 'rgba(191, 140, 255, 0.85)', 'hover' => '#BF8CFF'],
+            ['bg' => 'rgba(25, 174, 217, 0.85)', 'hover' => '#19AED9'],
+            ['bg' => 'rgba(244, 96, 91, 0.85)', 'hover' => '#F4605B'],
+            ['bg' => 'rgba(16, 185, 129, 0.85)', 'hover' => '#10b981'],
+            ['bg' => 'rgba(245, 158, 11, 0.85)', 'hover' => '#f59e0b'],
+            ['bg' => 'rgba(124, 92, 196, 0.85)', 'hover' => '#7c5cc4'],
+        ];
+
+        return $palette[$index % count($palette)];
+    }
+
+    protected function buildExecutiveDashboardMetrics(): array
+    {
+        $today = now()->format('Y-m-d');
+        $thisMonthStart = now()->copy()->startOfMonth()->format('Y-m-d');
+        $lastMonthStart = now()->copy()->subMonth()->startOfMonth()->format('Y-m-d');
+        $lastMonthEnd = now()->copy()->subMonth()->endOfMonth()->format('Y-m-d');
+
+        $activeEmployeesQuery = Employee::query()
+            ->where('is_active', 1)
+            ->whereNull('exit_date');
+
+        $totalEmployees = (clone $activeEmployeesQuery)->count();
+        $newEmployeesThisMonth = Employee::query()
+            ->whereDate('joining_date', '>=', $thisMonthStart)
+            ->count();
+        $newEmployeesLastMonth = Employee::query()
+            ->whereBetween('joining_date', [$lastMonthStart, $lastMonthEnd])
+            ->count();
+
+        $totalClients = Client::query()->count();
+        $activeClients = Client::query()->where('is_active', 1)->count();
+        $newClientsThisMonth = Client::query()->where('created_at', '>=', $thisMonthStart)->count();
+        $newClientsLastMonth = Client::query()
+            ->whereBetween('created_at', [$lastMonthStart, $lastMonthEnd.' 23:59:59'])
+            ->count();
+
+        $totalProjects = Project::query()->count();
+        $projectStatusCounts = $this->countProjectsByStatus();
+        $runningProjects = $projectStatusCounts['in_progress'];
+        $completedProjects = $projectStatusCounts['completed'];
+        $newProjectsThisMonth = Project::query()->where('created_at', '>=', $thisMonthStart)->count();
+        $newProjectsLastMonth = Project::query()
+            ->whereBetween('created_at', [$lastMonthStart, $lastMonthEnd.' 23:59:59'])
+            ->count();
+
+        $totalLocations = location::query()->count();
+        $totalCompanies = company::query()->count();
+        $newCompaniesThisMonth = company::query()->where('created_at', '>=', $thisMonthStart)->count();
+        $newCompaniesLastMonth = company::query()
+            ->whereBetween('created_at', [$lastMonthStart, $lastMonthEnd.' 23:59:59'])
+            ->count();
+
+        $locationsWithClient = location::query()->whereNotNull('client_id')->count();
+
+        $attendanceToday = Attendance::query()
+            ->whereDate('attendance_date', $today)
+            ->distinct('employee_id')
+            ->count('employee_id');
+        $attendanceRate = $totalEmployees > 0
+            ? round(($attendanceToday / $totalEmployees) * 100, 1)
+            : 0;
+
+        $pendingLeaves = leave::query()->where('status', 'pending')->count();
+        $openTickets = SupportTicket::query()->where('ticket_status', 'open')->count();
+
+        $monthLabels = [];
+        $employeeGrowthSeries = [];
+        $clientGrowthSeries = [];
+        $companyGrowthSeries = [];
+        $projectGrowthSeries = [];
+
+        for ($i = 5; $i >= 0; $i--) {
+            $month = now()->copy()->subMonths($i);
+            $monthLabels[] = $month->format('M Y');
+            $monthStart = $month->copy()->startOfMonth()->format('Y-m-d');
+            $monthEnd = $month->copy()->endOfMonth()->format('Y-m-d');
+
+            $employeeGrowthSeries[] = Employee::query()
+                ->whereBetween('joining_date', [$monthStart, $monthEnd])
+                ->count();
+            $clientGrowthSeries[] = Client::query()
+                ->whereBetween('created_at', [$monthStart, $monthEnd.' 23:59:59'])
+                ->count();
+            $companyGrowthSeries[] = company::query()
+                ->whereBetween('created_at', [$monthStart, $monthEnd.' 23:59:59'])
+                ->count();
+            $projectGrowthSeries[] = Project::query()
+                ->whereBetween('created_at', [$monthStart, $monthEnd.' 23:59:59'])
+                ->count();
+        }
+
+        $topClients = Client::query()
+            ->select('id', 'company_name', 'first_name', 'last_name', 'is_active')
+            ->withCount('projects')
+            ->whereHas('projects')
+            ->orderByDesc('projects_count')
+            ->limit(8)
+            ->get()
+            ->map(function (Client $client) {
+                return [
+                    'name' => ClientDisplay::label($client),
+                    'projects_count' => (int) $client->projects_count,
+                    'is_active' => (bool) $client->is_active,
+                ];
+            })
+            ->values();
+
+        $topCompanies = company::query()
+            ->select('id', 'company_name')
+            ->withCount('projects')
+            ->whereHas('projects')
+            ->orderByDesc('projects_count')
+            ->limit(8)
+            ->get()
+            ->map(fn ($company) => [
+                'type' => 'company',
+                'name' => $company->company_name,
+                'projects_count' => (int) $company->projects_count,
+                'is_active' => null,
+            ]);
+
+        $topProjectOwners = $topCompanies
+            ->merge($topClients->map(fn ($client) => [
+                'type' => 'client',
+                'name' => $client['name'],
+                'projects_count' => $client['projects_count'],
+                'is_active' => $client['is_active'],
+            ]))
+            ->sortByDesc('projects_count')
+            ->values()
+            ->take(10)
+            ->values();
+
+        $companyHierarchy = $this->buildCompanyClientProjectHierarchy();
+
+        $departmentHeadcount = DB::table('employees')
+            ->join('departments', 'employees.department_id', '=', 'departments.id')
+            ->where('employees.is_active', 1)
+            ->whereNull('employees.exit_date')
+            ->groupBy('departments.id', 'departments.department_name')
+            ->select('departments.department_name', DB::raw('COUNT(*) as total'))
+            ->orderByDesc('total')
+            ->limit(8)
+            ->get()
+            ->map(fn ($row) => [
+                'department' => $row->department_name,
+                'total' => (int) $row->total,
+            ])
+            ->values();
+
+        return [
+            'totals' => [
+                'employees' => $totalEmployees,
+                'clients' => $totalClients,
+                'active_clients' => $activeClients,
+                'projects' => $totalProjects,
+                'running_projects' => $runningProjects,
+                'completed_projects' => $completedProjects,
+                'locations' => $totalLocations,
+                'locations_with_client' => $locationsWithClient,
+                'companies' => $totalCompanies,
+                'attendance_today' => $attendanceToday,
+                'attendance_rate' => $attendanceRate,
+                'pending_leaves' => $pendingLeaves,
+                'open_tickets' => $openTickets,
+            ],
+            'growth' => [
+                'employees' => $this->growthPercent($newEmployeesLastMonth, $newEmployeesThisMonth),
+                'clients' => $this->growthPercent($newClientsLastMonth, $newClientsThisMonth),
+                'companies' => $this->growthPercent($newCompaniesLastMonth, $newCompaniesThisMonth),
+                'projects' => $this->growthPercent($newProjectsLastMonth, $newProjectsThisMonth),
+                'new_employees_this_month' => $newEmployeesThisMonth,
+                'new_clients_this_month' => $newClientsThisMonth,
+                'new_companies_this_month' => $newCompaniesThisMonth,
+                'new_projects_this_month' => $newProjectsThisMonth,
+            ],
+            'charts' => [
+                'month_labels' => $monthLabels,
+                'employee_growth' => $employeeGrowthSeries,
+                'client_growth' => $clientGrowthSeries,
+                'company_growth' => $companyGrowthSeries,
+                'project_growth' => $projectGrowthSeries,
+                'project_status' => $projectStatusCounts,
+            ],
+            'top_clients' => $topClients,
+            'top_companies' => $topCompanies->values(),
+            'top_project_owners' => $topProjectOwners,
+            'company_hierarchy' => $companyHierarchy,
+            'department_headcount' => $departmentHeadcount,
+        ];
+    }
+
+    protected function normalizeProjectStatus(?string $status): string
+    {
+        $status = strtolower(trim((string) $status));
+
+        if ($status === '' || in_array($status, ['not started', 'not_started'], true)) {
+            return 'not_started';
+        }
+
+        return $status;
+    }
+
+    protected function countProjectsByStatus(): array
+    {
+        $counts = [
+            'in_progress' => 0,
+            'not_started' => 0,
+            'completed' => 0,
+            'deferred' => 0,
+        ];
+
+        foreach (Project::query()->select('project_status')->cursor() as $project) {
+            $status = $this->normalizeProjectStatus($project->project_status);
+
+            if (isset($counts[$status])) {
+                $counts[$status]++;
+            }
+        }
+
+        return $counts;
+    }
+
+    protected function growthPercent(float|int $previous, float|int $current): float
+    {
+        $previous = (float) $previous;
+        $current = (float) $current;
+
+        if ($previous <= 0) {
+            return $current > 0 ? 100.0 : 0.0;
+        }
+
+        return round((($current - $previous) / $previous) * 100, 1);
+    }
+
+    protected function buildCompanyClientProjectHierarchy()
+    {
+        $projects = Project::query()
+            ->select('id', 'title', 'client_id', 'company_id', 'project_status')
+            ->with('client:id,company_name,first_name,last_name,is_active')
+            ->get();
+
+        return company::query()
+            ->select('id', 'company_name')
+            ->orderBy('company_name')
+            ->get()
+            ->map(function ($company) use ($projects) {
+                $companyProjects = $projects->where('company_id', $company->id);
+                $clientIds = $companyProjects->pluck('client_id')->filter()->unique();
+
+                $clients = Client::query()
+                    ->select('id', 'company_name', 'first_name', 'last_name', 'is_active')
+                    ->whereIn('id', $clientIds)
+                    ->get()
+                    ->map(function (Client $client) use ($companyProjects) {
+                        $clientProjects = $companyProjects->where('client_id', $client->id)->values();
+
+                        return [
+                            'id' => $client->id,
+                            'name' => ClientDisplay::label($client),
+                            'projects_count' => $clientProjects->count(),
+                            'projects' => $clientProjects->map(fn ($project) => [
+                                'id' => $project->id,
+                                'title' => $project->title,
+                                'status' => $this->normalizeProjectStatus($project->project_status),
+                                'status_label' => ucwords(str_replace('_', ' ', $this->normalizeProjectStatus($project->project_status))),
+                            ])->values(),
+                        ];
+                    })
+                    ->sortByDesc('projects_count')
+                    ->values();
+
+                return [
+                    'id' => $company->id,
+                    'name' => $company->company_name,
+                    'clients_count' => $clients->count(),
+                    'total_projects' => $companyProjects->count(),
+                    'clients' => $clients,
+                ];
+            })
+            ->filter(fn ($company) => $company['total_projects'] > 0 || $company['clients_count'] > 0)
+            ->sortByDesc('total_projects')
+            ->values();
+    }
 
     public function newVersionReleasePage()
     {
@@ -666,7 +1025,10 @@ class DashboardController extends Controller {
 				->where('employee_id', $employee->id)->orderBy('id', 'desc')->first() ?? null;
 
 		$shift_ended = $shift_out ? AttendanceOvertimeService::isShiftEnded($shift_out) : false;
-		$can_overtime_clock_in = $shift_out && AttendanceOvertimeService::canStartOvertime($shift_out, $employee_attendance);
+		$is_off_day = AttendanceOvertimeService::isOffDay($shift_in, $shift_out);
+		$can_overtime_clock_in = $is_off_day
+			? AttendanceOvertimeService::canOvertimeOnOffDay($employee_attendance)
+			: ($shift_out && AttendanceOvertimeService::canStartOvertime($shift_out, $employee_attendance));
 		$is_on_overtime_session = AttendanceOvertimeService::isActiveOvertimeSession($employee_attendance);
 		$today_overtime_total = AttendanceOvertimeService::sumTodayOvertime($employee->id, now()->format('Y-m-d'));
 		$is_past_shift_while_clocked_in = $shift_ended
@@ -674,12 +1036,21 @@ class DashboardController extends Controller {
 			&& (int) $employee_attendance->clock_in_out === 1
 			&& ! $is_on_overtime_session;
 
-		$is_location_head = location::userIsLocationHead((int) $user->id);
+		$is_location_head = location::userCanAccessMyLocationsPage((int) $user->id)
+			&& (
+				$user->can('location-head-access')
+				|| $user->can('view-my-locations')
+				|| $user->can('scoped-view-employees')
+				|| $user->can('scoped-manage-leave')
+				|| $user->can('report-clock-in-locations')
+			);
 		$location_head_employee_count = $is_location_head
 			? count(location::employeeIdsAtLocationsHeadedByUser((int) $user->id))
 			: 0;
-		$can_manage_location_scope = $is_location_head
-			&& ManagedEmployeeScope::usesScopedEmployeeList((int) $user->id, (int) $user->role_users_id);
+		$can_manage_location_scope = ManagedEmployeeScope::canAccessScopedEmployeeList(
+			(int) $user->id,
+			(int) $user->role_users_id
+		);
 
 		//IP Check
 
@@ -706,7 +1077,7 @@ class DashboardController extends Controller {
 			'employee_award_count', 'holidays', 'leave_types', 'travel_types',
 			'assigned_projects', 'assigned_projects_count',
 			'assigned_tasks', 'assigned_tasks_count', 'assigned_tickets', 'assigned_tickets_count', 'ipCheck', 'general_setting',
-			'shift_ended', 'can_overtime_clock_in', 'is_on_overtime_session', 'today_overtime_total', 'is_past_shift_while_clocked_in',
+			'shift_ended', 'is_off_day', 'can_overtime_clock_in', 'is_on_overtime_session', 'today_overtime_total', 'is_past_shift_while_clocked_in',
 			'is_location_head', 'location_head_employee_count', 'can_manage_location_scope'));
 	}
 

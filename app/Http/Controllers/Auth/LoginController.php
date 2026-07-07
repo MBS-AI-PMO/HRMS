@@ -60,8 +60,12 @@ class LoginController extends Controller
 
         if ($user->role_users_id == 1)
         {
+            return redirect('/admin/executive');
+        }
+        elseif ($user->role_users_id == 2)
+        {
             return redirect('/admin/dashboard');
-        } // if client
+        }
         elseif ($user->role_users_id == 3)
         {
             return redirect('/employee/dashboard');

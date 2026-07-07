@@ -3,129 +3,104 @@
 
 
 
-    <section>
-        <div id="formModal" class="modal fade" role="dialog">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-
-                    <div class="modal-header">
-                        <h5 id="exampleModalLabel" class="modal-title">{{trans('file.Status')}}</h5>
-                        <button type="button" data-dismiss="modal" id="close" aria-label="Close" class="close"><span
-                                    aria-hidden="true">×</span></button>
-                    </div>
-
-                    <div class="modal-body">
-                        <span id="bug__status_form_result"></span>
-                        <form method="post" id="bug_status_form" class="form-horizontal">
-
-                            @csrf
-                            <div class="row">
-
-                                <div class="col-md-6 form-group">
-                                    <label>{{trans('file.Status')}}</label>
-                                    <select name="bug_status" id="bug_status" class="form-control selectpicker "
-                                            data-live-search="true" data-live-search-style="contains"
-                                            title='{{__('Selecting',['key'=>trans('file.Status')])}}...'>
-                                        <option value="pending">{{trans('file.Pending')}}</option>
-                                        <option value="solved">{{trans('file.Solved')}}</option>
-                                    </select>
-                                </div>
-
-                                <div class="container">
-                                    <div class="form-group" align="center">
-                                        <input type="hidden" name="action" id="action"/>
-                                        <input type="hidden" name="bug_status_id" id="bug_status_id"/>
-                                        <input type="submit" name="action_button" id="action_button"
-                                               class="btn btn-warning"
-                                               value='{{trans('file.Update')}}'/>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+    <section class="pd-page">
+        @php
+            $statusKey = strtolower(str_replace(' ', '_', (string) ($project->project_status ?? 'not_started')));
+            $statusLabel = ucwords(str_replace('_', ' ', $statusKey));
+            $progressValue = (int) ($project->project_progress ?? 0);
+            $revenueRaw = (float) ($project->total_revenue ?? 0);
+            $revenueFormatted = config('variable.currency_format') === 'suffix'
+                ? number_format($revenueRaw, 2).config('variable.currency')
+                : config('variable.currency').number_format($revenueRaw, 2);
+            $clientName = trim(($project->client->first_name ?? '').' '.($project->client->last_name ?? ''));
+        @endphp
 
         <div class="container-fluid">
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="card">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between collapse-head" data-toggle="collapse" href="#collapseExample" role="button" aria-expanded="true" aria-controls="collapseExample">
-                                <h3>{{__('Project Details')}}</h3>
-                                <small class="show btn btn-light btn-sm" disabled><i class="dripicons-chevron-up"></i></small>
-                            </div>
-                            <div class="collapse show" id="collapseExample">
-                                <div class="table-responsive">
-                                    <table id="project_details" class="table mb-0">
-                                        <thead>
-                                            <th scope="row">{{trans('file.Title')}}</th>
-                                            <th scope="row">{{trans('file.Client')}}</th>
-                                            <th scope="row">{{__('Start Date')}}</th>
-                                            <th scope="row">{{__('End Date')}}</th>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td><h6 class="mb-0">{{$project->title}}</h6>{{$project->project_priority}} priority<br>{{$project->project_progress ?? '0'}}% Complete</td>
-                                                <td>{{$project->client->first_name}} {{$project->client->last_name}}</td>
-                                                <td>{{$project->start_date}}</td>
-                                                <td>{{$project->end_date}}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                    <span id="assigned_result"></span>
-                                    <table class="table mb-0">
-                                        <thead>
-                                            <th scope="row">{{trans('file.Employees')}}*</th>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td>
-                                                    <form method="post" id="assigned_form" class="form-horizontal">
-                                                        @csrf
-                                                        <div class="input-group">
-                                                            <select name="employee_id[]" id="employee_id" class="form-control js-example-responsive"
-                                                                    multiple="multiple">
-                                                                @foreach($employees as $emp)
-                                                                    <option value="{{$emp->id}}">{{$emp->full_name}}</option>
-                                                                @endforeach
-                                                            </select>
-                                                            @can('assign-project')
-                                                                <div class="col-md-6 form-group">
-                                                                    <input type="submit" name="assigned_submit" id="assigned_submit" class="btn btn-success btn-sm" value={{trans("file.Save")}}>
-                                                                </div>
-                                                            @endcan
-                                                        </div>
-                                                    </form>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+            <div class="pd-hero mb-4">
+                <div class="pd-hero__top">
+                    <nav class="pd-breadcrumb">
+                        <a href="{{ route('projects.index') }}">{{ trans('file.Projects') }}</a>
+                        <span>/</span>
+                        <span>{{ __('Details') }}</span>
+                    </nav>
+                    <span class="pd-status pd-status--{{ $statusKey }}">{{ $statusLabel }}</span>
+                </div>
+                <div class="pd-hero__body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start">
+                        <div class="pd-hero__main">
+                            <h1 class="pd-hero__title">{{ $project->title }}</h1>
+                            @if ($project->summary)
+                                <p class="pd-hero__summary mb-0">{{ $project->summary }}</p>
+                            @endif
+                        </div>
+                        <div class="pd-hero__progress-box">
+                            <div class="pd-hero__progress-label">{{ __('Progress') }}</div>
+                            <div class="pd-hero__progress-value">{{ $progressValue }}%</div>
+                            <div class="pd-progress">
+                                <div class="pd-progress__bar" style="width:{{ $progressValue }}%"></div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <script type="text/javascript">
-                    (function($) {
-                        "use strict";
-                        $('.collapse-head').on('click', function(){
-                            if ($('.collapse-head').attr('aria-expanded') == "true") {
-                                $('.collapse-head .show').html('<i class="dripicons-chevron-down"></i>');
-                            } else {
-                                 $('.collapse-head .show').html('<i class="dripicons-chevron-up"></i>');
-                            }
-                        })
-                    })(jQuery);
-                </script>
+            </div>
 
+            <div class="row mb-4">
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="pd-stat">
+                        <div class="pd-stat__label">{{ trans('file.Client') }}</div>
+                        <div class="pd-stat__value">{{ $clientName !== '' ? $clientName : '—' }}</div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="pd-stat">
+                        <div class="pd-stat__label">{{ __('Project Category') }}</div>
+                        <div class="pd-stat__value">{{ $project->projectCategory->category_name ?? '—' }}</div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="pd-stat">
+                        <div class="pd-stat__label">{{ __('Timeline') }}</div>
+                        <div class="pd-stat__value pd-stat__value--sm">{{ $project->start_date }} → {{ $project->end_date ?? '—' }}</div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="pd-stat">
+                        <div class="pd-stat__label">{{ __('Total Revenue') }}</div>
+                        <div class="pd-stat__value">{{ $revenueFormatted }}</div>
+                    </div>
+                </div>
+            </div>
 
-                <div class="col-md-12">
-                    <div class="card">
-                        <div class="card-body">
-                            <ul class="nav nav-tabs d-flex justify-content-between" id="myTab" role="tablist">
+            <div class="pd-panel mb-4">
+                <div class="pd-panel__head">
+                    <h3>{{ __('Assigned Employees') }}</h3>
+                    <p>{{ __('Team members linked to this project') }}</p>
+                </div>
+                <div class="pd-panel__body">
+                    <span id="assigned_result"></span>
+                    <form method="post" id="assigned_form" class="form-horizontal">
+                        @csrf
+                        <div class="row align-items-end">
+                            <div class="col-md-10">
+                                <select name="employee_id[]" id="employee_id" class="form-control js-example-responsive" multiple="multiple">
+                                    @foreach($employees as $emp)
+                                        <option value="{{ $emp->id }}">{{ $emp->full_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @can('assign-project')
+                                <div class="col-md-2 mt-3 mt-md-0">
+                                    <input type="submit" name="assigned_submit" id="assigned_submit" class="btn btn-success btn-block" value="{{ trans('file.Save') }}">
+                                </div>
+                            @endcan
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="pd-panel">
+                <div class="pd-panel__body pt-0">
+                    <ul class="nav nav-tabs pd-tabs" id="myTab" role="tablist">
                                 <li class="nav-item">
                                     <a class="nav-link active" id="details-tab" data-toggle="tab" href="#Details"
                                        role="tab" aria-controls="Details"
@@ -137,311 +112,163 @@
                                        aria-controls="Discussions" data-table="discussion"
                                        aria-selected="false">{{trans('file.Discussions')}}</a>
                                 </li>
-
                                 <li class="nav-item">
                                     <a class="nav-link" id="progress-tab" data-toggle="tab" href="#Progress" role="tab"
                                        aria-controls="Progress" data-table="progress"
                                        aria-selected="false">{{trans('Progress')}}</a>
                                 </li>
-
-                                <li class="nav-item">
-                                    <a class="nav-link" id="bugs-tab" data-toggle="tab" href="#Bugs" role="tab"
-                                       aria-controls="Bugs" data-table="bugs"
-                                       aria-selected="false">{{trans('file.Bugs')}}</a>
-                                </li>
-
-                                <li class="nav-item">
-                                    <a class="nav-link" id="tasks-tab" data-toggle="tab" href="#Tasks" role="tab"
-                                       aria-controls="Tasks" data-table="tasks"
-                                       aria-selected="false">{{trans('file.Tasks')}}</a>
-                                </li>
-
                                 <li class="nav-item">
                                     <a class="nav-link" id="files-tab" data-toggle="tab" href="#Files" role="tab"
                                        aria-controls="Files" data-table="files"
                                        aria-selected="false">{{trans('file.Files')}}</a>
                                 </li>
-
                                 <li class="nav-item">
                                     <a class="nav-link" id="notes-tab" data-toggle="tab" href="#Notes" role="tab"
                                        aria-controls="Notes" aria-selected="false">{{trans('file.Notes')}}</a>
                                 </li>
                             </ul>
-                            <div class="tab-content" id="myTabContent">
+                            <div class="tab-content pd-tab-content" id="myTabContent">
                                 <div class="tab-pane fade show active" id="Details" role="tabpanel"
-                                     aria-labelledby="progress-tab">
-                                    <!--Contents for Details starts here-->
-                                    <div class="row">
-                                        <div class="col-md-12">
-                                            <div id="project_description"></div>
-                                        </div>
-                                    </div>
-
+                                     aria-labelledby="details-tab">
+                                    <div class="pd-overview" id="project_description"></div>
                                 </div>
 
                                 <div class="tab-pane fade" id="Discussions" role="tabpanel"
                                      aria-labelledby="discussions-tab">
-                                    <div class="row">
-                                        <div class="col-md-12 mb-3">
-                                            <span id="discussions_result"></span>
-                                            <a class="btn btn-primary" data-toggle="collapse" href="#collapseDiscussion" role="button" aria-expanded="false" aria-controls="collapseDiscussion">
-                                                {{__('Post A Message')}}
-                                            </a>
-                                            <div class="collapse" id="collapseDiscussion">
-                                                <hr>
-                                                <form method="post" id="discussions_form" class="form-horizontal" enctype="multipart/form-data">
-                                                    @csrf
-                                                    <div class="form-group">
-                                                        <label>{{trans('file.Discussions')}}</label>
-                                                        <textarea required class="form-control" id="project_discussions" name="project_discussions" rows="3"></textarea>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label>{{trans('file.Attachments')}} </label>
-                                                        <input type="file" name="discussion_attachments" id="discussion_attachments" class="form-control">
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <input type="submit" name="discussions_submit" id="discussions_submit" class="btn btn-success" value={{trans("file.Save")}}>
-                                                    </div>
-                                                </form>
+                                    <div class="pd-tab-toolbar">
+                                        <span id="discussions_result"></span>
+                                        <a class="btn btn-primary" data-toggle="collapse" href="#collapseDiscussion" role="button" aria-expanded="false" aria-controls="collapseDiscussion">
+                                            {{__('Post A Message')}}
+                                        </a>
+                                    </div>
+                                    <div class="collapse" id="collapseDiscussion">
+                                        <hr>
+                                        <form method="post" id="discussions_form" class="form-horizontal" enctype="multipart/form-data">
+                                            @csrf
+                                            <div class="form-group">
+                                                <label>{{trans('file.Discussions')}}</label>
+                                                <textarea required class="form-control" id="project_discussions" name="project_discussions" rows="3"></textarea>
                                             </div>
-                                        </div>
 
-                                        <div class="table-responsive">
-                                            <table id="discussions-table" class="table ">
-                                                <thead>
-                                                <tr>
-                                                    <th>{{trans('file.User')}}</th>
-                                                    <th>{{trans('file.Message')}}</th>
-                                                    <th class="not-exported">{{trans('file.action')}}</th>
-                                                </tr>
-                                                </thead>
-                                            </table>
-                                        </div>
+                                            <div class="form-group">
+                                                <label>{{trans('file.Attachments')}} </label>
+                                                <input type="file" name="discussion_attachments" id="discussion_attachments" class="form-control">
+                                            </div>
 
+                                            <div class="form-group">
+                                                <input type="submit" name="discussions_submit" id="discussions_submit" class="btn btn-success" value={{trans("file.Save")}}>
+                                            </div>
+                                        </form>
+                                    </div>
+
+                                    <div class="table-responsive mt-3">
+                                        <table id="discussions-table" class="table">
+                                            <thead>
+                                            <tr>
+                                                <th>{{trans('file.User')}}</th>
+                                                <th>{{trans('file.Message')}}</th>
+                                                <th class="not-exported">{{trans('file.action')}}</th>
+                                            </tr>
+                                            </thead>
+                                        </table>
                                     </div>
                                 </div>
 
                                 <div class="tab-pane fade" id="Progress" role="tabpanel" aria-labelledby="progress-tab">
                                     <span id="progress_result"></span>
+                                    <div class="pd-auto-note">
+                                        <i class="dripicons-information"></i>
+                                        <span>
+                                            {{ __('Progress is calculated automatically from the project start and end dates.') }}
+                                            <strong>{{ $progressValue }}%</strong>
+                                        </span>
+                                    </div>
                                     <form method="post" id="progress_form" class="form-horizontal">
                                         @csrf
-                                        <div class="col-md-8 form-group">
-                                            <label>{{__('Progress Bar')}} </label>
-                                            <input type="text" name="project_progress" id="project_progress"
-                                                   class="form-control range-slider "
-                                                   placeholder="{{__('Progress Bar')}}">
-                                        </div>
-                                        <br>
-                                        <div class="col-12">
-                                            <div class="row">
-                                                <div class="col-md-6 form-group show-edit">
-                                                    <label>{{trans('file.Status')}}</label>
-                                                    <select name="project_status" id="project_status"
-                                                            class="form-control selectpicker "
-                                                            data-live-search="true" data-live-search-style="contains"
-                                                            title='{{__('Selecting',['key'=>trans('file.Status')])}}...'>
-                                                        <option value="not_started">{{__('Not Started')}}</option>
-                                                        <option value="in_progress">{{__('In Progress')}}</option>
-                                                        <option value="completed">{{trans('file.Completed')}}</option>
-                                                        <option value="deferred">{{trans('file.Deferred')}}</option>
-                                                    </select>
-                                                </div>
-
-                                                <div class="col-md-6 form-group">
-                                                    <label>{{trans('file.Priority')}}</label>
-                                                    <select name="project_priority" id="project_priority"
-                                                            class="form-control selectpicker "
-                                                            data-live-search="true" data-live-search-style="contains"
-                                                            title='{{__('Selecting',['key'=>trans('file.Priority')])}}...'>
-                                                        <option value="low">{{trans('file.Low')}}</option>
-                                                        <option value="medium">{{trans('file.Medium')}}</option>
-                                                        <option value="high">{{trans('file.High')}}</option>
-                                                        <option value="highest">{{trans('file.Highest')}}</option>
-                                                    </select>
-                                                </div>
+                                        <input type="hidden" name="project_progress" value="{{ $progressValue }}">
+                                        <div class="row">
+                                            <div class="col-md-6 form-group">
+                                                <label>{{trans('file.Status')}}</label>
+                                                <select name="project_status" id="project_status"
+                                                        class="form-control selectpicker"
+                                                        data-live-search="true" data-live-search-style="contains"
+                                                        title='{{__('Selecting',['key'=>trans('file.Status')])}}...'>
+                                                    <option value="not_started">{{__('Not Started')}}</option>
+                                                    <option value="in_progress">{{__('In Progress')}}</option>
+                                                    <option value="completed">{{trans('file.Completed')}}</option>
+                                                    <option value="deferred">{{trans('file.Deferred')}}</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6 form-group">
+                                                <label>{{trans('file.Priority')}}</label>
+                                                <select name="project_priority" id="project_priority"
+                                                        class="form-control selectpicker"
+                                                        data-live-search="true" data-live-search-style="contains"
+                                                        title='{{__('Selecting',['key'=>trans('file.Priority')])}}...'>
+                                                    <option value="low">{{trans('file.Low')}}</option>
+                                                    <option value="medium">{{trans('file.Medium')}}</option>
+                                                    <option value="high">{{trans('file.High')}}</option>
+                                                    <option value="highest">{{trans('file.Highest')}}</option>
+                                                </select>
                                             </div>
                                         </div>
-
-                                        <div class="col-md-6 form-group">
-                                            <input type="submit" name="project_progress_submit"
-                                                   id="project_progress_submit"
-                                                   class="btn btn-success" value={{trans("file.Save")}}>
+                                        <div class="form-group mb-0">
+                                            <input type="submit" name="project_progress_submit" id="project_progress_submit"
+                                                   class="btn btn-success" value="{{ trans('file.Save') }}">
                                         </div>
                                     </form>
                                 </div>
 
-                                <div class="tab-pane fade" id="Bugs" role="tabpanel" aria-labelledby="bugs-tab">
-                                    <div class="row">
-                                        <div class="col-md-12 mb-3">
-                                            <span id="bugs_result"></span>
-                                            <a class="btn btn-primary" data-toggle="collapse" href="#collapseBug" role="button" aria-expanded="false" aria-controls="collapseBug">
-                                                {{__('Report A Bug')}}
-                                            </a>
-                                            <div class="collapse" id="collapseBug">
-                                                <hr>
-                                                <form method="post" id="bugs_form" class="form-horizontal"
-                                                      enctype="multipart/form-data">
-                                                    @csrf
-                                                    <div class="form-group">
-                                                        <label>{{trans('file.Bugs')}}</label>
-                                                        <textarea required class="form-control" id="bugs_title" name="bugs_title" rows="3"></textarea>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label>{{trans('file.Attachments')}} </label>
-                                                        <input type="file" name="bug_attachment" id="bug_attachment" class="form-control">
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <input type="submit" name="bugs_submit" id="bugs_submit" class="btn btn-success" value={{trans("file.Save")}}>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-
-                                        <div class="table-responsive">
-                                            <table id="bugs-table" class="table ">
-                                                <thead>
-                                                <tr>
-                                                    <th>{{trans('file.User')}}</th>
-                                                    <th>{{trans('file.Bugs')}}</th>
-                                                    <th class="not-exported">{{trans('file.action')}}</th>
-                                                </tr>
-                                                </thead>
-                                            </table>
-                                        </div>
-
+                                <div class="tab-pane fade" id="Files" role="tabpanel" aria-labelledby="files-tab">
+                                    <div class="pd-tab-toolbar">
+                                        <span id="files_result"></span>
+                                        <a class="btn btn-primary" data-toggle="collapse" href="#collapseFile" role="button" aria-expanded="false" aria-controls="collapseFile">
+                                            {{__('Insert A File')}}
+                                        </a>
                                     </div>
-                                </div>
+                                    <div class="collapse" id="collapseFile">
+                                        <hr>
+                                        <form method="post" id="files_form" class="form-horizontal"
+                                              enctype="multipart/form-data">
+                                            @csrf
 
-                                <div class="tab-pane fade" id="Tasks" role="tabpanel" aria-labelledby="tasks-tab">
-                                    <div class="row">
-                                        <div class="col-md-12 mb-3">
-                                            <span id="tasks_result"></span>
-                                            <a class="btn btn-primary" data-toggle="collapse" href="#collapseTask" role="button" aria-expanded="false" aria-controls="collapseTask">
-                                                {{__('Post A Task')}}
-                                            </a>
-                                            <div class="collapse" id="collapseTask">
-                                                <hr>
-                                                <form method="post" id="tasks_form" class="form-horizontal">
-                                                    @csrf
-
-                                                    <div class="form-group">
-                                                        <label>{{trans('file.Title')}} *</label>
-                                                        <input type="text" name="task_title" id="task_title" required
-                                                               class="form-control"
-                                                               placeholder="{{trans('file.Title')}}">
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label>{{__('Estimated Hour')}} *</label>
-                                                        <input type="text" name="estimated_hour" id="estimated_hour"
-                                                               required class="form-control"
-                                                               placeholder="{{__('Estimated Hour')}}">
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label>{{__('Start Date')}} *</label>
-                                                        <input type="text" name="start_date" id="start_date"
-                                                               autocomplete="off" required class="form-control date"
-                                                               value="">
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label>{{__('End Date')}} *</label>
-                                                        <input type="text" name="end_date" id="end_date" autocomplete="off"
-                                                               required class="form-control date"
-                                                               value="">
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label>{{trans('file.Description')}}</label>
-                                                        <textarea class="form-control des-editor" id="task_description"
-                                                                  name="task_description"
-                                                                  rows="3"></textarea>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <input type="submit" name="task_submit" id="task_submit"
-                                                               class="btn btn-success" value={{trans("file.Save")}}>
-                                                    </div>
-                                                </form>
+                                            <div class="form-group">
+                                                <label>{{trans('file.Title')}} *</label>
+                                                <input type="text" name="file_title" id="file_title" required
+                                                       class="form-control"
+                                                       placeholder="{{trans('file.Title')}}">
                                             </div>
-                                        </div>
 
-                                        <div class="table-responsive">
-                                            <table id="tasks-table" class="table ">
-                                                <thead>
+                                            <div class="form-group">
+                                                <label>{{trans('file.Description')}}</label>
+                                                <textarea required class="form-control" id="file_description"
+                                                          name="file_description" rows="3"></textarea>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label>{{trans('file.Attachments')}} </label>
+                                                <input type="file" name="file_attachment" id="file_attachment"
+                                                       class="form-control">
+                                            </div>
+
+                                            <div class="form-group">
+                                                <input type="submit" name="file_submit" id="file_submit"
+                                                       class="btn btn-success" value={{trans("file.Save")}}>
+                                            </div>
+                                        </form>
+                                    </div>
+
+                                    <div class="table-responsive mt-3">
+                                        <table id="files-table" class="table">
+                                            <thead>
                                                 <tr>
                                                     <th>{{trans('file.Title')}}</th>
-                                                    <th>{{__('End Date')}}</th>
-                                                    <th>{{trans('file.Status')}}</th>
-                                                    <th>{{__('Created By')}}</th>
-                                                    <th>{{trans('file.Progress')}}</th>
+                                                    <th>{{trans('file.Description')}}</th>
+                                                    <th>{{__('Date and Time')}}</th>
                                                     <th class="not-exported">{{trans('file.action')}}</th>
                                                 </tr>
-                                                </thead>
-                                            </table>
-                                        </div>
-
-                                    </div>
-                                </div>
-
-                                <div class="tab-pane fade" id="Files" role="tabpanel" aria-labelledby="files-tab">
-                                    <div class="row">
-                                        <div class="col-md-12 mb-3">
-                                            <span id="files_result"></span>
-                                            <a class="btn btn-primary" data-toggle="collapse" href="#collapseFile" role="button" aria-expanded="false" aria-controls="collapseFile">
-                                                {{__('Insert A File')}}
-                                            </a>
-                                            <div class="collapse" id="collapseFile">
-                                                <hr>
-                                                <form method="post" id="files_form" class="form-horizontal"
-                                                      enctype="multipart/form-data">
-                                                    @csrf
-
-                                                    <div class="form-group">
-                                                        <label>{{trans('file.Title')}} *</label>
-                                                        <input type="text" name="file_title" id="file_title" required
-                                                               class="form-control"
-                                                               placeholder="{{trans('file.Title')}}">
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label>{{trans('file.Description')}}</label>
-                                                        <textarea required class="form-control" id="file_description"
-                                                                  name="file_description" rows="3"></textarea>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label>{{trans('file.Attachments')}} </label>
-                                                        <input type="file" name="file_attachment" id="file_attachment"
-                                                               class="form-control">
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <input type="submit" name="file_submit" id="file_submit"
-                                                               class="btn btn-success" value={{trans("file.Save")}}>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-
-                                        <div class="table-responsive">
-                                            <table id="files-table" class="table ">
-                                                <thead>
-                                                    <tr>
-                                                        <th>{{trans('file.Title')}}</th>
-                                                        <th>{{trans('file.Description')}}</th>
-                                                        <th>{{__('Date and Time')}}</th>
-                                                        <th class="not-exported">{{trans('file.action')}}</th>
-                                                    </tr>
-                                                </thead>
-                                            </table>
-                                        </div>
-
+                                            </thead>
+                                        </table>
                                     </div>
                                 </div>
 
@@ -465,19 +292,230 @@
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
         </div>
-
-
     </section>
 
-
-
 @endsection
+
+@push('css')
+<style>
+    .pd-page {
+        --pd-violet: #37205B;
+        --pd-violet-mid: #5b4a9a;
+        --pd-cyan: #0ea5e9;
+        --pd-ink: #0f172a;
+        --pd-muted: #64748b;
+        --pd-border: #e2e8f0;
+        --pd-bg: #f8fafc;
+        --pd-surface: #ffffff;
+    }
+
+    .pd-hero {
+        background: linear-gradient(135deg, #37205B 0%, #5b4a9a 55%, #7c6bb8 100%);
+        border-radius: 20px;
+        padding: 24px 28px;
+        color: #fff;
+        box-shadow: 0 16px 40px rgba(55, 32, 91, 0.22);
+    }
+    .pd-hero__top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+    .pd-breadcrumb {
+        font-size: 0.84rem;
+        opacity: 0.9;
+    }
+    .pd-breadcrumb a { color: #fff; text-decoration: none; }
+    .pd-breadcrumb a:hover { text-decoration: underline; }
+    .pd-breadcrumb span { margin: 0 6px; opacity: 0.65; }
+    .pd-status {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        background: rgba(255, 255, 255, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+    }
+    .pd-status--in_progress { background: rgba(255, 255, 255, 0.22); }
+    .pd-status--completed { background: rgba(14, 165, 233, 0.35); border-color: rgba(14, 165, 233, 0.5); }
+    .pd-status--not_started { background: rgba(196, 181, 253, 0.35); }
+    .pd-status--deferred { background: rgba(248, 113, 113, 0.35); border-color: rgba(248, 113, 113, 0.5); }
+    .pd-hero__title {
+        font-size: 1.75rem;
+        font-weight: 800;
+        margin: 0 0 8px;
+        line-height: 1.2;
+    }
+    .pd-hero__summary {
+        font-size: 0.95rem;
+        opacity: 0.88;
+        max-width: 640px;
+    }
+    .pd-hero__progress-box {
+        min-width: 180px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 14px;
+        padding: 14px 18px;
+    }
+    .pd-hero__progress-label {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        opacity: 0.8;
+        margin-bottom: 4px;
+    }
+    .pd-hero__progress-value {
+        font-size: 1.6rem;
+        font-weight: 800;
+        line-height: 1;
+        margin-bottom: 10px;
+    }
+    .pd-progress {
+        height: 8px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        overflow: hidden;
+    }
+    .pd-progress__bar {
+        height: 100%;
+        background: linear-gradient(90deg, #fff, rgba(255, 255, 255, 0.75));
+        border-radius: 999px;
+        transition: width 0.4s ease;
+    }
+
+    .pd-stat {
+        background: var(--pd-surface);
+        border: 1px solid var(--pd-border);
+        border-radius: 16px;
+        padding: 20px;
+        height: 100%;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    }
+    .pd-stat__label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--pd-muted);
+        margin-bottom: 8px;
+    }
+    .pd-stat__value {
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: var(--pd-ink);
+        line-height: 1.3;
+    }
+    .pd-stat__value--sm { font-size: 0.92rem; font-weight: 700; }
+
+    .pd-panel {
+        background: var(--pd-surface);
+        border: 1px solid var(--pd-border);
+        border-radius: 18px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+        overflow: hidden;
+    }
+    .pd-panel__head {
+        padding: 22px 24px 0;
+    }
+    .pd-panel__head h3 {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: var(--pd-ink);
+        margin: 0 0 4px;
+    }
+    .pd-panel__head p {
+        font-size: 0.84rem;
+        color: var(--pd-muted);
+        margin: 0;
+    }
+    .pd-panel__body { padding: 20px 24px 24px; }
+
+    .pd-tabs {
+        border-bottom: 1px solid var(--pd-border);
+        padding: 0 8px;
+        margin-bottom: 0;
+    }
+    .pd-tabs .nav-link {
+        border: 0;
+        border-bottom: 3px solid transparent;
+        border-radius: 0;
+        color: var(--pd-muted);
+        font-weight: 700;
+        font-size: 0.86rem;
+        padding: 16px 18px;
+        margin-bottom: -1px;
+        transition: color 0.2s ease, border-color 0.2s ease;
+    }
+    .pd-tabs .nav-link:hover {
+        color: var(--pd-violet-mid);
+        background: transparent;
+    }
+    .pd-tabs .nav-link.active {
+        color: var(--pd-violet-mid);
+        background: transparent;
+        border-bottom-color: var(--pd-violet-mid);
+    }
+    .pd-tab-content { padding: 24px 16px 8px; }
+    .pd-overview {
+        background: var(--pd-bg);
+        border: 1px solid var(--pd-border);
+        border-radius: 14px;
+        padding: 20px 22px;
+        color: var(--pd-ink);
+        line-height: 1.65;
+        min-height: 120px;
+    }
+    .pd-tab-toolbar { margin-bottom: 16px; }
+    .pd-tab-toolbar .btn-primary {
+        background: var(--pd-violet-mid);
+        border-color: var(--pd-violet-mid);
+        border-radius: 10px;
+        font-weight: 600;
+    }
+    .pd-auto-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        background: rgba(91, 74, 154, 0.08);
+        border: 1px solid rgba(91, 74, 154, 0.18);
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+        color: var(--pd-ink);
+    }
+    .pd-auto-note i {
+        color: var(--pd-violet-mid);
+        font-size: 1.1rem;
+        margin-top: 2px;
+    }
+
+    .pd-page .table thead th {
+        border: 0;
+        border-bottom: 1px solid var(--pd-border);
+        background: #f8fafc;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--pd-muted);
+    }
+    .pd-page .table tbody td {
+        vertical-align: middle;
+        border-color: #f1f5f9;
+    }
+</style>
+@endpush
 
 @push('scripts')
 <script type="text/javascript">
@@ -486,7 +524,6 @@
 
         let project_status = <?php echo json_encode($project->project_status) ?>;
         let project_priority = <?php echo json_encode($project->project_priority) ?>;
-        let project_progress = <?php echo json_encode($project->project_progress) ?>;
         let assigned = <?php echo json_encode($name) ?>;
         let description = <?php echo json_encode($project->description) ?>;
 
@@ -693,196 +730,6 @@
             })
         });
 
-        $(".range-slider").ionRangeSlider({
-            type: "single",
-            min: 0,
-            max: 100,
-            step: 1,
-            grid: true,
-            postfix: "%",
-            skin: "round"
-        });
-
-        var instance = $('.range-slider').data("ionRangeSlider");
-        instance.update({
-            from: project_progress,
-        });
-
-        $('[data-table="bugs"]').one('click', function (e) {
-
-            $('#bugs-table').DataTable().clear().destroy();
-
-            let table_table = $('#bugs-table').DataTable({
-                initComplete: function () {
-                    this.api().columns([1]).every(function () {
-                        var column = this;
-                        var select = $('<select><option value=""></option></select>')
-                            .appendTo($(column.footer()).empty())
-                            .on('change', function () {
-                                var val = $.fn.dataTable.util.escapeRegex(
-                                    $(this).val()
-                                );
-
-                                column
-                                    .search(val ? '^' + val + '$' : '', true, false)
-                                    .draw();
-                            });
-
-                        column.data().unique().sort().each(function (d, j) {
-                            select.append('<option value="' + d + '">' + d + '</option>');
-                            $('select').selectpicker('refresh');
-                        });
-                    });
-                },
-                responsive: true,
-                fixedHeader: {
-                    header: true,
-                    footer: true
-                },
-                processing: true,
-                serverSide: true,
-                ajax: {
-                    url: "{{ route('project_bugs.index',$project) }}",
-                    method: "post"
-                },
-
-                columns: [
-
-
-                    {
-                        data: 'user',
-                        name: 'user'
-                    },
-                    {
-                        data: 'title',
-                        name: 'title',
-                        render: function (data, type, row) {
-                            return data + "<td><div class = 'badge badge-success'>" + row.status + "</div></td>" + ' (' + row.created_at + ')';
-                        }
-
-                    },
-                    {
-                        data: 'action',
-                        name: 'action',
-                        orderable: false
-                    }
-                ],
-
-
-                "order": [],
-                'language': {
-                    'lengthMenu': '_MENU_ {{__("records per page")}}',
-                    "info": '{{trans("file.Showing")}} _START_ - _END_ (_TOTAL_)',
-                    "search": '{{trans("file.Search")}}',
-                    'paginate': {
-                        'previous': '{{trans("file.Previous")}}',
-                        'next': '{{trans("file.Next")}}'
-                    }
-                },
-                'columnDefs': [
-                    {
-                        "orderable": false,
-                        'targets': [0, 2],
-                    },
-                ],
-
-                'select': {style: 'multi', selector: 'td:first-child'},
-                'lengthMenu': [[10, 25, 50, -1], [10, 25, 50, "All"]],
-            });
-            new $.fn.dataTable.FixedHeader(table_table);
-        });
-
-        $('#bugs_form').on('submit', function (event) {
-            event.preventDefault();
-
-            $.ajax({
-                url: "{{ route('project_bugs.store',$project) }}",
-                method: "POST",
-                data: new FormData(this),
-                contentType: false,
-                cache: false,
-                processData: false,
-                dataType: "json",
-                success: function (data) {
-                    let html = '';
-                    if (data.errors) {
-                        html = '<div class="alert alert-danger">';
-                        for (let count = 0; count < data.errors.length; count++) {
-                            html += '<p>' + data.errors[count] + '</p>';
-                        }
-                        html += '</div>';
-                    }
-                    if (data.success) {
-                        html = '<div class="alert alert-success">' + data.success + '</div>';
-                        $('#bugs_form')[0].reset();
-                        $('#bugs-table').DataTable().ajax.reload();
-                    }
-                    $('#bugs_result').html(html).slideDown(300).delay(5000).slideUp(300);
-                }
-            })
-        });
-
-
-        $(document).on('click', '.edit-bug', function () {
-
-
-            $('#bug_status_form_result').html('');
-
-            let id = $(this).attr('id');
-
-            let target = "{{route('bug_status.default')}}/" + id;
-
-            $.ajax({
-                url: target,
-                dataType: "json",
-                success: function (html) {
-
-                    $('#bug_status').selectpicker('val', html.status);
-                    $('.modal-title').text('{{trans('file.Edit')}}');
-                    $('#bug_status_id').val(html.id);
-                    $('#formModal').modal('show');
-                }
-            })
-        });
-
-
-
-        $('#bug_status_form').on('submit', function (event) {
-            event.preventDefault();
-
-            $.ajax({
-                url: "{{ route('bug_status.update') }}",
-                method: "POST",
-                data: new FormData(this),
-                contentType: false,
-                cache: false,
-                processData: false,
-                dataType: "json",
-                success: function (data) {
-                    let html = '';
-                    if (data.errors) {
-                        html = '<div class="alert alert-danger">';
-                        for (let count = 0; count < data.errors.length; count++) {
-                            html += '<p>' + data.errors[count] + '</p>';
-                        }
-                        html += '</div>';
-                    }
-                    if (data.success) {
-                        html = '<div class="alert alert-success">' + data.success + '</div>';
-                        setTimeout(function () {
-                            $('#formModal').modal('hide');
-                            $('select').selectpicker('refresh');
-                            $('#bugs-table').DataTable().ajax.reload();
-                            $('#bug_status_form')[0].reset();
-                        }, 2000);
-
-                    }
-                    $('#bug__status_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
-                }
-            });
-
-        });
-
         $('[data-table="files"]').one('click', function (e) {
 
             $('#files-table').DataTable().clear().destroy();
@@ -998,135 +845,6 @@
             })
         });
 
-        $('[data-table="tasks"]').one('click', function (e) {
-
-            $('#tasks-table').DataTable().clear().destroy();
-
-            let table_table = $('#tasks-table').DataTable({
-                initComplete: function () {
-                    this.api().columns([1]).every(function () {
-                        var column = this;
-                        var select = $('<select><option value=""></option></select>')
-                            .appendTo($(column.footer()).empty())
-                            .on('change', function () {
-                                var val = $.fn.dataTable.util.escapeRegex(
-                                    $(this).val()
-                                );
-
-                                column
-                                    .search(val ? '^' + val + '$' : '', true, false)
-                                    .draw();
-                            });
-
-                        column.data().unique().sort().each(function (d, j) {
-                            select.append('<option value="' + d + '">' + d + '</option>');
-                            $('select').selectpicker('refresh');
-                        });
-                    });
-                },
-                responsive: true,
-                fixedHeader: {
-                    header: true,
-                    footer: true
-                },
-                processing: true,
-                serverSide: true,
-                ajax: {
-                    url: "{{ route('project_tasks.index',$project) }}",
-                    method: "post"
-                },
-
-                columns: [
-
-
-                    {
-                        data: 'task_name',
-                        name: 'task_name'
-                    },
-                    {
-                        data: 'end_date',
-                        name: 'end_date',
-
-                    },
-                    {
-                        data: 'task_status',
-                        name: 'task_status'
-                    },
-                    {
-                        data: 'created_by',
-                        name: 'created_by'
-                    },
-                    {
-                        data: 'task_progress',
-                        name: 'task_progress',
-                        render: function (data, type, row) {
-                            if (data) {
-                                return data + '% completed';
-                            } else {
-                                return 0 + '% completed'
-                            }
-                        }
-                    },
-                    {
-                        data: 'action',
-                        name: 'action',
-                        orderable: false
-                    }
-                ],
-
-
-                "order": [],
-                'language': {
-                    'lengthMenu': '_MENU_ {{__("records per page")}}',
-                    "info": '{{trans("file.Showing")}} _START_ - _END_ (_TOTAL_)',
-                    "search": '{{trans("file.Search")}}',
-                    'paginate': {
-                        'previous': '{{trans("file.Previous")}}',
-                        'next': '{{trans("file.Next")}}'
-                    }
-                },
-                'columnDefs': [
-                    {
-                        "orderable": false,
-                        'targets': [0, 5],
-                    },
-                ],
-
-                'select': {style: 'multi', selector: 'td:first-child'},
-                'lengthMenu': [[10, 25, 50, -1], [10, 25, 50, "All"]],
-            });
-            new $.fn.dataTable.FixedHeader(table_table);
-        });
-
-        $('#tasks_form').on('submit', function (event) {
-            event.preventDefault();
-            $.ajax({
-                url: "{{ route('project_tasks.store',$project) }}",
-                method: "POST",
-                data: new FormData(this),
-                contentType: false,
-                cache: false,
-                processData: false,
-                dataType: "json",
-                success: function (data) {
-                    let html = '';
-                    if (data.errors) {
-                        html = '<div class="alert alert-danger">';
-                        for (let count = 0; count < data.errors.length; count++) {
-                            html += '<p>' + data.errors[count] + '</p>';
-                        }
-                        html += '</div>';
-                    }
-                    if (data.success) {
-                        html = '<div class="alert alert-success">' + data.success + '</div>';
-                        $('#tasks_form')[0].reset();
-                        $('#tasks-table').DataTable().ajax.reload();
-                    }
-                    $('#tasks_result').html(html).slideDown(300).delay(5000).slideUp(300);
-                }
-            })
-        });
-
         $('#note_form').on('submit', function (event) {
             event.preventDefault();
 
@@ -1183,33 +901,6 @@
         });
 
 
-        $(document).on('click', '.delete-bug', function () {
-
-            if (confirm('{{__('Delete Selection',['key'=>trans('file.Bugs')])}}')) {
-
-                let delete_id = $(this).attr('id');
-                let target = "{{ route('projects.index') }}/" + delete_id + '/delete_bugs';
-                $.ajax({
-                    url: target,
-                    success: function (data) {
-                        let html = '';
-                        if (data.success) {
-                            html = '<div class="alert alert-success">' + data.success + '</div>';
-                        }
-                        if (data.error) {
-                            html = '<div class="alert alert-danger">' + data.error + '</div>';
-                        }
-                        setTimeout(function () {
-                            $('#general_result').html(html).slideDown(300).delay(5000).slideUp(300);
-                            $('#confirmModal').modal('hide');
-                            $('#bugs-table').DataTable().ajax.reload();
-                        }, 2000);
-                    }
-                })
-            }
-
-        });
-
         $(document).one('click', '.delete-file', function () {
 
             if (confirm('{{__('Delete Selection',['key'=>trans('file.Files')])}}')) {
@@ -1230,33 +921,6 @@
                             $('#general_result').html(html).slideDown(300).delay(5000).slideUp(300);
                             $('#confirmModal').modal('hide');
                             $('#files-table').DataTable().ajax.reload();
-                        }, 2000);
-                    }
-                })
-            }
-
-        });
-
-        $(document).one('click', '.delete-task', function () {
-
-            if (confirm('{{__('Delete Selection',['key'=>trans('file.Tasks')])}}')) {
-
-                let delete_id = $(this).attr('id');
-                let target = "{{ route('projects.index') }}/" + delete_id + '/delete_tasks';
-                $.ajax({
-                    url: target,
-                    success: function (data) {
-                        let html = '';
-                        if (data.success) {
-                            html = '<div class="alert alert-success">' + data.success + '</div>';
-                        }
-                        if (data.error) {
-                            html = '<div class="alert alert-danger">' + data.error + '</div>';
-                        }
-                        setTimeout(function () {
-                            $('#general_result').html(html).slideDown(300).delay(5000).slideUp(300);
-                            $('#confirmModal').modal('hide');
-                            $('#tasks-table').DataTable().ajax.reload();
                         }, 2000);
                     }
                 })

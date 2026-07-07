@@ -69,7 +69,7 @@ class TeamController extends Controller
     {
         $userId = (int) auth()->id();
 
-        if (! Team::userHasTeamAccess($userId) && ! auth()->user()->can('view-team')) {
+        if (! \App\Support\ManagedEmployeeScope::canAccessMyTeam($userId) && ! auth()->user()->can('view-team')) {
             return abort(403, __('You are not assigned to any team yet.'));
         }
 

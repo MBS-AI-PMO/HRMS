@@ -205,7 +205,7 @@
     @endif
 
 
-    @if (request()->is('admin/dashboard*') || request()->is('calendar*'))
+    @if (request()->is('admin/dashboard*') || request()->is('admin/executive*') || request()->is('calendar*'))
         @include('calendarable.css')
     @endif
     <style>
@@ -240,6 +240,20 @@
             font-weight: 600;
             background: rgba(124, 92, 196, 0.08);
             border-radius: 4px;
+        }
+
+        .side-navbar .sidebar-nested-menu {
+            padding-left: 14px;
+            margin-left: 8px;
+            border-left: 1px solid rgba(124, 92, 196, 0.2);
+        }
+
+        .side-navbar .sidebar-nested-menu > li > a {
+            font-size: 0.92rem;
+        }
+
+        .side-navbar li.has-dropdown > a::before {
+            font-size: 0.75rem;
         }
 
         table.dataTable thead th.not-exported:last-of-type,
@@ -278,6 +292,7 @@
     <script type="text/javascript" src="{{ asset('vendor/jquery-clockpicker/bootstrap-clockpicker.min.js') }}"></script>
     <script type="text/javascript" src="{{ asset('vendor/popper.js/umd/popper.min.js') }}"></script>
     <script type="text/javascript" src="{{ asset('vendor/bootstrap/js/bootstrap.min.js') }}"></script>
+    @include('layout.partials.hrms_leave_info_modal_js')
     <script type="text/javascript" src="{{ asset('vendor/bootstrap-toggle/js/bootstrap-toggle.min.js') }}"></script>
     <script type="text/javascript" src="{{ asset('vendor/bootstrap/js/bootstrap-select.min.js') }}"></script>
     <script type="text/javascript" src="{{ asset('js/grasp_mobile_progress_circle-1.0.0.min.js') }}"></script>
@@ -331,7 +346,7 @@
     <script type="text/javascript" src="{{ asset('vendor/select2/dist/js/select2.min.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    @if (request()->is('admin/dashboard*') || request()->is('calendar*'))
+    @if (request()->is('admin/dashboard*') || request()->is('admin/executive*') || request()->is('calendar*'))
         @include('calendarable.js')
     @endif
 

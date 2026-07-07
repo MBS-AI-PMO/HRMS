@@ -22,7 +22,7 @@
                 <thead>
                 <tr>
                     <th class="not-exported"></th>
-                    <th>{{trans('file.Company')}}</th>
+                    <th>{{ __('Company / Client') }}</th>
                     <th>{{trans('file.Shift')}}</th>
                     <th>{{trans('file.Monday')}}</th>
                     <th>{{trans('file.Tuesday')}}</th>

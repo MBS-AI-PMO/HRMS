@@ -24,25 +24,47 @@ class EnsureAuthenticatedAppRequest
         }
 
         if (in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
-            $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+            foreach (['origin', 'referer'] as $headerName) {
+                $header = (string) $request->headers->get($headerName, '');
 
-            if ($appHost) {
-                foreach (['origin', 'referer'] as $headerName) {
-                    $header = (string) $request->headers->get($headerName, '');
+                if ($header === '') {
+                    continue;
+                }
 
-                    if ($header === '') {
-                        continue;
-                    }
+                $originHost = parse_url($header, PHP_URL_HOST);
 
-                    $requestHost = parse_url($header, PHP_URL_HOST);
-
-                    if ($requestHost && strcasecmp($requestHost, $appHost) !== 0) {
-                        abort(403, __('Invalid request origin.'));
-                    }
+                if ($originHost && ! $this->isTrustedOriginHost((string) $originHost, $request)) {
+                    abort(403, __('Invalid request origin.'));
                 }
             }
         }
 
         return $next($request);
+    }
+
+    protected function isTrustedOriginHost(string $originHost, Request $request): bool
+    {
+        $originHost = strtolower($originHost);
+
+        $trustedHosts = array_filter([
+            strtolower((string) parse_url((string) config('app.url'), PHP_URL_HOST)),
+            strtolower($request->getHost()),
+        ]);
+
+        foreach ($trustedHosts as $trustedHost) {
+            if ($originHost === $trustedHost || $this->localHostsEquivalent($originHost, $trustedHost)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function localHostsEquivalent(string $a, string $b): bool
+    {
+        $localHosts = ['localhost', '127.0.0.1', '::1'];
+
+        return in_array(strtolower($a), $localHosts, true)
+            && in_array(strtolower($b), $localHosts, true);
     }
 }

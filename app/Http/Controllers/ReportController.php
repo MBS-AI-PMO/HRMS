@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Attendance;
+use App\Models\Client;
 use App\Models\company;
+use App\Models\department;
 use App\Models\Employee;
 use App\Models\ExpenseType;
 use App\Models\FinanceBankCash;
@@ -14,14 +17,19 @@ use App\Models\Task;
 use App\Models\Payslip;
 use App\Models\TrainingList;
 use App\Models\location;
+use App\Support\ClientDisplay;
 use App\Support\CompanyScope;
 use App\Support\ManagedEmployeeScope;
+use App\Support\NearestOfficeLocation;
+use App\Support\ReverseGeocoder;
 use Carbon\Carbon;
 use DateInterval;
 use DatePeriod;
 use DateTime;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 
 class ReportController extends Controller {
@@ -91,7 +99,7 @@ class ReportController extends Controller {
 	{
 		$logged_user = auth()->user();
 		$isLocationHead = location::userIsLocationHead((int) $logged_user->id);
-		$useManagedScope = ManagedEmployeeScope::usesScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
+		$useManagedScope = ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
 		$managedEmployeeIds = $useManagedScope
 			? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
 			: [];
@@ -856,5 +864,885 @@ class ReportController extends Controller {
         }
 
         return view('report.pension_report',compact('companies'));
+    }
+
+    protected function distanceInKilometers(?float $lat1, ?float $lng1, ?float $lat2, ?float $lng2): ?float
+    {
+        if ($lat1 === null || $lng1 === null || $lat2 === null || $lng2 === null) {
+            return null;
+        }
+
+        $earthRadius = 6371000;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+        $a = sin($dLat / 2) * sin($dLat / 2)
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2))
+            * sin($dLng / 2) * sin($dLng / 2);
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return round(($earthRadius * $c) / 1000, 2);
+    }
+
+    public function loginLocations(Request $request)
+    {
+        $logged_user = auth()->user();
+
+        if (! ManagedEmployeeScope::canAccessClockInLocationReport((int) $logged_user->id, (int) $logged_user->role_users_id)) {
+            return abort(403, __('You are not authorized'));
+        }
+
+        $useManagedScope = ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id)
+            && ! $logged_user->can('report-employee');
+        $managedEmployeeIds = $useManagedScope
+            ? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
+            : [];
+
+        $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
+        $companies = $logged_user->can('report-employee')
+            ? CompanyScope::companiesForSelect()
+            : ($isLocationHead
+                ? CompanyScope::companiesForLocationHead((int) $logged_user->id)
+                : CompanyScope::companiesForSelect());
+
+        if ($companies->isEmpty()) {
+            $companies = CompanyScope::companiesForSelect();
+        }
+
+        if (request()->ajax()) {
+            $attendances = Attendance::with([
+                'employee:id,first_name,last_name,company_id,location_id,client_id,attendance_type',
+                'employee.company:id,company_name',
+                'employee.location:id,location_name,latitude,longitude,max_radius',
+                'employee.user:id,username',
+            ])
+                ->whereNotNull('clock_in')
+                ->orderByDesc('id');
+
+            if ($useManagedScope) {
+                if ($managedEmployeeIds === []) {
+                    $attendances->whereRaw('1 = 0');
+                } else {
+                    $attendances->whereIn('employee_id', $managedEmployeeIds);
+                }
+            }
+
+            if (CompanyScope::applies()) {
+                $companyId = CompanyScope::companyId();
+                if ($companyId) {
+                    $attendances->whereHas('employee', function ($query) use ($companyId) {
+                        $query->where('company_id', $companyId);
+                    });
+                } else {
+                    $attendances->whereRaw('1 = 0');
+                }
+            }
+
+            if ($request->filled('company_id')) {
+                $attendances->whereHas('employee', function ($query) use ($request) {
+                    $query->where('company_id', (int) $request->company_id);
+                });
+            }
+
+            if ($request->filled('client_id')) {
+                $attendances->whereHas('employee', function ($query) use ($request) {
+                    $query->where('client_id', (int) $request->client_id);
+                });
+            }
+
+            if ($request->filled('location_id')) {
+                $attendances->whereHas('employee', function ($query) use ($request) {
+                    $query->where('location_id', (int) $request->location_id);
+                });
+            }
+
+            if ($request->filled('employee_id')) {
+                $attendances->where('employee_id', (int) $request->employee_id);
+            }
+
+            if ($request->filled('filter_date')) {
+                $attendances->whereDate('attendance_date', Carbon::parse($request->filter_date)->format('Y-m-d'));
+            }
+
+            $filterCompanyId = $request->filled('company_id') ? (int) $request->company_id : null;
+            $officeLocationCache = [];
+
+            $officeLocationsFor = function (?int $companyId) use (&$officeLocationCache, $filterCompanyId) {
+                $key = $companyId ?? 0;
+
+                if (! array_key_exists($key, $officeLocationCache)) {
+                    $officeLocationCache[$key] = NearestOfficeLocation::candidates($companyId ?? $filterCompanyId);
+                }
+
+                return $officeLocationCache[$key];
+            };
+
+            return datatables()->of($attendances)
+                ->addColumn('employee_name', function ($row) {
+                    return optional($row->employee)->full_name ?? '---';
+                })
+                ->addColumn('username', function ($row) {
+                    return optional(optional($row->employee)->user)->username ?? '---';
+                })
+                ->addColumn('company', function ($row) {
+                    return optional(optional($row->employee)->company)->company_name ?? '---';
+                })
+                ->addColumn('clock_in_at', function ($row) {
+                    $date = $row->getRawOriginal('attendance_date')
+                        ? Carbon::parse($row->getRawOriginal('attendance_date'))->format(env('Date_Format'))
+                        : '---';
+
+                    return trim($date.' '.($row->clock_in ?? ''));
+                })
+                ->addColumn('ip_address', function ($row) {
+                    return $row->clock_in_ip ?? '---';
+                })
+                ->addColumn('attendance_type', function ($row) {
+                    $type = strtolower(trim((string) optional($row->employee)->attendance_type));
+
+                    return match ($type) {
+                        'ip_based' => __('IP Based'),
+                        'location_based' => __('Location Based'),
+                        'general' => __('General'),
+                        default => $type !== '' ? ucwords(str_replace('_', ' ', $type)) : '---',
+                    };
+                })
+                ->addColumn('user_latitude', function ($row) {
+                    return $row->clock_in_latitude !== null
+                        ? number_format((float) $row->clock_in_latitude, 7)
+                        : '---';
+                })
+                ->addColumn('user_longitude', function ($row) {
+                    return $row->clock_in_longitude !== null
+                        ? number_format((float) $row->clock_in_longitude, 7)
+                        : '---';
+                })
+                ->addColumn('user_place_name', function ($row) {
+                    $lat = $row->clock_in_latitude !== null ? (float) $row->clock_in_latitude : null;
+                    $lng = $row->clock_in_longitude !== null ? (float) $row->clock_in_longitude : null;
+
+                    if ($lat === null || $lng === null) {
+                        return '---';
+                    }
+
+                    $placeName = ReverseGeocoder::cachedPlaceName($lat, $lng);
+
+                    if ($placeName) {
+                        return e($placeName);
+                    }
+
+                    return '<span class="geo-place-pending text-muted" data-lat="'.$lat.'" data-lng="'.$lng.'">'.e(__('Resolving...')).'</span>';
+                })
+                ->addColumn('location_name', function ($row) {
+                    return optional(optional($row->employee)->location)->location_name ?? '---';
+                })
+                ->addColumn('location_latitude', function ($row) {
+                    $lat = optional(optional($row->employee)->location)->latitude;
+
+                    return $lat !== null ? number_format((float) $lat, 6) : '---';
+                })
+                ->addColumn('location_longitude', function ($row) {
+                    $lng = optional(optional($row->employee)->location)->longitude;
+
+                    return $lng !== null ? number_format((float) $lng, 6) : '---';
+                })
+                ->addColumn('nearest_location_name', function ($row) use ($officeLocationsFor) {
+                    $userLat = $row->clock_in_latitude !== null ? (float) $row->clock_in_latitude : null;
+                    $userLng = $row->clock_in_longitude !== null ? (float) $row->clock_in_longitude : null;
+                    $companyId = optional($row->employee)->company_id ? (int) $row->employee->company_id : null;
+                    $nearest = NearestOfficeLocation::find(
+                        $userLat,
+                        $userLng,
+                        $companyId,
+                        $officeLocationsFor($companyId)
+                    );
+
+                    if ($nearest === null) {
+                        return '---';
+                    }
+
+                    return e($nearest['name']).' ('.$nearest['distance_km'].' km)';
+                })
+                ->addColumn('distance_km', function ($row) {
+                    $userLat = $row->clock_in_latitude !== null ? (float) $row->clock_in_latitude : null;
+                    $userLng = $row->clock_in_longitude !== null ? (float) $row->clock_in_longitude : null;
+                    $location = optional($row->employee)->location;
+                    $distance = $this->distanceInKilometers(
+                        $userLat,
+                        $userLng,
+                        $location && $location->latitude !== null ? (float) $location->latitude : null,
+                        $location && $location->longitude !== null ? (float) $location->longitude : null
+                    );
+
+                    if ($distance === null) {
+                        return '---';
+                    }
+
+                    $maxRadius = $location && $location->max_radius !== null
+                        ? round(((float) $location->max_radius) / 1000, 2)
+                        : null;
+                    $label = $distance.' km';
+
+                    if ($maxRadius !== null && $distance > $maxRadius) {
+                        $label .= ' ('.__('outside geofence').')';
+                    }
+
+                    return $label;
+                })
+                ->addColumn('map_action', function ($row) use ($officeLocationsFor) {
+                    $userLat = $row->clock_in_latitude !== null ? (float) $row->clock_in_latitude : null;
+                    $userLng = $row->clock_in_longitude !== null ? (float) $row->clock_in_longitude : null;
+
+                    if ($userLat === null || $userLng === null) {
+                        return '---';
+                    }
+
+                    $employee = $row->employee;
+                    $office = optional($employee)->location;
+                    $companyId = optional($employee)->company_id ? (int) $employee->company_id : null;
+                    $nearest = NearestOfficeLocation::find(
+                        $userLat,
+                        $userLng,
+                        $companyId,
+                        $officeLocationsFor($companyId)
+                    );
+
+                    $placeName = ReverseGeocoder::cachedPlaceName($userLat, $userLng) ?? '';
+
+                    return '<button type="button" class="btn btn-sm btn-info btn-view-clockin-map"'
+                        .' data-employee="'.e(optional($employee)->full_name ?? '---').'"'
+                        .' data-user-lat="'.$userLat.'"'
+                        .' data-user-lng="'.$userLng.'"'
+                        .' data-user-place="'.e($placeName).'"'
+                        .' data-office-name="'.e(optional($office)->location_name ?? '').'"'
+                        .' data-office-lat="'.($office && $office->latitude !== null ? (float) $office->latitude : '').'"'
+                        .' data-office-lng="'.($office && $office->longitude !== null ? (float) $office->longitude : '').'"'
+                        .' data-nearest-name="'.e($nearest['name'] ?? '').'"'
+                        .' data-nearest-lat="'.($nearest['latitude'] ?? '').'"'
+                        .' data-nearest-lng="'.($nearest['longitude'] ?? '').'"'
+                        .' data-nearest-distance="'.($nearest['distance_km'] ?? '').'"'
+                        .'><i class="fa fa-map-marker"></i> '.__('Map').'</button>';
+                })
+                ->rawColumns(['user_place_name', 'map_action'])
+                ->make(true);
+        }
+
+        return view('report.login_locations', compact('companies'));
+    }
+
+    public function reverseGeocode(Request $request)
+    {
+        $logged_user = auth()->user();
+
+        if (! ManagedEmployeeScope::canAccessClockInLocationReport((int) $logged_user->id, (int) $logged_user->role_users_id)) {
+            return abort(403, __('You are not authorized'));
+        }
+
+        $lat = is_numeric($request->lat) ? (float) $request->lat : null;
+        $lng = is_numeric($request->lng) ? (float) $request->lng : null;
+
+        if ($lat === null || $lng === null) {
+            return response()->json(['place_name' => null]);
+        }
+
+        return response()->json([
+            'place_name' => ReverseGeocoder::placeName($lat, $lng),
+        ]);
+    }
+
+    public function storeReverseGeocode(Request $request)
+    {
+        $logged_user = auth()->user();
+
+        if (! ManagedEmployeeScope::canAccessClockInLocationReport((int) $logged_user->id, (int) $logged_user->role_users_id)) {
+            return abort(403, __('You are not authorized'));
+        }
+
+        $lat = is_numeric($request->lat) ? (float) $request->lat : null;
+        $lng = is_numeric($request->lng) ? (float) $request->lng : null;
+        $placeName = trim((string) $request->place_name);
+
+        if ($lat === null || $lng === null || $placeName === '') {
+            return response()->json(['saved' => false]);
+        }
+
+        ReverseGeocoder::rememberPlaceName($lat, $lng, $placeName);
+
+        return response()->json(['saved' => true]);
+    }
+
+    public function summaryDashboard(Request $request)
+    {
+        $logged_user = auth()->user();
+
+        if (! $logged_user->can('report-project')) {
+            return abort(403, __('You are not authorized'));
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json($this->buildSummaryDashboardData($request));
+        }
+
+        return view('report.summary_dashboard');
+    }
+
+    public function summaryDashboardPdf(Request $request)
+    {
+        $logged_user = auth()->user();
+
+        if (! $logged_user->can('report-project')) {
+            return abort(403, __('You are not authorized'));
+        }
+
+        $data = $this->buildSummaryDashboardData($request);
+
+        PDF::setOptions([
+            'dpi' => 120,
+            'defaultFont' => 'sans-serif',
+            'tempDir' => storage_path('temp'),
+            'isHtml5ParserEnabled' => true,
+        ]);
+
+        $pdf = PDF::loadView('report.summary_dashboard_pdf', [
+            'data' => $data,
+            'generatedAt' => now()->format(env('Date_Format').' H:i'),
+            'filterSummary' => $this->summaryDashboardFilterSummary($request, $data),
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download('operations-summary-'.now()->format('Y-m-d-His').'.pdf');
+    }
+
+    public function summaryDashboardCsv(Request $request): StreamedResponse
+    {
+        $logged_user = auth()->user();
+
+        if (! $logged_user->can('report-project')) {
+            abort(403, __('You are not authorized'));
+        }
+
+        $data = $this->buildSummaryDashboardData($request);
+        $statusLabels = [
+            'in_progress' => __('In Progress'),
+            'not_started' => __('Not Started'),
+            'completed' => __('Completed'),
+            'deferred' => __('Deferred'),
+        ];
+
+        $filename = 'operations-summary-'.now()->format('Y-m-d-His').'.csv';
+
+        return response()->streamDownload(function () use ($data, $statusLabels) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, [
+                __('Employee'),
+                __('Staff ID'),
+                trans('file.Company'),
+                trans('file.Client'),
+                trans('file.Location'),
+                trans('file.Department'),
+                trans('file.Designation'),
+                trans('file.Project'),
+                trans('file.Status'),
+            ]);
+
+            foreach ($data['deployments'] as $deployment) {
+                $projects = $deployment['projects'] ?? [];
+
+                if ($projects === []) {
+                    fputcsv($handle, [
+                        $deployment['employee_name'],
+                        $deployment['staff_id'],
+                        $deployment['company'],
+                        $deployment['client'],
+                        $deployment['location'],
+                        $deployment['department'],
+                        $deployment['designation'],
+                        '---',
+                        '---',
+                    ]);
+
+                    continue;
+                }
+
+                foreach ($projects as $project) {
+                    $status = strtolower((string) ($project['status'] ?? ''));
+                    $status = str_replace(' ', '_', $status);
+
+                    fputcsv($handle, [
+                        $deployment['employee_name'],
+                        $deployment['staff_id'],
+                        $project['company'] ?? $deployment['company'],
+                        $deployment['client'],
+                        $deployment['location'],
+                        $project['department'] ?? $deployment['department'],
+                        $deployment['designation'],
+                        $project['title'] ?? '---',
+                        $statusLabels[$status] ?? ($project['status'] ?? '---'),
+                    ]);
+                }
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    protected function summaryDashboardFilterSummary(Request $request, array $data): string
+    {
+        $parts = [];
+
+        if ($request->filled('company_id')) {
+            $company = collect($data['filters']['companies'] ?? [])->firstWhere('id', (int) $request->company_id);
+            $parts[] = trans('file.Company').': '.($company['name'] ?? __('Selected'));
+        }
+
+        if ($request->filled('client_id')) {
+            $client = collect($data['filters']['clients'] ?? [])->firstWhere('id', (int) $request->client_id);
+            $parts[] = trans('file.Client').': '.($client['name'] ?? __('Selected'));
+        }
+
+        if ($request->filled('department_id')) {
+            $department = collect($data['filters']['departments'] ?? [])->firstWhere('id', (int) $request->department_id);
+            $parts[] = trans('file.Department').': '.($department['name'] ?? __('Selected'));
+        }
+
+        if ($request->filled('location_id')) {
+            $location = collect($data['filters']['locations'] ?? [])->firstWhere('id', (int) $request->location_id);
+            $parts[] = trans('file.Location').': '.($location['name'] ?? __('Selected'));
+        }
+
+        if ($request->filled('project_status')) {
+            $status = collect($data['filters']['statuses'] ?? [])->firstWhere('value', $request->project_status);
+            $parts[] = trans('file.Status').': '.($status['label'] ?? $request->project_status);
+        }
+
+        return $parts !== [] ? implode(' | ', $parts) : __('All records');
+    }
+
+    protected function buildSummaryDashboardData(Request $request): array
+    {
+        $runningStatuses = ['in_progress', 'not_started', 'not started'];
+
+        $projectsQuery = Project::query()
+            ->select('id', 'title', 'client_id', 'company_id', 'department_id', 'project_status', 'project_progress')
+            ->with([
+                'client:id,company_name,first_name,last_name,is_active',
+                'company:id,company_name',
+                'department:id,department_name',
+            ]);
+
+        if (CompanyScope::applies()) {
+            $companyId = CompanyScope::companyId();
+
+            if ($companyId) {
+                $projectsQuery->where('company_id', $companyId);
+            } else {
+                $projectsQuery->whereRaw('1 = 0');
+            }
+        }
+
+        if ($request->filled('company_id')) {
+            $projectsQuery->where('company_id', (int) $request->company_id);
+        }
+
+        if ($request->filled('client_id')) {
+            $projectsQuery->where('client_id', (int) $request->client_id);
+        }
+
+        if ($request->filled('department_id')) {
+            $projectsQuery->where('department_id', (int) $request->department_id);
+        }
+
+        if ($request->filled('project_status')) {
+            $projectsQuery->where('project_status', $request->project_status);
+        }
+
+        $projects = $projectsQuery->orderBy('title')->get();
+
+        $companiesQuery = company::query()
+            ->select('id', 'company_name')
+            ->orderBy('company_name');
+
+        if (CompanyScope::applies()) {
+            $scopedCompanyId = CompanyScope::companyId();
+
+            if ($scopedCompanyId) {
+                $companiesQuery->where('id', $scopedCompanyId);
+            } else {
+                $companiesQuery->whereRaw('1 = 0');
+            }
+        }
+
+        if ($request->filled('company_id')) {
+            $companiesQuery->where('id', (int) $request->company_id);
+        }
+
+        $companies = $companiesQuery->get();
+
+        $clientsQuery = Client::query()
+            ->select('id', 'company_name', 'first_name', 'last_name', 'is_active')
+            ->whereIn('id', $projects->pluck('client_id')->filter()->unique()->values())
+            ->orderBy('first_name')
+            ->orderBy('last_name');
+
+        if ($request->filled('client_id')) {
+            $clientsQuery->where('id', (int) $request->client_id);
+        }
+
+        $clients = $clientsQuery->get();
+        $clientIds = $clients->pluck('id');
+
+        $locationsQuery = location::query()
+            ->select('id', 'location_name', 'client_id', 'city')
+            ->orderBy('location_name');
+
+        if ($request->filled('company_id')) {
+            $companyId = (int) $request->company_id;
+            $locationsQuery->where(function ($query) use ($companyId, $clientIds) {
+                $query->whereHas('companies', function ($companyQuery) use ($companyId) {
+                    $companyQuery->where('companies.id', $companyId);
+                });
+
+                if ($clientIds->isNotEmpty()) {
+                    $query->orWhereIn('client_id', $clientIds);
+                }
+            });
+        } elseif ($clientIds->isNotEmpty()) {
+            $locationsQuery->whereIn('client_id', $clientIds);
+        }
+
+        if ($request->filled('client_id')) {
+            $locationsQuery->where('client_id', (int) $request->client_id);
+        }
+
+        $locations = $locationsQuery->get();
+
+        $employeeQuery = Employee::query()
+            ->select(
+                'id',
+                'first_name',
+                'last_name',
+                'staff_id',
+                'location_id',
+                'department_id',
+                'designation_id',
+                'client_id',
+                'company_id'
+            )
+            ->with([
+                'location:id,location_name',
+                'department:id,department_name',
+                'designation:id,designation_name',
+                'client:id,company_name,first_name,last_name',
+                'company:id,company_name',
+                'projects' => function ($query) use ($projects) {
+                    $query->select('projects.id', 'projects.title', 'projects.client_id', 'projects.company_id', 'projects.department_id', 'projects.project_status')
+                        ->whereIn('projects.id', $projects->pluck('id'))
+                        ->with([
+                            'client:id,company_name,first_name,last_name',
+                            'company:id,company_name',
+                            'department:id,department_name',
+                        ]);
+                },
+            ])
+            ->where('is_active', 1)
+            ->whereNull('exit_date')
+            ->whereHas('projects', function ($query) use ($projects) {
+                $query->whereIn('projects.id', $projects->pluck('id'));
+            });
+
+        if (ManagedEmployeeScope::canAccessScopedEmployeeList((int) auth()->id(), (int) auth()->user()->role_users_id)) {
+            $managedIds = ManagedEmployeeScope::managedEmployeeIds((int) auth()->id());
+            $employeeQuery->whereIn('id', $managedIds ?: [-1]);
+        }
+
+        if ($request->filled('company_id')) {
+            $employeeQuery->where('company_id', (int) $request->company_id);
+        }
+
+        if ($request->filled('client_id')) {
+            $employeeQuery->where('client_id', (int) $request->client_id);
+        }
+
+        if ($request->filled('department_id')) {
+            $employeeQuery->where('department_id', (int) $request->department_id);
+        }
+
+        if ($request->filled('location_id')) {
+            $employeeQuery->where('location_id', (int) $request->location_id);
+        }
+
+        $deployedEmployees = $employeeQuery->orderBy('first_name')->get();
+
+        $normalizeStatus = static function (?string $status): string {
+            $status = strtolower(trim((string) $status));
+
+            if (in_array($status, ['not started', 'not_started'], true)) {
+                return 'not_started';
+            }
+
+            return $status !== '' ? $status : 'not_started';
+        };
+
+        $clientSummaries = $clients->map(function (Client $client) use ($projects, $locations, $deployedEmployees, $normalizeStatus, $runningStatuses) {
+            $clientProjects = $projects->where('client_id', $client->id)->values();
+            $clientLocations = $locations->where('client_id', $client->id)->values();
+            $clientEmployees = $deployedEmployees->where('client_id', $client->id)->values();
+
+            $statusCounts = [
+                'in_progress' => 0,
+                'not_started' => 0,
+                'completed' => 0,
+                'deferred' => 0,
+            ];
+
+            foreach ($clientProjects as $project) {
+                $status = $normalizeStatus($project->project_status);
+
+                if (isset($statusCounts[$status])) {
+                    $statusCounts[$status]++;
+                }
+            }
+
+            $departmentBreakdown = $clientProjects
+                ->groupBy(fn ($project) => optional($project->department)->department_name ?: __('No Department'))
+                ->map(fn ($items, $name) => [
+                    'department' => $name,
+                    'project_count' => $items->count(),
+                    'running_count' => $items->filter(fn ($project) => in_array($normalizeStatus($project->project_status), $runningStatuses, true))->count(),
+                ])
+                ->values();
+
+            return [
+                'id' => $client->id,
+                'name' => ClientDisplay::label($client),
+                'organization' => ClientDisplay::organization($client),
+                'is_active' => (bool) $client->is_active,
+                'total_projects' => $clientProjects->count(),
+                'running_projects' => $clientProjects->filter(fn ($project) => in_array($normalizeStatus($project->project_status), $runningStatuses, true))->count(),
+                'active_projects' => $clientProjects->filter(fn ($project) => $normalizeStatus($project->project_status) === 'in_progress')->count(),
+                'locations_count' => $clientLocations->count(),
+                'deployed_resources' => $clientEmployees->count(),
+                'status_counts' => $statusCounts,
+                'departments' => $departmentBreakdown,
+                'locations' => $clientLocations->map(fn ($location) => [
+                    'id' => $location->id,
+                    'name' => $location->location_name,
+                    'city' => $location->city,
+                    'deployed_count' => $clientEmployees->where('location_id', $location->id)->count(),
+                ])->values(),
+                'projects' => $clientProjects->map(fn ($project) => [
+                    'id' => $project->id,
+                    'title' => $project->title,
+                    'company' => optional($project->company)->company_name ?: __('No Company'),
+                    'status' => $normalizeStatus($project->project_status),
+                    'status_label' => ucwords(str_replace('_', ' ', $normalizeStatus($project->project_status))),
+                    'department' => optional($project->department)->department_name ?: __('No Department'),
+                    'progress' => (int) ($project->project_progress ?? 0),
+                    'deployed_count' => $deployedEmployees->filter(fn ($employee) => $employee->projects->contains('id', $project->id))->count(),
+                ])->values(),
+            ];
+        })->values();
+
+        $companySummaries = $companies->map(function ($company) use ($projects, $clients, $deployedEmployees, $normalizeStatus, $runningStatuses) {
+            $companyProjects = $projects->where('company_id', $company->id)->values();
+            $companyClientIds = $companyProjects->pluck('client_id')->filter()->unique();
+            $companyClients = $clients->whereIn('id', $companyClientIds)->values();
+            $companyEmployees = $deployedEmployees->where('company_id', $company->id);
+
+            return [
+                'id' => $company->id,
+                'name' => $company->company_name,
+                'total_projects' => $companyProjects->count(),
+                'running_projects' => $companyProjects->filter(fn ($project) => in_array($normalizeStatus($project->project_status), $runningStatuses, true))->count(),
+                'clients_count' => $companyClients->count(),
+                'deployed_resources' => $companyEmployees->count(),
+                'clients' => $companyClients->map(function (Client $client) use ($company, $companyProjects, $deployedEmployees, $normalizeStatus) {
+                    $clientProjects = $companyProjects->where('client_id', $client->id)->values();
+                    $clientEmployees = $deployedEmployees
+                        ->where('company_id', $company->id)
+                        ->where('client_id', $client->id);
+
+                    return [
+                        'id' => $client->id,
+                        'name' => ClientDisplay::label($client),
+                        'projects_count' => $clientProjects->count(),
+                        'deployed_resources' => $clientEmployees->count(),
+                        'projects' => $clientProjects->map(function ($project) use ($deployedEmployees, $normalizeStatus) {
+                            $projectEmployees = $deployedEmployees->filter(
+                                fn ($employee) => $employee->projects->contains('id', $project->id)
+                            );
+
+                            return [
+                                'id' => $project->id,
+                                'title' => $project->title,
+                                'status' => $normalizeStatus($project->project_status),
+                                'status_label' => ucwords(str_replace('_', ' ', $normalizeStatus($project->project_status))),
+                                'department' => optional($project->department)->department_name ?: __('No Department'),
+                                'deployed_count' => $projectEmployees->count(),
+                                'employees' => $projectEmployees->map(fn (Employee $employee) => [
+                                    'id' => $employee->id,
+                                    'name' => $employee->full_name,
+                                    'staff_id' => $employee->staff_id ?: '---',
+                                    'designation' => optional($employee->designation)->designation_name ?: '---',
+                                    'department' => optional($employee->department)->department_name ?: '---',
+                                    'location' => optional($employee->location)->location_name ?: '---',
+                                ])->values(),
+                            ];
+                        })->values(),
+                    ];
+                })
+                    ->sortByDesc('projects_count')
+                    ->values(),
+            ];
+        })->values();
+
+        $departmentSummary = $projects
+            ->groupBy(fn ($project) => optional($project->department)->department_name ?: __('No Department'))
+            ->map(function ($items, $name) use ($deployedEmployees, $normalizeStatus, $runningStatuses) {
+                return [
+                    'department' => $name,
+                    'project_count' => $items->count(),
+                    'running_count' => $items->filter(fn ($project) => in_array($normalizeStatus($project->project_status), $runningStatuses, true))->count(),
+                    'deployed_count' => $deployedEmployees->filter(function (Employee $employee) use ($name) {
+                        $departmentName = optional($employee->department)->department_name ?: __('No Department');
+
+                        return $departmentName === $name;
+                    })->count(),
+                ];
+            })
+            ->values();
+
+        $locationSummary = $locations
+            ->map(function ($location) use ($deployedEmployees) {
+                $resources = $deployedEmployees->where('location_id', $location->id);
+
+                return [
+                    'id' => $location->id,
+                    'name' => $location->location_name,
+                    'client_id' => $location->client_id,
+                    'deployed_count' => $resources->count(),
+                    'project_count' => $resources
+                        ->flatMap(fn ($employee) => $employee->projects->pluck('id'))
+                        ->unique()
+                        ->count(),
+                ];
+            })
+            ->values();
+
+        $deployments = $deployedEmployees->map(function (Employee $employee) {
+            return [
+                'employee_id' => $employee->id,
+                'employee_name' => $employee->full_name,
+                'staff_id' => $employee->staff_id ?: '---',
+                'company' => optional($employee->company)->company_name ?: '---',
+                'client' => ClientDisplay::label($employee->client),
+                'client_id' => $employee->client_id,
+                'location' => optional($employee->location)->location_name ?: '---',
+                'location_id' => $employee->location_id,
+                'department' => optional($employee->department)->department_name ?: '---',
+                'designation' => optional($employee->designation)->designation_name ?: '---',
+                'projects' => $employee->projects->map(fn ($project) => [
+                    'id' => $project->id,
+                    'title' => $project->title,
+                    'status' => $project->project_status,
+                    'department' => optional($project->department)->department_name ?: __('No Department'),
+                    'company' => optional($project->company)->company_name ?: '---',
+                    'client' => ClientDisplay::label($project->client),
+                ])->values(),
+                'project_names' => $employee->projects->pluck('title')->implode(', ') ?: '---',
+            ];
+        })->values();
+
+        $statusTotals = [
+            'in_progress' => 0,
+            'not_started' => 0,
+            'completed' => 0,
+            'deferred' => 0,
+        ];
+
+        foreach ($projects as $project) {
+            $status = $normalizeStatus($project->project_status);
+
+            if (isset($statusTotals[$status])) {
+                $statusTotals[$status]++;
+            }
+        }
+
+        $filterOptions = [
+            'companies' => $companies->map(fn ($company) => [
+                'id' => $company->id,
+                'name' => $company->company_name,
+            ])->values(),
+            'clients' => $clients->map(fn ($client) => [
+                'id' => $client->id,
+                'name' => ClientDisplay::label($client),
+            ])->values(),
+            'departments' => department::query()
+                ->select('id', 'department_name')
+                ->whereIn('id', $projects->pluck('department_id')->filter()->unique())
+                ->orderBy('department_name')
+                ->get()
+                ->map(fn ($department) => [
+                    'id' => $department->id,
+                    'name' => $department->department_name,
+                ])
+                ->values(),
+            'locations' => $locations->map(fn ($location) => [
+                'id' => $location->id,
+                'name' => $location->location_name,
+                'client_id' => $location->client_id,
+            ])->values(),
+            'statuses' => [
+                ['value' => 'in_progress', 'label' => __('In Progress')],
+                ['value' => 'not_started', 'label' => __('Not Started')],
+                ['value' => 'completed', 'label' => __('Completed')],
+                ['value' => 'deferred', 'label' => __('Deferred')],
+            ],
+        ];
+
+        return [
+            'totals' => [
+                'companies' => $companies->count(),
+                'clients' => $clients->count(),
+                'active_clients' => $clients->where('is_active', true)->count(),
+                'projects' => $projects->count(),
+                'running_projects' => $projects->filter(fn ($project) => in_array($normalizeStatus($project->project_status), $runningStatuses, true))->count(),
+                'active_projects' => $projects->filter(fn ($project) => $normalizeStatus($project->project_status) === 'in_progress')->count(),
+                'locations' => $locations->count(),
+                'deployed_resources' => $deployedEmployees->count(),
+            ],
+            'project_status_totals' => $statusTotals,
+            'charts' => [
+                'pipeline' => [
+                    'labels' => [
+                        __('Companies'),
+                        __('Clients'),
+                        __('Projects'),
+                        __('Deployed Employees'),
+                    ],
+                    'values' => [
+                        $companies->count(),
+                        $clients->count(),
+                        $projects->count(),
+                        $deployedEmployees->count(),
+                    ],
+                ],
+                'deployment_by_company' => $companySummaries->map(fn ($company) => [
+                    'name' => $company['name'],
+                    'deployed_count' => $company['deployed_resources'],
+                    'projects_count' => $company['total_projects'],
+                ])->values(),
+                'deployment_by_location' => $locationSummary
+                    ->sortByDesc('deployed_count')
+                    ->take(8)
+                    ->values(),
+            ],
+            'companies' => $companySummaries,
+            'clients' => $clientSummaries,
+            'departments' => $departmentSummary,
+            'locations' => $locationSummary,
+            'deployments' => $deployments,
+            'filters' => $filterOptions,
+        ];
     }
 }

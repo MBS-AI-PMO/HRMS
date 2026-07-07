@@ -318,25 +318,12 @@
                                                                 </select>
                                                             </div>
 
-                                                            <div class="col-md-4">
-                                                                <div class="form-group">
-                                                                    <label>{{ trans('file.Company') }} <span
-                                                                            class="text-danger">*</span></label>
-                                                                    <input type="hidden" name="company_id_hidden"
-                                                                        value="{{ $employee->company_id }}" />
-                                                                    <select name="company_id" id="company_id"
-                                                                        class="form-control selectpicker dynamic"
-                                                                        data-live-search="true" data-live-search-style="contains"
-                                                                        data-dependent="department_name"
-                                                                        data-shift_name="shift_name"
-                                                                        title="{{ __('Selecting', ['key' => trans('file.Company')]) }}...">
-                                                                        @foreach ($companies as $company)
-                                                                            <option value="{{ $company->id }}">
-                                                                                {{ $company->company_name }}</option>
-                                                                        @endforeach
-
-                                                                    </select>
-                                                                </div>
+                                                            <div class="col-md-12">
+                                                                @include('employee.partials.owner_fields', [
+                                                                    'employee' => $employee,
+                                                                    'companies' => $companies,
+                                                                    'clients' => $clients,
+                                                                ])
                                                             </div>
 
                                                             <div class="col-md-4">
@@ -421,7 +408,8 @@
                                                                     data-live-search-style="contains"
                                                                     title="{{ __('Selecting', ['key' => trans('file.Office Shift')]) }}...">
                                                                     @foreach ($office_shifts as $office_shift)
-                                                                        <option value="{{ $office_shift->id }}">
+                                                                        <option value="{{ $office_shift->id }}"
+                                                                            @selected((int) $employee->office_shift_id === (int) $office_shift->id)>
                                                                             {{ $office_shift->shift_name }}</option>
                                                                     @endforeach
                                                                 </select>
@@ -668,6 +656,7 @@
             </div>
         @endif
 
+        @include('employee.leave.info_modal')
     </section>
 
 
@@ -692,7 +681,7 @@
         $('#role_users_id').selectpicker('val', $('input[name="role_user_hidden"]').val());
         $('#marital_status').selectpicker('val', $('input[name="marital_status_hidden"]').val());
 
-        $('#company_id').selectpicker('val', $('input[name="company_id_hidden"]').val());
+        @include('employee.partials.owner_fields_script')
         $('#department_id').selectpicker('val', $('input[name="department_id_hidden"]').val());
         $('#designation_id').selectpicker('val', $('input[name="designation_id_hidden"]').val());
 
@@ -887,6 +876,16 @@
                         $('#divCheckPasswordMatch').html('');
                     }
                     $('#form_result').html(html).slideDown(300).delay(5000).slideUp(300);
+                },
+                error: function(xhr) {
+                    var message = '{{ __('You are not authorized') }}';
+                    if (xhr.responseJSON && xhr.responseJSON.errors && xhr.responseJSON.errors.length) {
+                        message = xhr.responseJSON.errors.join('<br>');
+                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                        message = xhr.responseJSON.message;
+                    }
+                    $('#form_result').html('<div class="alert alert-danger"><p>' + message + '</p></div>')
+                        .slideDown(300).delay(5000).slideUp(300);
                 }
             });
         });

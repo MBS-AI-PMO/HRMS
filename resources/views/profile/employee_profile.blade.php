@@ -379,6 +379,7 @@
             </div>
         </div>
 
+        @include('employee.leave.info_modal')
     </section>
 
 @endsection

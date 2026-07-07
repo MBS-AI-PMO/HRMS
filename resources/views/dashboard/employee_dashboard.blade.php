@@ -1,210 +1,178 @@
 @extends('layout.main')
 @section('content')
 
-    <section>
+    <section class="emp-dashboard">
 
         @include('shared.errors')
 
+        @php
+            $fullName = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
+            if (empty($fullName)) {
+                $fullName = $user->username ?? 'User';
+            }
+            $words = explode(' ', $fullName);
+            $initials = strtoupper(substr($words[0], 0, 1));
+            if (count($words) > 1) {
+                $initials .= strtoupper(substr($words[1], 0, 1));
+            }
+        @endphp
 
-
-        <!-- Content -->
         <div class="container-fluid">
-            <div class="row">
-
-                @if (!empty($user->profile_photo) && file_exists(public_path('uploads/profile_photos/' . $user->profile_photo)))
-                    <img src="{{ URL::to('/uploads/profile_photos') }}/{{ $user->profile_photo }}" width="150"
-                        height="150" class="rounded-circle">
-                @else
-                    @php
-                        $fullName = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
-
-                        if (empty($fullName)) {
-                            $fullName = $user->username ?? 'User';
-                        }
-
-                        $words = explode(' ', $fullName);
-                        $initials = strtoupper(substr($words[0], 0, 1));
-
-                        if (count($words) > 1) {
-                            $initials .= strtoupper(substr($words[1], 0, 1));
-                        }
-                    @endphp
-
-                    <div class="rounded-circle d-flex align-items-center justify-content-center"
-                        style="
-            width:150px;
-            height:150px;
-            background:#7C5CC4;
-            color:#fff;
-            font-size:48px;
-            font-weight:700;
-         ">
-                        {{ $initials }}
-                    </div>
-                @endif
-
-                <div class="col-9 col-md-10 mb-3">
-                    <h4 class="font-weight-bold">{{ $employee->full_name }} <span class="text-muted font-weight-normal">
-                            ({{ $user->username }})</span>
-                    </h4>
-                    <div class="text-muted mb-2">{{ $employee->designation?->designation_name ?? '' }},
-                        {{ $employee->department?->department_name ?? '' }}</div>
-                    <p class="text-muted">{{ __('Last Login') }}: {{ $user->last_login_date }}</p>
-                    <p class="text-muted">{{ __('My Office Shift') }}:
-                        @if (!$shift_in)
-                            {{ __('No Shift Today') }}
-                        @else
-                            {{ $shift_in }} To {{ $shift_out }}
-                        @endif
-                        ({{ $shift_name }})
-                    </p>
-                    @if (!empty($shift_out) && ($today_overtime_total ?? '00:00') !== '00:00')
-                        <p class="text-muted mb-1">
-                            <i class="dripicons-clock"></i> {{ __('Today Overtime') }}:
-                            <strong class="text-warning">{{ $today_overtime_total }}</strong>
-                        </p>
-                    @endif
-                    @if (!empty($is_past_shift_while_clocked_in))
-                        <p class="mb-2">
-                            <span class="badge badge-warning">{{ __('Overtime in progress (regular shift)') }}</span>
-                        </p>
-                    @endif
-                    @if (!empty($is_on_overtime_session))
-                        <p class="mb-2">
-                            <span class="badge badge-warning">{{ __('Overtime session active') }}</span>
-                        </p>
-                    @endif
-                    <a class="btn btn-default btn-sm" id="my_profile" href="{{ route('profile') }}">
-                        <i class="dripicons-user"></i> {{ trans('file.Profile') }}
-                    </a>
-                    @if (env('ENABLE_CLOCKIN_CLOCKOUT') != null)
-
-                        <form action="{{ route('employee_attendance.post', $employee->id) }}" method="POST"
-                            id="set_clocking" autocomplete="off" class="d-inline m1-2">
-
-                            @csrf
-
-                            <input type="hidden" value="{{ $shift_in }}" name="office_shift_in" id="shift_in">
-                            <input type="hidden" value="{{ $shift_out }}" name="office_shift_out" id="shift_out">
-                            <input type="hidden" value="" name="in_out_value" id="in_out">
-
-                            {{-- location values --}}
-                            <input type="hidden" name="latitude" id="user_lat">
-                            <input type="hidden" name="longitude" id="user_lng">
-
-                            @if (!$employee_attendance || $employee_attendance->clock_in_out == 0)
-                                @if (!empty($can_overtime_clock_in))
-                                    @if ($employee->attendance_type == 'ip_based')
-                                        <button class="btn btn-warning btn-sm" @if ($ipCheck != true) disabled @endif
-                                            type="submit" id="overtime_clock_in_btn">
-                                            <i class="dripicons-hourglass"></i> {{ __('Overtime Clock IN') }}
-                                        </button>
-                                    @elseif ($employee->attendance_type == 'location_based')
-                                        <button class="btn btn-warning btn-sm" type="button" id="overtime_clock_in_btn"
-                                            onclick="handleLocationSubmit()">
-                                            <i class="dripicons-hourglass"></i> {{ __('Overtime Clock IN') }}
-                                        </button>
-                                    @else
-                                        <button class="btn btn-warning btn-sm" type="button" id="overtime_clock_in_btn"
-                                            onclick="handleGeneralLocationCapture()">
-                                            <i class="dripicons-hourglass"></i> {{ __('Overtime Clock IN') }}
-                                        </button>
-                                    @endif
-                                @elseif ($shift_in)
-                                    @if ($employee->attendance_type == 'ip_based')
-                                        <button class="btn btn-success btn-sm" @if ($ipCheck != true) disabled @endif
-                                            type="submit" id="clock_in_btn">
-                                            <i class="dripicons-enter"></i> {{ __('Clock IN') }}
-                                        </button>
-                                    @elseif ($employee->attendance_type == 'location_based')
-                                        <button class="btn btn-success btn-sm" type="button" id="clock_in_btn"
-                                            onclick="handleLocationSubmit()">
-                                            <i class="dripicons-enter"></i> {{ __('Clock IN') }}
-                                        </button>
-                                    @else
-                                        <button class="btn btn-success btn-sm" type="button" id="clock_in_btn"
-                                            onclick="handleGeneralLocationCapture()">
-                                            <i class="dripicons-enter"></i> {{ __('Clock IN') }}
-                                        </button>
-                                    @endif
-                                @endif
+            <div class="emp-hero card border-0 mb-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            @if (!empty($user->profile_photo) && file_exists(public_path('uploads/profile_photos/' . $user->profile_photo)))
+                                <img src="{{ URL::to('/uploads/profile_photos') }}/{{ $user->profile_photo }}"
+                                    class="emp-hero__avatar emp-hero__avatar--photo" alt="{{ $employee->full_name }}">
                             @else
-                                @if (!empty($is_on_overtime_session))
-                                    @if ($employee->attendance_type == 'ip_based')
-                                        <button class="btn btn-warning btn-sm" @if ($ipCheck != true) disabled @endif
-                                            type="submit" id="overtime_clock_out_btn">
-                                            <i class="dripicons-exit"></i> {{ __('Overtime Clock OUT') }}
-                                        </button>
-                                    @elseif ($employee->attendance_type == 'location_based')
-                                        <button class="btn btn-warning btn-sm" type="button" id="overtime_clock_out_btn"
-                                            onclick="handleLocationSubmit()">
-                                            <i class="dripicons-exit"></i> {{ __('Overtime Clock OUT') }}
-                                        </button>
-                                    @else
-                                        <button class="btn btn-warning btn-sm" type="button" id="overtime_clock_out_btn"
-                                            onclick="handleGeneralLocationCapture()">
-                                            <i class="dripicons-exit"></i> {{ __('Overtime Clock OUT') }}
-                                        </button>
-                                    @endif
-                                @else
-                                    @if ($employee->attendance_type == 'ip_based')
-                                        <button class="btn btn-danger btn-sm" @if ($ipCheck != true) disabled @endif
-                                            type="submit" id="clock_out_btn">
-                                            <i class="dripicons-exit"></i> {{ __('Clock OUT') }}
-                                        </button>
-                                    @elseif ($employee->attendance_type == 'location_based')
-                                        <button class="btn btn-danger btn-sm" type="button" id="clock_out_btn"
-                                            onclick="handleLocationSubmit()">
-                                            <i class="dripicons-exit"></i> {{ __('Clock OUT') }}
-                                        </button>
-                                    @else
-                                        <button class="btn btn-danger btn-sm" type="button" id="clock_out_btn"
-                                            onclick="handleGeneralLocationCapture()">
-                                            <i class="dripicons-exit"></i> {{ __('Clock OUT') }}
-                                        </button>
-                                    @endif
+                                <div class="emp-hero__avatar emp-hero__avatar--initials">{{ $initials }}</div>
+                            @endif
+                        </div>
+                        <div class="col">
+                            <span class="emp-hero__eyebrow">{{ __('Employee Portal') }}</span>
+                            <h1 class="emp-hero__title mb-1">{{ $employee->full_name }}</h1>
+                            <p class="emp-hero__subtitle mb-2">
+                                {{ $employee->designation?->designation_name ?? '' }}
+                                @if ($employee->department?->department_name)
+                                    · {{ $employee->department->department_name }}
                                 @endif
+                                <span class="text-white-50">({{ $user->username }})</span>
+                            </p>
+                            <div class="emp-hero__meta">
+                                <span><i class="dripicons-clock"></i> {{ __('Last Login') }}: {{ $user->last_login_date }}</span>
+                                <span class="mx-2">|</span>
+                                <span><i class="dripicons-calendar"></i>
+                                    @if (!$shift_in)
+                                        {{ __('No Shift Today') }}
+                                    @else
+                                        {{ $shift_in }} – {{ $shift_out }} ({{ $shift_name }})
+                                    @endif
+                                </span>
+                            </div>
+                            @if (($today_overtime_total ?? '00:00') !== '00:00')
+                                <p class="emp-hero__overtime mb-0 mt-2">
+                                    <i class="dripicons-hourglass"></i> {{ __('Today Overtime') }}:
+                                    <strong>{{ $today_overtime_total }}</strong>
+                                </p>
                             @endif
-
-                            {{-- message for ip_based --}}
-                            @if ($employee->attendance_type == 'ip_based' && $ipCheck != true)
-                                <br>
-                                <small class="text-danger">
-                                    <i>[Please login with your office's internet to clock in or clock out]</i>
-                                </small>
+                            @if (!empty($is_off_day))
+                                <span class="badge badge-info mt-2">{{ __('Off Day') }} — {{ __('Overtime clock-in available') }}</span>
                             @endif
-
-                        </form>
-
-                    @endif
+                            @if (!empty($is_past_shift_while_clocked_in))
+                                <span class="badge badge-warning mt-2">{{ __('Overtime in progress (regular shift)') }}</span>
+                            @endif
+                            @if (!empty($is_on_overtime_session))
+                                <span class="badge badge-warning mt-2">{{ __('Overtime session active') }}</span>
+                            @endif
+                        </div>
+                        <div class="col-lg-auto mt-3 mt-lg-0">
+                            <div class="emp-hero__actions">
+                                <a class="btn btn-light btn-sm emp-hero__btn" id="my_profile" href="{{ route('profile') }}">
+                                    <i class="dripicons-user"></i> {{ trans('file.Profile') }}
+                                </a>
+                                @if (env('ENABLE_CLOCKIN_CLOCKOUT') != null)
+                                    <form action="{{ route('employee_attendance.post', $employee->id) }}" method="POST"
+                                        id="set_clocking" autocomplete="off" class="emp-hero__clock-form"
+                                        data-attendance-type="{{ $employee->attendance_type ?? 'general' }}"
+                                        data-office-lat="{{ $employee->location?->latitude ?? ($general_setting->latitude ?? '') }}"
+                                        data-office-lng="{{ $employee->location?->longitude ?? ($general_setting->longitude ?? '') }}"
+                                        data-max-radius="{{ $employee->location?->max_radius ?? ($general_setting->max_radius ?? '') }}">
+                                        @csrf
+                                        <input type="hidden" value="{{ $shift_in }}" name="office_shift_in" id="shift_in">
+                                        <input type="hidden" value="{{ $shift_out }}" name="office_shift_out" id="shift_out">
+                                        <input type="hidden" value="" name="in_out_value" id="in_out">
+                                        <input type="hidden" name="latitude" id="user_lat">
+                                        <input type="hidden" name="longitude" id="user_lng">
+                                        <input type="hidden" name="location_accuracy" id="user_location_accuracy">
+                                        <input type="hidden" name="location_captured_at" id="user_location_captured_at">
+                                        @php
+                                            $clockIpBlocked = ($employee->attendance_type ?? 'general') === 'ip_based' && $ipCheck != true;
+                                        @endphp
+                                        @if (!$employee_attendance || $employee_attendance->clock_in_out == 0)
+                                            @if (!empty($can_overtime_clock_in))
+                                                <button class="btn btn-warning btn-sm emp-hero__btn" @if ($clockIpBlocked) disabled @endif
+                                                    type="button" id="overtime_clock_in_btn" onclick="handleAttendanceClockSubmit()">
+                                                    <i class="dripicons-hourglass"></i> {{ __('Overtime Clock IN') }}
+                                                </button>
+                                            @elseif ($shift_in)
+                                                <button class="btn btn-success btn-sm emp-hero__btn" @if ($clockIpBlocked) disabled @endif
+                                                    type="button" id="clock_in_btn" onclick="handleAttendanceClockSubmit()">
+                                                    <i class="dripicons-enter"></i> {{ __('Clock IN') }}
+                                                </button>
+                                            @endif
+                                        @else
+                                            @if (!empty($is_on_overtime_session))
+                                                <button class="btn btn-warning btn-sm emp-hero__btn" @if ($clockIpBlocked) disabled @endif
+                                                    type="button" id="overtime_clock_out_btn" onclick="handleAttendanceClockSubmit()">
+                                                    <i class="dripicons-exit"></i> {{ __('Overtime Clock OUT') }}
+                                                </button>
+                                            @else
+                                                <button class="btn btn-danger btn-sm emp-hero__btn" @if ($clockIpBlocked) disabled @endif
+                                                    type="button" id="clock_out_btn" onclick="handleAttendanceClockSubmit()">
+                                                    <i class="dripicons-exit"></i> {{ __('Clock OUT') }}
+                                                </button>
+                                            @endif
+                                        @endif
+                                    </form>
+                                @endif
+                            </div>
+                            @if (env('ENABLE_CLOCKIN_CLOCKOUT') != null && $employee->attendance_type == 'ip_based' && $ipCheck != true)
+                                <div class="emp-hero__clock-note mt-2 text-lg-right">
+                                    <small class="text-white-50"><i>[Please login with your office's internet to clock in or clock out]</i></small>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         @if (!empty($is_location_head))
-            <div class="container-fluid mt-3">
-                <div class="card border-primary">
-                    <div class="card-body">
-                        <h5 class="card-title mb-3">{{ __('Location Head Panel') }}</h5>
+            <div class="container-fluid mb-4">
+                <div class="emp-panel">
+                    <div class="emp-panel__header">
+                        <h5 class="emp-panel__title mb-0">{{ __('Center / Location Management') }}</h5>
+                        <p class="emp-panel__subtitle mb-0">{{ __('Only employees assigned to your location(s) are shown in these sections.') }}</p>
+                    </div>
+                    <div class="emp-panel__body">
                         <div class="row">
+                            @can('scoped-view-employees')
                             <div class="col-md-4 mb-2">
-                                <a href="{{ route('employees.index') }}" class="btn btn-outline-primary btn-block text-left">
-                                    <i class="dripicons-user"></i> {{ __('Users / Employees') }}
-                                    <span class="badge badge-primary float-right">{{ $location_head_employee_count ?? 0 }}</span>
+                                <a href="{{ route('employees.index') }}" class="emp-quick-link">
+                                    <i class="dripicons-user"></i>
+                                    <span>{{ __('Users / Employees') }}</span>
+                                    <span class="badge badge-primary">{{ $location_head_employee_count ?? 0 }}</span>
                                 </a>
                             </div>
+                            @endcan
+                            @can('scoped-manage-leave')
                             <div class="col-md-4 mb-2">
-                                <a href="{{ route('leaves.index') }}" class="btn btn-outline-primary btn-block text-left">
-                                    <i class="dripicons-archive"></i> {{ __('L/ WFH Requests') }}
+                                <a href="{{ route('leaves.index') }}" class="emp-quick-link">
+                                    <i class="dripicons-archive"></i>
+                                    <span>{{ __('L/ WFH Requests') }}</span>
                                 </a>
                             </div>
+                            @endcan
+                            @can('view-my-locations')
                             <div class="col-md-4 mb-2">
-                                <a href="{{ route('locations.my') }}" class="btn btn-outline-primary btn-block text-left">
-                                    <i class="dripicons-location"></i> {{ __('Location Management Report') }}
+                                <a href="{{ route('locations.my') }}" class="emp-quick-link">
+                                    <i class="dripicons-location"></i>
+                                    <span>{{ __('My Centers / Locations') }}</span>
                                 </a>
                             </div>
+                            @endcan
+                            @can('report-clock-in-locations')
+                            @if (\App\Support\ManagedEmployeeScope::canAccessClockInLocationReport((int) auth()->id(), (int) auth()->user()->role_users_id))
+                            <div class="col-md-4 mb-2">
+                                <a href="{{ route('report.login-locations') }}" class="emp-quick-link">
+                                    <i class="dripicons-map"></i>
+                                    <span>{{ __('Clock-in Location Report') }}</span>
+                                </a>
+                            </div>
+                            @endif
+                            @endcan
                         </div>
-                        <small class="text-muted">{{ __('Only employees assigned to your location(s) are shown in these sections.') }}</small>
                     </div>
                 </div>
             </div>
@@ -212,210 +180,164 @@
 
         <div class="container-fluid">
             <div class="row">
-
-                <div class="col-md-3 mt-4">
-                    <div class="d-flex wrapper count-title">
-                        <div class="icon blue-text ml-2 mr-3">
-                            <i class="dripicons-wallet display-5"></i>
+                <div class="col-sm-6 col-lg-3 mb-3">
+                    <a href="{{ route('profile') . '#Employee_Payslip' }}" class="emp-kpi emp-kpi--cyan">
+                        <div class="emp-kpi__icon dripicons-wallet" aria-hidden="true"></div>
+                        <div>
+                            <div class="emp-kpi__label">{{ __('Payslip') }}</div>
+                            <div class="emp-kpi__meta">{{ __('View Details') }}</div>
                         </div>
-                        <a href="{{ route('profile') . '#Employee_Payslip' }}">
-                            <div class="name">
-                                <h4>{{ __('Payslip') }}</h4>
+                    </a>
+                </div>
+                <div class="col-sm-6 col-lg-3 mb-3">
+                    <a href="{{ route('profile') . '#Employee_award' }}" class="emp-kpi emp-kpi--amber">
+                        <div class="emp-kpi__icon dripicons-trophy" aria-hidden="true"></div>
+                        <div>
+                            <div class="emp-kpi__label">{{ $employee_award_count }} {{ __('Award') }}</div>
+                            <div class="emp-kpi__meta">{{ __('View Details') }}</div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-sm-6 col-lg-3 mb-3">
+                    <a href="{{ route('announcements.index') }}" class="emp-kpi emp-kpi--violet">
+                        <div class="emp-kpi__icon dripicons-feed" aria-hidden="true"></div>
+                        <div>
+                            <div class="emp-kpi__label">{{ count($announcements) }} {{ trans('file.Announcement') }}</div>
+                            <div class="emp-kpi__meta">{{ __('View Details') }}</div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-sm-6 col-lg-3 mb-3">
+                    <div class="emp-kpi emp-kpi--emerald" id="holiday" @if(count($holidays) === 0) style="cursor:default" @endif>
+                        <div class="emp-kpi__icon dripicons-gaming" aria-hidden="true"></div>
+                        <div>
+                            <div class="emp-kpi__label">{{ count($holidays) }} {{ __('Upcoming Holidays') }}</div>
+                            <div class="emp-kpi__meta">{{ __('View Details') }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-sm-6 col-lg-3 mb-3">
+                    <div class="emp-kpi emp-kpi--violet">
+                        <div class="emp-kpi__icon dripicons-calendar" aria-hidden="true"></div>
+                        <div>
+                            <div class="emp-kpi__label">{{ __('Leave') }}</div>
+                            <div class="emp-kpi__actions">
+                                <a class="btn btn-sm btn-outline-primary" href="{{ route('profile') . '#Leave' }}">{{ __('View Info') }}</a>
+                                <button type="button" class="btn btn-sm btn-primary" id="leave_request">{{ __('Request') }}</button>
                             </div>
-                            <p>{{ __('View Details') }}</p>
-                        </a>
+                        </div>
                     </div>
                 </div>
-
-                <div class="col-md-3 mt-4">
-                    <div class="d-flex wrapper count-title">
-                        <div class="icon purple-text ml-2 mr-3">
-                            <i class="dripicons-trophy"></i>
-                        </div>
-                        <a href="{{ route('profile') . '#Employee_award' }}">
-                            <div class="name">
-                                <h4>{{ $employee_award_count }} {{ __('Award') }}</h4>
+                <div class="col-sm-6 col-lg-3 mb-3">
+                    <div class="emp-kpi emp-kpi--cyan">
+                        <div class="emp-kpi__icon dripicons-home" aria-hidden="true"></div>
+                        <div>
+                            <div class="emp-kpi__label">WFH</div>
+                            <div class="emp-kpi__actions">
+                                <a class="btn btn-sm btn-outline-primary" href="{{ route('profile') . '#WFH' }}">{{ __('View Info') }}</a>
+                                <button type="button" class="btn btn-sm btn-primary" id="wfh_request">{{ __('Request') }}</button>
                             </div>
-                            <p>{{ __('View Details') }}</p>
-                        </a>
+                        </div>
                     </div>
                 </div>
-
-
-                <div class="col-md-3 mt-4">
-                    <div class="d-flex wrapper count-title">
-                        <div class="icon orange-text ml-2 mr-3">
-                            <i class="dripicons-feed"></i>
-                        </div>
-                        <a href="{{ route('announcements.index') }}">
-                            <div class="text-center">
-                                <h4>{{ count($announcements) }} {{ trans('file.Announcement') }}</h4>
+                <div class="col-sm-6 col-lg-3 mb-3">
+                    <div class="emp-kpi emp-kpi--amber">
+                        <div class="emp-kpi__icon dripicons-direction" aria-hidden="true"></div>
+                        <div>
+                            <div class="emp-kpi__label">{{ __('Travel') }}</div>
+                            <div class="emp-kpi__actions">
+                                <a class="btn btn-sm btn-outline-primary" href="{{ route('profile') . '#Profile_travel' }}">{{ __('View Info') }}</a>
+                                <button type="button" class="btn btn-sm btn-primary" id="travel_request">{{ __('Request') }}</button>
                             </div>
-                            <p>{{ __('View Details') }}</p>
-                        </a>
-                    </div>
-                </div>
-
-                <div class="col-md-3 mt-4">
-                    <div class="d-flex wrapper count-title">
-                        <div class="icon green-text ml-2 mr-3">
-                            <i class="dripicons-gaming"></i>
                         </div>
-                        @if (count($holidays) > 0)
-                            <div id="holiday" class="">
-                            @else
-                                <div class="">
-                        @endif
-                        <h4>{{ count($holidays) }} {{ __('Upcoming Holidays') }}</h4>
-                        <p>{{ __('View Details') }}</p>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-3 mb-3">
+                    <div class="emp-kpi emp-kpi--rose">
+                        <div class="emp-kpi__icon dripicons-ticket" aria-hidden="true"></div>
+                        <div>
+                            <div class="emp-kpi__label">{{ __('Complain') }}</div>
+                            <div class="emp-kpi__actions">
+                                <a class="btn btn-sm btn-outline-primary" href="{{ route('profile') . '#Employee_complain' }}">{{ __('View Info') }}</a>
+                                <button type="button" class="btn btn-sm btn-primary" id="ticket_request">{{ __('Open') }}</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-
         </div>
-
-        <div class="row">
-            <div class="col-md-3 mt-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h3 class="text-center">Leave</h3>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <a class="btn btn-link btn-block" href="{{ route('profile') . '#Leave' }}">
-                            {{ __(' View Leave Info') }}
-                        </a>
-                        <button class="btn btn-light btn-block mt-0"
-                            id="leave_request">{{ __('Request Leave') }}</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-3 mt-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h3 class="text-center">WFH</h3>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <a class="btn btn-link btn-block" href="{{ route('profile') . '#WFH' }}">
-                            {{ __('View WFH Info') }}
-                        </a>
-                        <button class="btn btn-light btn-block mt-0" id="wfh_request">{{ __('Request WFH') }}</button>
-                    </div>
-                </div>
-            </div>
-
-
-            <div class="col-md-3 mt-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h3 class="text-center">Travel</h3>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <a class="btn btn-link btn-block" href="{{ route('profile') . '#Profile_travel' }}">
-                            {{ __('View Travel Info') }}
-                        </a>
-                        <button class="btn btn-light btn-block mt-0"
-                            id="travel_request">{{ __('Request Travel') }}</button>
-                    </div>
-                </div>
-            </div>
-
-
-            <div class="col-md-3 mt-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h3 class="text-center">{{ __('Complain') }}</h3>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <a class="btn btn-link btn-block" href="{{ route('profile') . '#Employee_complain' }}">
-                            {{ __('Complain Info') }}
-                        </a>
-                        <button class="btn btn-light btn-block mt-0"
-                            id="ticket_request">{{ __('Open A Complain') }}</button>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-        </div>
-
 
         <div class="container-fluid">
             <div class="row">
-
-                <div class="col-md-4 mt-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h4>{{ __('Assigned Projects') }} ({{ $assigned_projects_count }})</h4>
+                <div class="col-md-4 mb-4">
+                    <div class="emp-panel h-100">
+                        <div class="emp-panel__header d-flex justify-content-between align-items-center">
+                            <div>
+                                <h4 class="emp-panel__title mb-0">{{ __('Assigned Projects') }}</h4>
+                                <p class="emp-panel__subtitle mb-0">{{ $assigned_projects_count }} {{ __('active') }}</p>
+                            </div>
+                            <span class="emp-panel__badge">{{ $assigned_projects_count }}</span>
                         </div>
-                        <div class="card-body list pt-0">
-                            <table class="table">
-                                <tbody>
-                                    @foreach ($assigned_projects as $project)
-                                        @if (count($project->assignedProjects) != 0)
-                                            <tr>
-                                                <td>
-                                                    <a
-                                                        href="{{ route('projects.show', $project->assignedProjects[0]->id) }}">
-                                                        <h5>{{ $project->assignedProjects[0]->title }}</h5>
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        @endif
-                                    @endforeach
-                                </tbody>
-                            </table>
+                        <div class="emp-panel__body emp-list">
+                            @forelse ($assigned_projects as $project)
+                                @if (count($project->assignedProjects) != 0)
+                                    <a href="{{ route('projects.show', $project->assignedProjects[0]->id) }}" class="emp-list__item">
+                                        <span class="dripicons-checklist" aria-hidden="true"></span>
+                                        <span>{{ $project->assignedProjects[0]->title }}</span>
+                                    </a>
+                                @endif
+                            @empty
+                                <p class="text-muted mb-0 small">{{ __('No projects assigned.') }}</p>
+                            @endforelse
                         </div>
                     </div>
                 </div>
 
-                <div class="col-md-4 mt-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h4>{{ __('Assigned Tasks') }} ({{ $assigned_tasks_count }})</h4>
+                <div class="col-md-4 mb-4">
+                    <div class="emp-panel h-100">
+                        <div class="emp-panel__header d-flex justify-content-between align-items-center">
+                            <div>
+                                <h4 class="emp-panel__title mb-0">{{ __('Assigned Tasks') }}</h4>
+                                <p class="emp-panel__subtitle mb-0">{{ $assigned_tasks_count }} {{ __('pending') }}</p>
+                            </div>
+                            <span class="emp-panel__badge">{{ $assigned_tasks_count }}</span>
                         </div>
-                        <div class="card-body list pt-0">
-                            <table class="table">
-                                <tbody>
-                                    @foreach ($assigned_tasks as $task)
-                                        @if (count($task->assignedTasks) != 0)
-                                            <tr>
-                                                <td>
-                                                    <a href="{{ route('tasks.show', $task->assignedTasks[0]->id) }}">
-                                                        <h5>{{ $task->assignedTasks[0]->task_name }}</h5>
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        @endif
-                                    @endforeach
-                                </tbody>
-                            </table>
+                        <div class="emp-panel__body emp-list">
+                            @forelse ($assigned_tasks as $task)
+                                @if (count($task->assignedTasks) != 0)
+                                    <a href="{{ route('tasks.show', $task->assignedTasks[0]->id) }}" class="emp-list__item">
+                                        <span class="dripicons-to-do" aria-hidden="true"></span>
+                                        <span>{{ $task->assignedTasks[0]->task_name }}</span>
+                                    </a>
+                                @endif
+                            @empty
+                                <p class="text-muted mb-0 small">{{ __('No tasks assigned.') }}</p>
+                            @endforelse
                         </div>
                     </div>
                 </div>
 
-                <div class="col-md-4 mt-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h4>{{ __('Assigned Tickets') }} ({{ $assigned_tickets_count }})</h4>
+                <div class="col-md-4 mb-4">
+                    <div class="emp-panel h-100">
+                        <div class="emp-panel__header d-flex justify-content-between align-items-center">
+                            <div>
+                                <h4 class="emp-panel__title mb-0">{{ __('Assigned Tickets') }}</h4>
+                                <p class="emp-panel__subtitle mb-0">{{ $assigned_tickets_count }} {{ __('open') }}</p>
+                            </div>
+                            <span class="emp-panel__badge">{{ $assigned_tickets_count }}</span>
                         </div>
-                        <div class="card-body list pt-0">
-                            <table class="table">
-                                <tbody>
-                                    @foreach ($assigned_tickets as $ticket)
-                                        @if (count($ticket->assignedTickets) != 0)
-                                            <tr>
-                                                <td>
-                                                    <a
-                                                        href="{{ route('tickets.show', $ticket->assignedTickets[0]->ticket_code) }}">
-                                                        <h5>{{ $ticket->assignedTickets[0]->subject }}</h5>
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        @endif
-                                    @endforeach
-                                </tbody>
-                            </table>
+                        <div class="emp-panel__body emp-list">
+                            @forelse ($assigned_tickets as $ticket)
+                                @if (count($ticket->assignedTickets) != 0)
+                                    <a href="{{ route('tickets.show', $ticket->assignedTickets[0]->ticket_code) }}" class="emp-list__item">
+                                        <span class="dripicons-ticket" aria-hidden="true"></span>
+                                        <span>{{ $ticket->assignedTickets[0]->subject }}</span>
+                                    </a>
+                                @endif
+                            @empty
+                                <p class="text-muted mb-0 small">{{ __('No tickets assigned.') }}</p>
+                            @endforelse
                         </div>
                     </div>
                 </div>
@@ -709,6 +631,228 @@
     </section>
 @endsection
 
+@push('css')
+<style>
+    .emp-dashboard {
+        --emp-primary: #37205b;
+        --emp-violet: #5b4a9a;
+        --emp-violet-light: #7c5cc4;
+        --emp-cyan: #19aed9;
+        --emp-ink: #1e293b;
+        --emp-muted: #64748b;
+        --emp-border: #e2e8f0;
+    }
+
+    .emp-dashboard .emp-hero {
+        background: linear-gradient(135deg, #37205b 0%, #5b4a9a 55%, #7c5cc4 100%);
+        color: #fff;
+        border-radius: 16px;
+        box-shadow: 0 18px 40px rgba(55, 32, 91, 0.18);
+    }
+
+    .emp-dashboard .emp-hero__avatar {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.35);
+        flex-shrink: 0;
+    }
+
+    .emp-dashboard .emp-hero__avatar--photo { object-fit: cover; }
+    .emp-dashboard .emp-hero__avatar--initials {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.15);
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .emp-dashboard .emp-hero__eyebrow {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        opacity: 0.85;
+        margin-bottom: 4px;
+    }
+
+    .emp-dashboard .emp-hero__title { font-size: 1.5rem; font-weight: 700; margin-bottom: 0; }
+    .emp-dashboard .emp-hero__subtitle { opacity: 0.92; font-size: 0.92rem; }
+    .emp-dashboard .emp-hero__meta { font-size: 0.85rem; opacity: 0.88; }
+    .emp-dashboard .emp-hero__overtime { font-size: 0.88rem; opacity: 0.95; }
+
+    .emp-dashboard .emp-hero__actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .emp-dashboard .emp-hero__clock-form {
+        display: inline-flex;
+        align-items: center;
+        margin: 0;
+    }
+
+    .emp-dashboard .emp-hero__btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 34px;
+        line-height: 1.2;
+        margin: 0;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .emp-dashboard .emp-hero__btn i:before {
+        line-height: 1;
+        vertical-align: middle;
+    }
+
+    .emp-dashboard .emp-kpi {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: #fff;
+        border: 1px solid var(--emp-border);
+        border-radius: 14px;
+        padding: 18px;
+        height: 100%;
+        text-decoration: none;
+        color: inherit;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .emp-dashboard .emp-kpi:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .emp-dashboard .emp-kpi__icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        line-height: 1;
+    }
+
+    .emp-dashboard [class*="dripicons-"]:before {
+        font-family: "dripicons-v2" !important;
+        font-style: normal !important;
+        line-height: 1;
+    }
+
+    .emp-dashboard .emp-kpi--violet .emp-kpi__icon { background: rgba(91, 74, 154, 0.12); color: var(--emp-violet); }
+    .emp-dashboard .emp-kpi--cyan .emp-kpi__icon { background: rgba(25, 174, 217, 0.12); color: var(--emp-cyan); }
+    .emp-dashboard .emp-kpi--amber .emp-kpi__icon { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+    .emp-dashboard .emp-kpi--emerald .emp-kpi__icon { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+    .emp-dashboard .emp-kpi--rose .emp-kpi__icon { background: rgba(244, 96, 91, 0.12); color: #f4605b; }
+
+    .emp-dashboard .emp-kpi__label { font-weight: 700; color: var(--emp-ink); font-size: 0.95rem; }
+    .emp-dashboard .emp-kpi__meta { font-size: 0.8rem; color: var(--emp-muted); }
+
+    .emp-dashboard .emp-kpi__actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+    }
+
+    .emp-dashboard .emp-kpi__actions .btn {
+        font-size: 0.72rem;
+        padding: 3px 10px;
+        line-height: 1.35;
+        border-radius: 6px;
+        white-space: nowrap;
+    }
+
+    .emp-dashboard .emp-panel {
+        background: #fff;
+        border: 1px solid var(--emp-border);
+        border-radius: 14px;
+        box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+        overflow: hidden;
+    }
+
+    .emp-dashboard .emp-panel__header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--emp-border);
+        background: linear-gradient(180deg, #fafbfe 0%, #fff 100%);
+    }
+
+    .emp-dashboard .emp-panel__title { font-size: 1rem; font-weight: 700; color: var(--emp-ink); }
+    .emp-dashboard .emp-panel__subtitle { font-size: 0.82rem; color: var(--emp-muted); }
+    .emp-dashboard .emp-panel__badge {
+        background: rgba(91, 74, 154, 0.12);
+        color: var(--emp-violet);
+        font-weight: 700;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+    }
+
+    .emp-dashboard .emp-panel__body { padding: 12px 16px 16px; }
+
+    .emp-dashboard .emp-quick-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border: 1px solid var(--emp-border);
+        border-radius: 10px;
+        text-decoration: none;
+        color: var(--emp-ink);
+        transition: background 0.15s ease;
+    }
+
+    .emp-dashboard .emp-quick-link:hover {
+        background: rgba(91, 74, 154, 0.06);
+        text-decoration: none;
+        color: var(--emp-ink);
+    }
+
+    .emp-dashboard .emp-quick-link .badge { margin-left: auto; }
+
+    .emp-dashboard .emp-list__item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        color: var(--emp-ink);
+        text-decoration: none;
+        border-bottom: 1px dashed var(--emp-border);
+        font-size: 0.9rem;
+        transition: background 0.15s ease;
+    }
+
+    .emp-dashboard .emp-list__item:last-child { border-bottom: none; }
+    .emp-dashboard .emp-list__item:hover {
+        background: rgba(91, 74, 154, 0.06);
+        text-decoration: none;
+        color: var(--emp-violet);
+    }
+
+    .emp-dashboard .emp-list__item > [class*="dripicons-"] {
+        font-size: 1rem;
+        color: var(--emp-violet);
+        flex-shrink: 0;
+    }
+</style>
+@endpush
 
 @push('scripts')
     <script>
@@ -1029,142 +1173,5 @@
         })(jQuery);
     </script>
 
-    <script>
-        function handleGeneralLocationCapture() {
-            if (!navigator.geolocation) {
-                document.getElementById('set_clocking').submit();
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    document.getElementById('user_lat').value = position.coords.latitude;
-                    document.getElementById('user_lng').value = position.coords.longitude;
-                    document.getElementById('set_clocking').submit();
-                },
-                function() {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: '{{ __('Location not captured') }}',
-                        text: '{{ __('Attendance will be saved without GPS. Allow location access to record where you clocked in/out.') }}',
-                        confirmButtonText: 'OK'
-                    }).then(function() {
-                        document.getElementById('set_clocking').submit();
-                    });
-                }, {
-                    enableHighAccuracy: true,
-                    timeout: 15000,
-                    maximumAge: 0
-                }
-            );
-        }
-
-        function handleLocationSubmit() {
-            if (!navigator.geolocation) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Location Access Unavailable',
-                    text: 'Your browser does not support location services. Please use a supported browser or device and try again.'
-                });
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    let userLat = position.coords.latitude;
-                    let userLng = position.coords.longitude;
-
-                    document.getElementById('user_lat').value = userLat;
-                    document.getElementById('user_lng').value = userLng;
-
-                    let officeLat = parseFloat(
-                        "{{ $employee->location?->latitude ?? ($general_setting->latitude ?? 'NaN') }}");
-                    let officeLng = parseFloat(
-                        "{{ $employee->location?->longitude ?? ($general_setting->longitude ?? 'NaN') }}");
-                    let maxRadius = parseFloat(
-                        "{{ $employee->location?->max_radius ?? ($general_setting->max_radius ?? 'NaN') }}");
-
-                    if (isNaN(officeLat) || isNaN(officeLng)) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Office Location Not Configured',
-                            text: 'The office location is not configured yet. Please contact the administrator.'
-                        });
-                        return;
-                    }
-
-                    if (isNaN(maxRadius) || maxRadius <= 0) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Radius Not Configured',
-                            text: 'The allowed office radius is not configured correctly. Please contact the administrator.'
-                        });
-                        return;
-                    }
-
-                    let distance = getDistance(officeLat, officeLng, userLat, userLng);
-
-                    console.log('Office Lat:', officeLat);
-                    console.log('Office Lng:', officeLng);
-                    console.log('User Lat:', userLat);
-                    console.log('User Lng:', userLng);
-                    console.log('Distance:', distance);
-                    console.log('Max Radius:', maxRadius);
-
-                    if (distance > maxRadius) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Outside Office Area',
-                            text: 'You are currently outside the allowed office area. Please move closer to the office and try again.',
-                            confirmButtonText: 'OK'
-                        });
-                        return;
-                    }
-
-                    document.getElementById('set_clocking').submit();
-                },
-                function(error) {
-                    let message =
-                        'Location access is required to continue. Please allow location access and try again.';
-
-                    if (error.code === 1) {
-                        message = 'Location permission was denied. Please allow location access and try again.';
-                    } else if (error.code === 2) {
-                        message =
-                            'We were unable to detect your current location. Please check your device settings and try again.';
-                    } else if (error.code === 3) {
-                        message = 'The location request took too long to complete. Please try again.';
-                    }
-
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Location Error',
-                        text: message
-                    });
-
-                    console.log(error);
-                }, {
-                    enableHighAccuracy: true,
-                    timeout: 15000,
-                    maximumAge: 0
-                }
-            );
-        }
-
-        function getDistance(lat1, lon1, lat2, lon2) {
-            let R = 6371000; // meters
-            let dLat = (lat2 - lat1) * Math.PI / 180;
-            let dLon = (lon2 - lon1) * Math.PI / 180;
-
-            let a =
-                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(lat1 * Math.PI / 180) *
-                Math.cos(lat2 * Math.PI / 180) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2);
-
-            let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-            return R * c;
-        }
-    </script>
+    @include('partials.attendance_clock_gps', ['clockFormId' => 'set_clocking'])
 @endpush

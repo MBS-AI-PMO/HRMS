@@ -21,17 +21,32 @@ class AttendanceOvertimeService
         return $currentTime > $shiftOut;
     }
 
+    public static function isOffDay(?string $shiftIn, ?string $shiftOut): bool
+    {
+        return empty($shiftIn) || empty($shiftOut);
+    }
+
+    public static function canStartOvertimeSession(?Attendance $lastAttendance): bool
+    {
+        if (! $lastAttendance) {
+            return true;
+        }
+
+        return (int) $lastAttendance->clock_in_out === 0;
+    }
+
     public static function canStartOvertime(?string $shiftOut, ?Attendance $lastAttendance): bool
     {
         if (! self::isShiftEnded($shiftOut)) {
             return false;
         }
 
-        if (! $lastAttendance) {
-            return true;
-        }
+        return self::canStartOvertimeSession($lastAttendance);
+    }
 
-        return (int) $lastAttendance->clock_in_out === 0;
+    public static function canOvertimeOnOffDay(?Attendance $lastAttendance): bool
+    {
+        return self::canStartOvertimeSession($lastAttendance);
     }
 
     public static function isActiveOvertimeSession(?Attendance $attendance): bool

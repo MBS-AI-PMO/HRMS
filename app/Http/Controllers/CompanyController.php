@@ -25,6 +25,11 @@ class CompanyController extends Controller {
 				{
 					return $company->id;
 				})
+				->addColumn('company_name', function ($data) {
+					$name = e($data->company_name);
+
+					return '<a href="'.route('companies.dashboard', $data->id).'" class="font-weight-bold">'.$name.'</a>';
+				})
 				->addColumn('city',function ($row)
 				{
 					return $row->Location->city ?? "" ;
@@ -48,7 +53,7 @@ class CompanyController extends Controller {
 					}
 					return $button;
 				})
-				->rawColumns(['action'])
+				->rawColumns(['action', 'company_name'])
 				->make(true);
 		}
 
@@ -207,6 +212,19 @@ class CompanyController extends Controller {
 
 		if ($logged_user->can('delete-company'))
 		{
+			$companyEmployees = \App\Models\Employee::query()
+				->where('company_id', $id)
+				->whereNull('client_id')
+				->count();
+
+			if ($companyEmployees > 0) {
+				return response()->json([
+					'error' => __('This company has :count direct employee(s). Reassign or deactivate them before deleting the company.', [
+						'count' => $companyEmployees,
+					]),
+				], 422);
+			}
+
             company::whereId($id)->delete();
 			return response()->json(['success' => __('Data is successfully deleted')]);
 

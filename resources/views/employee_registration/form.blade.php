@@ -9,9 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --reg-primary: #6c5ce7;
-            --reg-primary-dark: #5b4cdb;
-            --reg-bg: #f0f2f8;
+            --reg-primary: #5b4a9a;
+            --reg-primary-dark: #37205B;
+            --reg-bg: #f1f5f9;
             --reg-card: #ffffff;
             --reg-text: #1e293b;
             --reg-muted: #64748b;
@@ -21,14 +21,38 @@
         * { box-sizing: border-box; }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--reg-bg);
+            background: linear-gradient(135deg, #f1f5f9 0%, #e8edf5 50%, #f1f5f9 100%);
             min-height: 100vh;
             margin: 0;
             color: var(--reg-text);
         }
+        .reg-topbar {
+            max-width: 820px;
+            width: 100%;
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 0.25rem;
+        }
+        .reg-topbar__back {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--reg-primary);
+            text-decoration: none;
+        }
+        .reg-topbar__back:hover { text-decoration: underline; color: var(--reg-primary-dark); }
+        .reg-topbar__site {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: var(--reg-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
         .reg-page {
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 2rem 1rem;
@@ -38,7 +62,7 @@
             max-width: 820px;
             background: var(--reg-card);
             border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,.06), 0 20px 40px -12px rgba(108,92,231,.15);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,.06), 0 20px 40px -12px rgba(55,32,91,.18);
             overflow: hidden;
             border: 1px solid var(--reg-border);
         }
@@ -81,7 +105,7 @@
             color: var(--reg-primary);
             margin-bottom: 1rem;
             padding-bottom: 0.5rem;
-            border-bottom: 2px solid rgba(108, 92, 231, 0.15);
+            border-bottom: 2px solid rgba(91, 74, 154, 0.18);
         }
         .reg-label {
             font-size: 0.8125rem;
@@ -100,7 +124,7 @@
         }
         .form-control:focus {
             border-color: var(--reg-primary);
-            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15);
+            box-shadow: 0 0 0 3px rgba(91, 74, 154, 0.15);
         }
         .field-block { display: none; }
         .field-block.visible { display: block; }
@@ -123,8 +147,8 @@
         }
         .btn-register:hover:not(:disabled) {
             transform: translateY(-1px);
-            box-shadow: 0 8px 20px rgba(108, 92, 231, 0.35);
-            background: linear-gradient(135deg, var(--reg-primary-dark) 0%, #4a3ec9 100%);
+            box-shadow: 0 8px 20px rgba(55, 32, 91, 0.32);
+            background: linear-gradient(135deg, var(--reg-primary-dark) 0%, #2d1848 100%);
         }
         .btn-register:disabled {
             opacity: 0.65;
@@ -182,7 +206,7 @@
         .reg-loader-spinner {
             width: 48px;
             height: 48px;
-            border: 4px solid rgba(108, 92, 231, 0.2);
+            border: 4px solid rgba(91, 74, 154, 0.2);
             border-top-color: var(--reg-primary);
             border-radius: 50%;
             animation: reg-spin 0.75s linear infinite;
@@ -213,6 +237,10 @@
 </head>
 <body>
 <div class="reg-page">
+    <div class="reg-topbar">
+        <a href="{{ route('login') }}" class="reg-topbar__back">&larr; {{ __('Back to Login') }}</a>
+        <span class="reg-topbar__site">{{ $general_setting->site_title ?? 'HRMS' }}</span>
+    </div>
     <div class="reg-card">
         <div id="reg_loader" class="reg-loader-overlay" aria-live="polite" aria-busy="true">
             <div class="reg-loader-spinner"></div>
