@@ -1,20 +1,20 @@
 {
     "private": true,
     "engines": {
-        "node": "18.x",
+        "node": ">=18.0.0",
         "npm": ">=9.0.0"
     },
     "scripts": {
         "dev": "npm run development",
-        "development": "cross-env NODE_ENV=development node_modules/webpack/bin/webpack.js --progress --hide-modules --config=node_modules/laravel-mix/setup/webpack.config.js",
+        "development": "cross-env NODE_ENV=development node_modules/webpack/bin/webpack.js --progress --config=node_modules/laravel-mix/setup/webpack.config.js",
         "watch": "npm run development -- --watch",
         "watch-poll": "npm run watch -- --watch-poll",
         "hot": "cross-env NODE_ENV=development node_modules/webpack-dev-server/bin/webpack-dev-server.js --inline --hot --config=node_modules/laravel-mix/setup/webpack.config.js",
         "prod": "npm run production",
-        "production": "cross-env NODE_ENV=production node_modules/webpack/bin/webpack.js --no-progress --hide-modules --config=node_modules/laravel-mix/setup/webpack.config.js",
-        "postinstall": "npm run production"
+        "production": "cross-env NODE_ENV=production node_modules/webpack/bin/webpack.js --config=node_modules/laravel-mix/setup/webpack.config.js"
     },
     "devDependencies": {
+        "@popperjs/core": "^2.11.8",
         "@types/jquery": "^3.5.30",
         "axios": "^0.27",
         "bootstrap": "^5.3.0",
@@ -27,6 +27,13 @@
         "sass": "^1.56.0",
         "sass-loader": "^13.0.0",
         "vue": "^3.3.0",
-        "vue-template-compiler": "^2.7.14"
+        "vue-template-compiler": "^2.7.14",
+        "webpack": "^5.88.2",
+        "webpack-cli": "^4.10.0"
+    },
+    "dependencies": {
+        "npm": "^11.18.0",
+        "production": "^0.0.2",
+        "run": "^1.5.0"
     }
 }
