@@ -68,6 +68,14 @@ COPY --from=assets /app/public/css ./public/css
 RUN composer dump-autoload --optimize \
     && php artisan package:discover --ansi || true \
     && php artisan vendor:publish --provider="JoeDixon\\Translation\\TranslationServiceProvider" --tag=assets --force || true \
+    && mkdir -p \
+        storage/app/public \
+        storage/framework/cache/data \
+        storage/framework/sessions \
+        storage/framework/testing \
+        storage/framework/views \
+        storage/logs \
+        bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R ug+rwx storage bootstrap/cache \
     && rm -f /etc/nginx/sites-enabled/default \
