@@ -682,11 +682,8 @@
         $('#marital_status').selectpicker('val', $('input[name="marital_status_hidden"]').val());
 
         @include('employee.partials.owner_fields_script')
-        $('#department_id').selectpicker('val', $('input[name="department_id_hidden"]').val());
-        $('#designation_id').selectpicker('val', $('input[name="designation_id_hidden"]').val());
 
         $('#status_id').selectpicker('val', $('input[name="status_id_hidden"]').val());
-        $('#office_shift_id').selectpicker('val', $('input[name="office_shift_id_hidden"]').val());
         $('#location_id').selectpicker('val', $('input[name="location_id_hidden"]').val());
 
 

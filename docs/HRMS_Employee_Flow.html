@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>EMS — Employee Flow Guide</title>
+    <style>
+        @page { size: A4; margin: 18mm 16mm; }
+        body {
+            font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+            font-size: 11pt;
+            color: #1f2937;
+            line-height: 1.65;
+            margin: 0;
+            padding: 24px 30px;
+            background: #fff;
+        }
+        .cover {
+            text-align: center;
+            padding: 40px 10px 30px;
+            border-bottom: 3px solid #7C5CC4;
+            margin-bottom: 24px;
+        }
+        .cover h1 { font-size: 24pt; color: #4a3f8c; margin: 0 0 6px; }
+        .cover p { color: #6b7280; margin: 4px 0; }
+        h2 {
+            font-size: 13.5pt;
+            color: #4a3f8c;
+            margin: 22px 0 8px;
+            padding-bottom: 3px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        h3 { font-size: 11.5pt; color: #374151; margin: 14px 0 6px; }
+        p { margin: 0 0 10px; }
+        .flow {
+            background: #f8f7fc;
+            border-left: 4px solid #7C5CC4;
+            padding: 10px 14px;
+            margin: 10px 0 14px;
+            font-size: 10.5pt;
+        }
+        .flow strong { color: #4a3f8c; }
+        .demo-url {
+            text-align: center;
+            font-size: 12pt;
+            margin: 12px 0 18px;
+        }
+        .demo-url a { color: #4a3f8c; font-weight: 600; text-decoration: none; }
+        .cred {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin: 0 0 10px;
+            font-size: 10.5pt;
+        }
+        .cred .role {
+            font-weight: 600;
+            color: #4a3f8c;
+            margin-bottom: 4px;
+        }
+        ul { margin: 6px 0 12px 22px; padding: 0; }
+        li { margin-bottom: 5px; }
+        .page-break { page-break-before: always; }
+        .footer {
+            margin-top: 28px;
+            padding-top: 10px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 9pt;
+            color: #9ca3af;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="cover">
+    <h1>EMS</h1>
+    <p><strong>Employee Flow Guide</strong></p>
+    <p>Day-to-day guide for staff using the Employee Portal</p>
+</div>
+
+<p>After login, employees land on the <strong>Employee Dashboard</strong> at <code>/employee/dashboard</code>. This document covers only the employee journey — not admin, HR, or client portal screens.</p>
+
+<h2>What is an employee in HRMS?</h2>
+<p>An <strong>employee</strong> is a staff member with role 3 and an employee record linked to their user account. They use the Employee Portal for self-service: attendance, leave, profile, payslips, announcements, and assigned projects/tasks. They see only their own data unless they are also assigned as a team leader, location head, or department head (a small extra slice is described at the end).</p>
+
+<h2>Login flow</h2>
+<div class="flow">
+    Employee opens login page → enters username &amp; password → system validates credentials →
+    <strong>Employee Dashboard</strong> (<code>/employee/dashboard</code>)
+</div>
+<p>Login checks <strong>username and password</strong> only. If clock-in is enabled, some companies also require you to be on office internet (IP-based) or within GPS range (location-based) when marking attendance.</p>
+
+<h2>How employees enter the system</h2>
+<p><strong>HR/Admin adds employee</strong> — HR creates your user account and employee record. Login credentials may be emailed to you.</p>
+<p><strong>Public registration</strong> — If enabled, you fill the registration form yourself. The system creates an active user + employee (role 3) and emails your login details. Fields and defaults (shift, department, etc.) are set by your company under Settings → Employee Registration.</p>
+
+<h2>Employee Dashboard — overview</h2>
+<p>After login you see your name, designation, department, last login, and today’s shift times. The dashboard is your home screen for daily work.</p>
+<ul>
+    <li><strong>Profile</strong> — open your full employee profile</li>
+    <li><strong>Clock IN / Clock OUT</strong> — mark attendance (when enabled by your company)</li>
+    <li><strong>Payslip</strong> — quick link to your salary slips</li>
+    <li><strong>Awards</strong> — view awards received</li>
+    <li><strong>Announcements</strong> — company notices</li>
+    <li><strong>Upcoming Holidays</strong> — planned holidays</li>
+    <li><strong>Leave / WFH / Travel / Complain</strong> — view history or submit new requests</li>
+    <li><strong>Assigned Projects &amp; Tasks</strong> — work assigned to you by HR or project managers</li>
+</ul>
+
+<h2>Attendance — clock in &amp; clock out</h2>
+<div class="flow">
+    Employee opens Dashboard → clicks <strong>Clock IN</strong> at shift start → works through the day → clicks <strong>Clock OUT</strong> at end of shift → attendance is recorded for that date
+</div>
+<p>Your shift times (start/end) come from the office shift assigned to you. If your company enables overtime, you may see <strong>Overtime Clock IN/OUT</strong> on off-days or after regular shift hours.</p>
+<p><strong>Attendance types</strong> (set by HR on your employee record):</p>
+<ul>
+    <li><strong>General</strong> — clock in/out from the dashboard without extra checks</li>
+    <li><strong>IP-based</strong> — you must be on the office network to clock in/out; button is disabled otherwise</li>
+    <li><strong>Location-based</strong> — browser may ask for GPS; you must be within the allowed radius of your assigned location</li>
+</ul>
+<p>You cannot edit company-wide attendance records. View your own attendance history from <strong>Profile → Attendance</strong> (if shown on your profile).</p>
+
+<h2>Leave flow</h2>
+<div class="flow">
+    Dashboard → <strong>Leave → Request</strong> (or Profile → Leave tab) → select leave type &amp; dates → submit → status = <strong>Pending</strong> → approver acts → you receive notification → status becomes Approved or Rejected
+</div>
+<p>From the dashboard you can also click <strong>View Info</strong> to see leave balance and past requests on your profile.</p>
+<p><strong>Who approves?</strong> Usually your team leader, department head, location head, or HR — whichever applies to your organization. You do not approve your own leave.</p>
+<p>Leave types (CL, SL, ML, etc.) and balances are configured by HR. You can only apply for types assigned to you.</p>
+
+<h2>Work From Home (WFH) flow</h2>
+<div class="flow">
+    Dashboard → <strong>WFH → Request</strong> (or Profile → WFH tab) → select dates &amp; reason → submit → pending approval → notification on decision
+</div>
+<p>WFH works like leave but uses WFH-specific leave types. Track status from the same profile section or dashboard cards.</p>
+
+<div class="page-break"></div>
+
+<h2>Travel flow</h2>
+<div class="flow">
+    Dashboard → <strong>Travel → Request</strong> (or Profile → Travel tab) → fill travel details (dates, purpose, mode) → submit → HR/manager reviews → status updated
+</div>
+<p>View past and pending travel requests from your profile. Approved travel may appear on calendars if your company uses the HR calendar module.</p>
+
+<h2>Complaints flow</h2>
+<div class="flow">
+    Dashboard → <strong>Complain → Open</strong> (or Profile → Complaints tab) → describe the issue → submit ticket → HR/support reviews → status updated
+</div>
+<p>Use this to raise workplace complaints or support tickets. You see only your own complaints, not other employees’.</p>
+
+<h2>Profile</h2>
+<p>Open <strong>Profile</strong> from the dashboard hero area or sidebar. Your profile is the central place for personal and job information.</p>
+<ul>
+    <li>Basic info — name, contact, designation, department, joining date</li>
+    <li>Change password — update your login password</li>
+    <li>Documents, qualifications, work experience, bank account (as enabled)</li>
+    <li>Leave, WFH, Travel, Complaints — history and new requests</li>
+    <li>Payslip — download or view monthly salary slips</li>
+    <li>Awards — recognition received</li>
+    <li>Activity logs — your recent actions in the system (if enabled)</li>
+</ul>
+<p>You can update fields that HR allows employees to edit (e.g. contact details, photo). Sensitive HR fields may be read-only.</p>
+
+<h2>Payslip</h2>
+<div class="flow">
+    Dashboard → Payslip card → Profile → Payslip section → select month → view or download PDF
+</div>
+<p>You see only your own payslips. Payroll is generated by HR; employees do not run payroll or pay other staff.</p>
+
+<h2>Announcements &amp; holidays</h2>
+<p><strong>Announcements</strong> — Click the announcement card on the dashboard or open Announcements from the sidebar (if visible). Read company-wide notices posted by HR.</p>
+<p><strong>Holidays</strong> — The dashboard shows upcoming holidays count. Click to see dates and titles. Holidays follow your company’s holiday calendar and assigned office shift.</p>
+
+<h2>Projects</h2>
+<div class="flow">
+    HR assigns you to a project → project appears on Dashboard under <strong>Assigned Projects</strong> → click to open details 
+</div>
+<p>Employees view and work on assigned items only. They do not create company projects or assign other employees unless given separate HR permissions.</p>
+
+<h2>Notifications</h2>
+<p>When leave/WFH is approved or rejected, or when HR sends notices, you may get in-app notifications (bell icon) and email. Open notifications from the top bar to see recent updates.</p>
+
+<h2>Password change</h2>
+<div class="flow">
+    Profile → Change Password → enter current password &amp; new password → save → use new password on next login
+</div>
+
+<h2>Data you can see (simple rule)</h2>
+<p><strong>Regular employee</strong> — own attendance, leave, WFH, travel, complaints, payslips, profile, announcements, holidays, and assigned projects/tasks.</p>
+<p><strong>Not visible</strong> — other employees’ records, company payroll runs, HR master data, admin settings, or other companies’ data.</p>
+
+<h2>Optional: team / location / department leader extras</h2>
+<p>Most employees use only the flows above. If HR assigns you as a <strong>team leader</strong>, <strong>location head</strong>, or <strong>department head</strong>, extra menus may appear:</p>
+<ul>
+    <li><strong>My Team</strong> — view team you belong to or lead</li>
+    <li><strong>Employee List</strong> — limited list of your team or location members (not full company)</li>
+    <li><strong>L/ WFH Requests</strong> — approve or reject requests from your team, department, or location only</li>
+    <li><strong>My Centers / Locations</strong> — for location heads managing their site</li>
+</ul>
+<p>These are add-ons on top of the normal employee role. You remain an employee first; leader tools do not turn you into full HR unless admin grants those permissions separately.</p>
+
+<h2>Quick mental model</h2>
+<p>Log in → land on Employee Dashboard → clock in/out for the day → use dashboard cards for leave, WFH, travel, or complaints → check payslip and announcements in Profile → complete assigned projects and tasks. Everything is self-service for <strong>your own</strong> work life; managers and HR handle approvals and company-wide setup behind the scenes.</p>
+
+</body>
+</html>
