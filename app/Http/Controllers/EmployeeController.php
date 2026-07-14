@@ -412,7 +412,7 @@ class EmployeeController extends Controller
 
                 $validator = Validator::make(
                     $request->only(
-                        'first_name', 'last_name', 'email', 'contact_no', 'cnic', 'address', 'date_of_birth', 'gender',
+                        'first_name', 'last_name', 'email','remove_profile_photo', 'contact_no', 'cnic', 'address', 'date_of_birth', 'gender',
                         'username', 'role_users_id', 'password', 'password_confirmation', 'employee_owner_type',
                         'company_id', 'client_id', 'department_id',
                         'designation_id', 'office_shift_id', 'attendance_type', 'joining_date', 'location_id'
@@ -1038,7 +1038,12 @@ return response()->json([
 
                 $user['profile_photo'] = $file_name;
             }
+if ($request->remove_profile_photo == 1) {
 
+    $this->unlink($employee);
+
+    $user['profile_photo'] = null;
+}
             $data['first_name'] = $request->first_name;
             $data['last_name'] = $request->last_name;
             $data['date_of_birth'] = $request->date_of_birth;
@@ -1177,7 +1182,21 @@ return response()->json([
 
         return response()->json(['success' => __('You are not authorized')]);
     }
+public function removeProfilePhoto($employee)
+{
+    $user = User::find($employee);
 
+    if ($user && $user->profile_photo) {
+
+        $user->profile_photo = null;
+        $user->save();
+
+    }
+
+    return response()->json([
+        'success' => true
+    ]);
+}
     public function setSalary(Employee $employee)
     {
         $logged_user = auth()->user();
