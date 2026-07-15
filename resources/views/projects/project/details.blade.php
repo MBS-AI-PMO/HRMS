@@ -73,7 +73,7 @@
 
             <div class="pd-panel mb-4">
                 <div class="pd-panel__head">
-                    <h3>{{ __('Assigned Employees') }}</h3>
+                    <h3>{{ __('Assigned Project Leads') }}</h3>
                     <p>{{ __('Team members linked to this project') }}</p>
                 </div>
                 <div class="pd-panel__body">
