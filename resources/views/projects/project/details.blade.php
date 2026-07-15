@@ -553,8 +553,9 @@
                 width: 'resolve',
                 theme: "classic",
             });
-            $('#employee_id').val(assigned);
-            $('#employee_id').trigger('change');
+            if (Array.isArray(assigned) && assigned.length) {
+                $('#employee_id').val(assigned.map(String)).trigger('change');
+            }
 
 
 
