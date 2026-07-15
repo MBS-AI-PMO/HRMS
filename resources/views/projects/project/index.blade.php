@@ -21,7 +21,7 @@
                     <th class="not-exported"></th>
                     <th>{{__('Project Name')}}</th>
                     <th>{{__('Project Category')}}</th>
-                    <th>{{__('Assigned Employees')}}</th>
+                    <th>{{__('Assigned Project Leads')}}</th>
                     <th>{{trans('file.Client')}}</th>
                     <th>{{__('Start Date')}}</th>
                     <th>{{__('End Date')}}</th>
@@ -107,7 +107,7 @@
                             </div>
 
                             <div class="col-md-12 form-group">
-                                <label>{{__('Assigned Employees')}} *</label>
+                                <label>{{__('Assigned Project Leads')}}</label>
                                 <select name="employee_id[]" id="employee_id" class="form-control js-example-responsive"
                                         multiple="multiple">
 

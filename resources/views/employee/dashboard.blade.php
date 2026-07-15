@@ -154,19 +154,29 @@
 
                                                                     <div class="d-flex align-items-center mb-2">
 
-                                                                       @if ($employee->user?->profile_photo)
-    <img id="profile_photo_preview"
-        src="{{ url('uploads/profile_photos/' . $employee->user->profile_photo) }}"
-        height="100" width="100"
-        style="border-radius:50%;object-fit:cover;">
-@else
-    <div id="profile_initials"
-        style="height:100px;width:100px;border-radius:50%;
-        background:#ddd;display:flex;align-items:center;
-        justify-content:center;font-size:30px;font-weight:bold;">
-        {{ strtoupper(substr($employee->first_name,0,1).substr($employee->last_name,0,1)) }}
-    </div>
-@endif
+                                                                        @if ($employee->user?->profile_photo)
+                                                                            <img id="profile_photo_preview"
+                                                                                src="{{ url('uploads/profile_photos/' . $employee->user->profile_photo) }}"
+                                                                                height="100" width="100"
+                                                                                style="border-radius:50%;object-fit:cover;">
+                                                                        @else
+                                                                            <div id="profile_initials"
+                                                                                style="
+        width:100px;
+        height:100px;
+        border-radius:50%;
+        background:#7C5CC4;
+        color:#fff;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:32px;
+        font-weight:700;
+        overflow:hidden;
+">
+                                                                                {{ strtoupper(substr($employee->first_name, 0, 1) . substr($employee->last_name, 0, 1)) }}
+                                                                            </div>
+                                                                        @endif
 
 
                                                                         <div
@@ -944,11 +954,20 @@
                         html += '</div>';
                     }
                     if (data.success) {
-                        $('#remaining_leave').val(data.remaining_leave)
+                        $('#remaining_leave').val(data.remaining_leave);
+
                         html = '<div class="alert alert-success">' + data.success + '</div>';
+
                         $('#password, #confirm_pass').val('');
                         $('#divCheckPasswordMatch').html('');
+
+                        $('#form_result').html(html).slideDown(300);
+
+                        setTimeout(function() {
+                            location.reload();
+                        }, 500);
                     }
+
                     $('#form_result').html(html).slideDown(300).delay(5000).slideUp(300);
                 },
                 error: function(xhr) {
@@ -1032,35 +1051,51 @@
                 });
             }
         });
-$(document).on('click', '#remove_photo', function(){
+        const profilePhotoInput = document.getElementById('profile_photo');
 
-    let button = $(this);
+        if (profilePhotoInput) {
 
-$.ajax({
-    url: "{{ route('profile_picture.remove', $employee->id) }}",
-    type: "POST",
-    data: {
-        _token: "{{ csrf_token() }}"
-    },
+            profilePhotoInput.addEventListener('change', function(e) {
 
-    success: function(response){
+                const file = e.target.files[0];
 
-        $('#profile_photo_preview').remove();
+                if (!file) return;
 
-        $('#profile_initials').show();
+                const reader = new FileReader();
 
-        button.hide();
+                reader.onload = function(ev) {
 
-        // alert('Profile photo removed');
+                    let preview = document.getElementById('profile_photo_preview');
+                    let initials = document.getElementById('profile_initials');
 
-    },
+                    // Agar image already hai
+                    if (preview) {
 
-    error: function(){
-        // alert('Something went wrong');
-    }
-});
+                        preview.src = ev.target.result;
+                    }
+                    // Agar initials show ho rahe hain
+                    else if (initials) {
 
-});
+                        initials.innerHTML = `
+                    <img
+                        id="profile_photo_preview"
+                        src="${ev.target.result}"
+                        width="100"
+                        height="100"
+                        style="width:100px;
+                               height:100px;
+                               border-radius:50%;
+                               object-fit:cover;">
+                `;
+                    }
+
+                };
+
+                reader.readAsDataURL(file);
+
+            });
+
+        }
         // Login Type Change
         // $('#login_type').change(function() {
         //     var login_type = $('#login_type').val();
@@ -1072,50 +1107,46 @@ $.ajax({
         //         $('#ipField').empty();
         //     }
         // });
+
+
+        $('#remove_photo').on('click', function() {
+
+            // Hidden field set
+            $('#remove_profile_photo').val('1');
+
+            // File input clear
+            $('#profile_photo').val('');
+
+            // Image remove
+            $('#profile_photo_preview').remove();
+
+            // Remove button hide
+            $(this).hide();
+
+            // Initials show
+            if ($('#profile_initials').length) {
+                $('#profile_initials').show();
+            } else {
+                $('.d-flex.align-items-center.mb-2').prepend(`
+            <div id="profile_initials"
+                style="
+                    width:100px;
+                    height:100px;
+                    border-radius:50%;
+                    background:#7C5CC4;
+                    color:#fff;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    font-size:32px;
+                    font-weight:700;
+                    overflow:hidden;
+                ">
+                {{ strtoupper(substr($employee->first_name, 0, 1) . substr($employee->last_name, 0, 1)) }}
+            </div>
+        `);
+            }
+
+        });
     </script>
-    <script>
-        const profilePhotoInput = document.getElementById('profile_photo');
-
-if (profilePhotoInput) {
-
-    profilePhotoInput.addEventListener('change', function(e) {
-
-        const file = e.target.files[0];
-
-        if (file) {
-
-            const reader = new FileReader();
-
-            reader.onload = function(ev) {
-
-                let preview = document.getElementById('profile_photo_preview');
-
-                if (!preview) {
-
-                    $('#profile_initials').remove();
-
-                    $('.d-flex.align-items-center.mb-2').prepend(`
-                        <img id="profile_photo_preview"
-                        src="${ev.target.result}"
-                        height="100"
-                        width="100"
-                        style="border-radius:50%;">
-                    `);
-
-                } else {
-
-                    preview.src = ev.target.result;
-
-                }
-
-            };
-
-            reader.readAsDataURL(file);
-        }
-
-    });
-
-}
-    </script>
- 
 @endpush

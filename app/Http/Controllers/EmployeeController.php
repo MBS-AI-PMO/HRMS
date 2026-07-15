@@ -632,7 +632,7 @@ class EmployeeController extends Controller
             return view('employee.profile', compact('employee', 'countries', 'companies', 'clients',
                 'departments', 'designations', 'statuses', 'office_shifts', 'document_types',
                 'education_levels', 'language_skills', 'general_skills', 'roles','relationTypes','loanTypes','deductionTypes', 'locations', 'workFieldsReadonly'));
-       
+
     }
 
     public function profileActivityLogs(Request $request)
@@ -868,6 +868,12 @@ class EmployeeController extends Controller
 
                 $user['profile_photo'] = $file_name;
             }
+            if ($request->remove_profile_photo == 1) {
+
+    $this->unlink($employee);
+
+    $user['profile_photo'] = null;
+}
 
             $data['first_name'] = $request->first_name;
             $data['last_name'] = $request->last_name;
@@ -1113,7 +1119,7 @@ if ($request->remove_profile_photo == 1) {
                 'profile_picture' => $file_name
             ]);
         }
-   
+
 }
     public function socialProfileShow(Employee $employee)
     {
@@ -1338,8 +1344,8 @@ public function removeProfilePhoto($employee)
 
         // return $pdf->stream();
     }
-     
-     
+
+
    public function updateAttendanceType()
 {
     try {
