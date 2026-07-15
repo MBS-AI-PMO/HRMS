@@ -290,6 +290,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
 
         Route::post('profile_picture/{employee}/store', [EmployeeController::class, 'storeProfilePicture'])->name('profile_picture.store');
         Route::post('profile_picture/{employee}/remove', [EmployeeController::class, 'removeProfilePhoto'])->name('profile_picture.remove');
+        Route::post('employees/{employee}/remove-profile-photo',[EmployeeController::class,'removeProfilePhoto'])->name('employees.removeProfilePhoto');
 
         Route::get('documents', [EmployeeDocumentController::class, 'index'])->name('documents.index');
         Route::get('documents/{id}/edit', [EmployeeDocumentController::class, 'edit'])->name('documents.edit');
