@@ -171,7 +171,7 @@ class ProjectController extends Controller {
 			try {
 				$project = Project::create($data);
 				$employees = $request->input('employee_id');
-				$project->assignedEmployees()->sync($employees);
+				$project->syncLeads($employees);
 
 				try {
 					$notificable = User::where('role_users_id', 1)
@@ -211,15 +211,17 @@ class ProjectController extends Controller {
 	{
 		try
 		{
-			$name = DB::table('employee_project')->where('project_id', $project->id)->pluck('employee_id')->toArray();
+			$allAssigned = DB::table('employee_project')->where('project_id', $project->id)->pluck('employee_id')->map(fn ($id) => (int) $id)->toArray();
+			$name = DB::table('employee_project')->where('project_id', $project->id)->where('is_lead', 1)->pluck('employee_id')->map(fn ($id) => (int) $id)->toArray();
 		} catch (Exception $e)
 		{
-			$name = null;
+			$allAssigned = [];
+			$name = [];
 		}
 
 		$logged_user = auth()->user();
 
-		if ($logged_user->can('view-project') || in_array($logged_user->id, $name))
+		if ($logged_user->can('view-project') || in_array((int) $logged_user->id, $allAssigned, true))
 		{
 			app(ProjectTimelineService::class)->apply($project);
 			$project->saveQuietly();
@@ -231,7 +233,7 @@ class ProjectController extends Controller {
 			]);
 
 			$company_name = $project->company->company_name ?? '';
-			$assignedIds = array_values(array_filter(array_map('intval', $name ?? [])));
+			$assignedIds = array_values(array_filter(array_map('intval', $allAssigned ?? [])));
 			$employees = $this->employeesForProjectSelect($project, $assignedIds);
 
 			return view('projects.project.details', compact('project', 'employees', 'company_name', 'name'));

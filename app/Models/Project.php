@@ -29,7 +29,89 @@ class Project extends Model
 		return $this->hasOne('App\Models\User','id','added_by');
 	}
 	public function assignedEmployees(){
-		return $this->belongsToMany(Employee::class);
+		return $this->belongsToMany(Employee::class)->withPivot('is_lead');
+	}
+
+	public function leads(){
+		return $this->belongsToMany(Employee::class)->withPivot('is_lead')->wherePivot('is_lead', 1);
+	}
+
+	public function members(){
+		return $this->belongsToMany(Employee::class)->withPivot('is_lead')->wherePivot('is_lead', 0);
+	}
+
+	/**
+	 * Project ids where the given user is assigned as a lead (is_lead = 1).
+	 */
+	public static function projectIdsLedBy(int $userId): array
+	{
+		return \Illuminate\Support\Facades\DB::table('employee_project')
+			->where('employee_id', $userId)
+			->where('is_lead', 1)
+			->pluck('project_id')
+			->map(fn ($id) => (int) $id)
+			->unique()
+			->values()
+			->all();
+	}
+
+	public static function userLeadsAnyProject(int $userId): bool
+	{
+		return \Illuminate\Support\Facades\DB::table('employee_project')
+			->where('employee_id', $userId)
+			->where('is_lead', 1)
+			->exists();
+	}
+
+	/**
+	 * Employee ids that are members (is_lead = 0) of any project led by the given user.
+	 */
+	public static function memberEmployeeIdsLedBy(int $userId): array
+	{
+		$projectIds = static::projectIdsLedBy($userId);
+
+		if ($projectIds === []) {
+			return [];
+		}
+
+		return \Illuminate\Support\Facades\DB::table('employee_project')
+			->whereIn('project_id', $projectIds)
+			->where('is_lead', 0)
+			->pluck('employee_id')
+			->map(fn ($id) => (int) $id)
+			->unique()
+			->values()
+			->all();
+	}
+
+	/**
+	 * Set the leads (is_lead = 1) for this project without touching member rows (is_lead = 0).
+	 */
+	public function syncLeads(array $leadIds): void
+	{
+		$leadIds = collect($leadIds)
+			->filter()
+			->map(fn ($id) => (int) $id)
+			->unique()
+			->values()
+			->all();
+
+		$stale = \Illuminate\Support\Facades\DB::table('employee_project')
+			->where('project_id', $this->id)
+			->where('is_lead', 1);
+
+		if ($leadIds !== []) {
+			$stale->whereNotIn('employee_id', $leadIds);
+		}
+
+		$stale->delete();
+
+		foreach ($leadIds as $employeeId) {
+			\Illuminate\Support\Facades\DB::table('employee_project')->updateOrInsert(
+				['project_id' => $this->id, 'employee_id' => $employeeId],
+				['is_lead' => 1]
+			);
+		}
 	}
 
 	protected static function booted(): void

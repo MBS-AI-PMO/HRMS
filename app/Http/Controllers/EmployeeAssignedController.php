@@ -35,8 +35,8 @@ class EmployeeAssignedController extends Controller {
 	{
 		if (auth()->user()->can('assign-project'))
 		{
-			$employees = $request->input('employee_id');
-			$project->assignedEmployees()->sync($employees);
+			$employees = $request->input('employee_id', []);
+			$project->syncLeads($employees);
 
 			return response()->json(['success' => __('Data Added successfully.')]);
 		}

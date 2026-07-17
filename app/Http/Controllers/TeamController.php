@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\department;
 use App\Models\Employee;
+use App\Models\Project;
 use App\Models\Team;
 use App\Services\TeamNotifier;
 use App\Support\CompanyScope;
+use App\Support\ManagedEmployeeScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -63,63 +65,84 @@ class TeamController extends Controller
     }
 
     /**
-     * Teams where the logged-in user is Department Head, PM, Assistant HR, or a member.
+     * "My Team" — projects where the logged-in user is assigned as a lead (is_lead = 1),
+     * showing the project members that the lead can manage.
      */
     public function myTeams()
     {
         $userId = (int) auth()->id();
 
-        if (! \App\Support\ManagedEmployeeScope::canAccessMyTeam($userId) && ! auth()->user()->can('view-team')) {
-            return abort(403, __('You are not assigned to any team yet.'));
+        if (! ManagedEmployeeScope::canAccessMyTeam($userId)) {
+            return abort(403, __('You are not assigned as a project lead yet.'));
         }
 
         if (request()->ajax()) {
-            $teams = Team::with([
-                'company:id,company_name',
-                'department:id,department_name',
-                'departmentHeads:id,first_name,last_name',
-                'projectManager:id,first_name,last_name',
-                'assistantHr:id,first_name,last_name',
-                'members:id,first_name,last_name',
-            ]);
+            $projectIds = Project::projectIdsLedBy($userId);
 
-            $teams->forUser($userId)->latest('id');
+            $projects = Project::query()
+                ->whereIn('id', $projectIds ?: [0])
+                ->with([
+                    'client:id,first_name,last_name',
+                    'members:id,first_name,last_name',
+                ])
+                ->latest('id');
 
-            return datatables()->of($teams)
+            return datatables()->of($projects)
                 ->setRowId(function ($row) {
                     return $row->id;
                 })
-                ->addColumn('your_role', function ($row) use ($userId) {
-                    return $row->roleLabelForUser($userId);
-                })
-                ->addColumn('company', function ($row) {
-                    return $row->company->company_name ?? '';
-                })
-                ->addColumn('department', function ($row) {
-                    return $row->department->department_name ?? '-';
-                })
-                ->addColumn('department_head', function ($row) {
-                    return $row->departmentHeadsLabel();
-                })
-                ->addColumn('project_manager', function ($row) {
-                    return $row->projectManager->full_name ?? '';
-                })
-                ->addColumn('assistant_hr', function ($row) {
-                    return $row->assistantHr->full_name ?? '-';
+                ->addColumn('client', function ($row) {
+                    return trim(($row->client->first_name ?? '') . ' ' . ($row->client->last_name ?? '')) ?: '-';
                 })
                 ->addColumn('members', function ($row) {
-                    return $row->members->pluck('full_name')->filter()->implode(', ');
+                    $names = $row->members->pluck('full_name')->filter();
+
+                    return $names->isNotEmpty() ? $names->implode(', ') : '-';
                 })
-                ->addColumn('action', function ($data) use ($userId) {
-                    return $this->teamActionButtons($data, false, $userId);
+                ->addColumn('member_count', function ($row) {
+                    return $row->members->count();
+                })
+                ->addColumn('status', function ($row) {
+                    return ucwords(str_replace('_', ' ', (string) $row->project_status));
+                })
+                ->addColumn('action', function ($row) {
+                    return '<button type="button" data-id="' . $row->id . '" data-title="' . e($row->title) . '" class="view-members btn btn-info btn-sm" title="' . __('View Members') . '"><i class="dripicons-preview"></i></button>';
                 })
                 ->rawColumns(['action'])
                 ->make(true);
         }
 
-        $companies = CompanyScope::companiesForSelect();
+        return view('organization.team.my');
+    }
 
-        return view('organization.team.my', compact('companies'));
+    /**
+     * Members (is_lead = 0) of a project led by the logged-in user, used by the "My Team" modal.
+     */
+    public function myTeamMembers(Project $project)
+    {
+        $userId = (int) auth()->id();
+
+        if (! in_array((int) $project->id, Project::projectIdsLedBy($userId), true)) {
+            return response()->json(['error' => __('You are not authorized')], 403);
+        }
+
+        $members = $project->members()
+            ->with('department:id,department_name')
+            ->get()
+            ->map(function ($employee) {
+                return [
+                    'id' => $employee->id,
+                    'name' => $employee->full_name,
+                    'email' => $employee->email,
+                    'department' => optional($employee->department)->department_name ?? '-',
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'project' => $project->title,
+            'members' => $members,
+        ]);
     }
 
     public function employeesOptions(Request $request)

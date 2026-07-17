@@ -3,7 +3,7 @@
 namespace App\Support;
 
 use App\Models\location;
-use App\Models\Team;
+use App\Models\Project;
 
 class ManagedEmployeeScope
 {
@@ -13,7 +13,7 @@ class ManagedEmployeeScope
             return false;
         }
 
-        return Team::userCanAccessEmployeeList($userId)
+        return Project::userLeadsAnyProject($userId)
             || location::userCanAccessLocationEmployeeList($userId);
     }
 
@@ -21,8 +21,8 @@ class ManagedEmployeeScope
     {
         $ids = [];
 
-        if (Team::userCanAccessEmployeeList($userId)) {
-            $ids = array_merge($ids, Team::memberEmployeeIdsLedByUser($userId));
+        if (Project::userLeadsAnyProject($userId)) {
+            $ids = array_merge($ids, Project::memberEmployeeIdsLedBy($userId));
         }
 
         if (location::userCanAccessLocationEmployeeList($userId)) {
@@ -34,30 +34,44 @@ class ManagedEmployeeScope
 
     public static function canManageLeaveRequests(int $userId): bool
     {
-        return Team::userCanManageTeamLeaveRequests($userId)
+        return Project::userLeadsAnyProject($userId)
             || location::userCanManageLocationLeaveRequests($userId);
     }
 
     public static function canAccessScopedEmployeeList(int $userId, int $roleUsersId): bool
     {
+        if ($roleUsersId === 1) {
+            return false;
+        }
+
+        // Project leads automatically get a scoped list of their project members.
+        if (Project::userLeadsAnyProject($userId)) {
+            return true;
+        }
+
         $user = \App\Models\User::query()->find($userId);
 
         if (! $user || ! $user->can('scoped-view-employees')) {
             return false;
         }
 
-        return static::usesScopedEmployeeList($userId, $roleUsersId);
+        return location::userCanAccessLocationEmployeeList($userId);
     }
 
     public static function canManageScopedLeave(int $userId): bool
     {
+        // Project leads automatically manage leave/WFH of their project members.
+        if (Project::userLeadsAnyProject($userId)) {
+            return true;
+        }
+
         $user = \App\Models\User::query()->find($userId);
 
         if (! $user || ! $user->can('scoped-manage-leave')) {
             return false;
         }
 
-        return static::canManageLeaveRequests($userId);
+        return location::userCanManageLocationLeaveRequests($userId);
     }
 
     public static function canAccessMyLocations(int $userId): bool
@@ -92,17 +106,16 @@ class ManagedEmployeeScope
 
     public static function canAccessMyTeam(int $userId): bool
     {
-        $user = \App\Models\User::query()->find($userId);
-
-        if (! $user || ! $user->can('view-my-team')) {
-            return false;
-        }
-
-        return Team::userHasTeamAccess($userId);
+        // Being a project lead is enough to access the "My Team" page.
+        return Project::userLeadsAnyProject($userId);
     }
 
     public static function canViewScopedEmployeeDetails(int $userId, int $roleUsersId): bool
     {
+        if (Project::userLeadsAnyProject($userId)) {
+            return true;
+        }
+
         $user = \App\Models\User::query()->find($userId);
 
         if (! $user || ! $user->can('scoped-view-employee-details')) {
