@@ -527,14 +527,23 @@ class LocationController extends Controller
 
         $employeesQuery = Employee::query()
             ->select('id', 'first_name', 'last_name', 'staff_id', 'department_id', 'client_id')
-            ->where('company_id', $companyId)
             ->where('is_active', 1)
             ->whereNull('exit_date')
             ->orderBy('first_name')
             ->orderBy('last_name');
 
         if ($clientId) {
-            $employeesQuery->where('client_id', $clientId);
+            $employeesQuery->where('company_id', $companyId)->where('client_id', $clientId);
+        } else {
+            $linkedClientIds = CompanyScope::clientIdsForCompany($companyId);
+
+            $employeesQuery->where(function ($query) use ($companyId, $linkedClientIds) {
+                $query->where('company_id', $companyId);
+
+                if ($linkedClientIds !== []) {
+                    $query->orWhereIn('client_id', $linkedClientIds);
+                }
+            });
         }
 
         if ($departmentId) {
@@ -1021,9 +1030,12 @@ class LocationController extends Controller
     private function resolveLocationOwner(location $location): array
     {
         if ($location->client_id) {
+            $companyId = $location->companies()->value('companies.id')
+                ?: CompanyScope::resolveCompanyIdForClient((int) $location->client_id);
+
             return [
                 'type' => 'client',
-                'company_id' => null,
+                'company_id' => $companyId ? (int) $companyId : null,
                 'client_id' => (int) $location->client_id,
             ];
         }

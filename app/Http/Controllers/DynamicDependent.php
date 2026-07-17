@@ -237,6 +237,32 @@ class DynamicDependent extends Controller {
 		return $output;
 	}
 
+	public function fetchClientProjects(Request $request)
+	{
+		$clientId = (int) $request->get('client_id');
+
+		if (! $clientId) {
+			return '';
+		}
+
+		$projects = Project::query()
+			->where('client_id', $clientId)
+			->orderBy('title')
+			->get(['id', 'title', 'project_status']);
+
+		$output = '';
+
+		foreach ($projects as $project) {
+			$status = trim((string) ($project->project_status ?? ''));
+			$label = $status !== ''
+				? $project->title.' ('.ucwords(str_replace('_', ' ', $status)).')'
+				: $project->title;
+			$output .= '<option value="'.$project->id.'">'.e($label).'</option>';
+		}
+
+		return $output;
+	}
+
 	public function fetchEmployeeDepartment(Request $request)
 	{
 		$value = $request->get('value');

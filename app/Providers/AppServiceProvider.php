@@ -86,14 +86,12 @@ class AppServiceProvider extends ServiceProvider
 			setcookie('language', 'English', time() + (86400 * 365), '/');
 		}
 
-//		if (!isset(env('Date_Format')) && !isset($_COOKIE['date_format_js'])){
-//
-//			setcookie('date_format', 'Y-m-d', time() + (86400 * 365),'/');
-//
-//			setcookie('date_format_js', 'yyyy-mm-dd', time() + (86400 * 365),'/');
-//
-//		}
+		$viewDateFormatJs = config('variable.date_format_js')
+			?: config('date_format_conversion.'.config('variable.date_format', 'd-m-Y'))
+			?: 'dd-mm-yyyy';
 
+		\Illuminate\Support\Facades\View::share('dateFormatJs', $viewDateFormatJs);
+		\Illuminate\Support\Facades\View::share('dateFormat', config('variable.date_format', 'd-m-Y'));
     }
 
     protected function registerCompanyScopes(): void

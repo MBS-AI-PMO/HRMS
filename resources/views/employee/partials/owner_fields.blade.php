@@ -1,9 +1,13 @@
 @php
     $employeeOwnerType = $employee->client_id ? 'client' : 'company';
+    $assignedProjectIds = isset($assignedProjectIds)
+        ? collect($assignedProjectIds)->map(fn ($id) => (int) $id)->values()->all()
+        : $employee->projects()->pluck('projects.id')->map(fn ($id) => (int) $id)->values()->all();
 @endphp
 <input type="hidden" id="employee_owner_type_hidden" value="{{ $employeeOwnerType }}">
 <input type="hidden" id="employee_client_id_hidden" value="{{ $employee->client_id }}">
 <input type="hidden" name="company_id_hidden" value="{{ $employee->company_id }}" />
+<input type="hidden" id="employee_project_ids_hidden" value="{{ implode(',', $assignedProjectIds) }}">
 
 <div class="employee-owner-panel border rounded bg-light px-2 py-2 mb-1">
     <div class="row align-items-end">
@@ -55,6 +59,16 @@
                     </option>
                 @endforeach
             </select>
+        </div>
+        <div class="col-md-12 form-group mb-0 mt-2 {{ $employeeOwnerType === 'company' ? 'd-none' : '' }}" id="employee_owner_project_wrap">
+            <label class="text-bold small">{{ trans('file.Projects') }}</label>
+            <select name="project_id[]" id="employee_project_id"
+                class="form-control selectpicker"
+                data-live-search="true" data-live-search-style="contains"
+                multiple
+                title="{{ __('Selecting', ['key' => trans('file.Projects')]) }}...">
+            </select>
+            <small class="text-muted">{{ __('Assign this employee to one or more projects of the selected client.') }}</small>
         </div>
     </div>
 </div>

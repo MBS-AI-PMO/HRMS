@@ -27,6 +27,7 @@ use App\Models\RelationType;
 use App\Models\status;
 use App\Models\User;
 use App\Models\location;
+use App\Models\Project;
 use App\Support\ManagedEmployeeScope;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Exception;
@@ -395,6 +396,8 @@ class EmployeeController extends Controller
                     'employee_owner_type' => 'required|in:company,client',
                     'company_id' => 'required_if:employee_owner_type,company|nullable|exists:companies,id',
                     'client_id' => 'required_if:employee_owner_type,client|nullable|exists:clients,id',
+                    'project_id' => 'nullable|array',
+                    'project_id.*' => 'integer|exists:projects,id',
                     'department_id' => 'required',
                     'designation_id' => 'required',
                     'office_shift_id' => 'required',
@@ -414,7 +417,7 @@ class EmployeeController extends Controller
                     $request->only(
                         'first_name', 'last_name', 'email','remove_profile_photo', 'contact_no', 'cnic', 'address', 'date_of_birth', 'gender',
                         'username', 'role_users_id', 'password', 'password_confirmation', 'employee_owner_type',
-                        'company_id', 'client_id', 'department_id',
+                        'company_id', 'client_id', 'project_id', 'department_id',
                         'designation_id', 'office_shift_id', 'attendance_type', 'joining_date', 'location_id'
                     ),
                     $rules
@@ -482,6 +485,7 @@ class EmployeeController extends Controller
 
                     $employee = Employee::createForUser($created_user, $data);
                     $this->allLeaveTypeDataNewlyStore($employee);
+                    $this->syncEmployeeProjectsFromRequest($employee, $request);
 
                     if (DB::transactionLevel() > 0) {
                         DB::commit();
@@ -540,7 +544,7 @@ class EmployeeController extends Controller
 
     public function show(Employee $employee)
     {
-        $employee->loadMissing(['user', 'company', 'client', 'department', 'designation', 'officeShift']);
+            $employee->loadMissing(['user', 'company', 'client', 'department', 'designation', 'officeShift', 'projects:id,title']);
 
         if (! $employee->user) {
             return redirect()
@@ -587,7 +591,7 @@ class EmployeeController extends Controller
      public function profile()
     {
         $user = Auth::user();
-        $employee = Employee::with(['client', 'officeShift'])->find($user->id);
+        $employee = Employee::with(['client', 'officeShift', 'projects:id,title'])->find($user->id);
 
         if (! $employee) {
             $companies = CompanyScope::companiesForSelect();
@@ -822,7 +826,7 @@ class EmployeeController extends Controller
                 $request->only(
                     'first_name', 'last_name', 'staff_id', 'email', 'contact_no', 'cnic', 'date_of_birth', 'gender',
                     'username', 'password', 'password_confirmation', 'role_users_id', 'employee_owner_type',
-                    'company_id', 'client_id', 'department_id',
+                    'company_id', 'client_id', 'project_id', 'department_id',
                     'designation_id', 'office_shift_id', 'location_id', 'status_id', 'marital_status', 'joining_date',
                     'permission_role_id', 'address', 'city', 'state', 'country', 'zip_code', 'attendance_type',
                     'total_leave'
@@ -845,6 +849,8 @@ class EmployeeController extends Controller
                     'joining_date'    => 'required',
                     'exit_date'       => 'nullable',
                     'location_id'     => 'nullable|exists:locations,id|required_if:attendance_type,location_based',
+                    'project_id'      => 'nullable|array',
+                    'project_id.*'    => 'integer|exists:projects,id',
                 ], $this->employeeOwnerValidationRules(), $this->cnicRulesForEmployee((int) $employee))
             );
 
@@ -925,10 +931,12 @@ class EmployeeController extends Controller
             DB::beginTransaction();
             try {
                 User::whereId($employee)->update($user);
-                Employee::find($employee)->update($data);
+                $employeeModel = Employee::find($employee);
+                $employeeModel->update($data);
 
                 $usertest = User::find($employee);
                 $usertest->syncRoles($request->role_users_id);
+                $this->syncEmployeeProjectsFromRequest($employeeModel->fresh(), $request);
 
                 DB::commit();
             } catch (\Exception $e) {
@@ -998,7 +1006,7 @@ return response()->json([
                 $validator = Validator::make(
                     $request->only(
                         'first_name', 'last_name', 'staff_id', 'email', 'contact_no', 'cnic', 'date_of_birth', 'gender',
-                        'username', 'role_users_id', 'employee_owner_type', 'company_id', 'client_id', 'department_id',
+                        'username', 'role_users_id', 'employee_owner_type', 'company_id', 'client_id', 'project_id', 'department_id',
                         'designation_id', 'office_shift_id',
                         'location_id', 'status_id', 'marital_status', 'joining_date', 'permission_role_id', 'address',
                         'city', 'state', 'country', 'zip_code', 'attendance_type', 'total_leave'
@@ -1020,6 +1028,8 @@ return response()->json([
                         'joining_date'    => 'required',
                         'exit_date'       => 'nullable',
                         'location_id'     => 'nullable|exists:locations,id|required_if:attendance_type,location_based',
+                        'project_id'      => 'nullable|array',
+                        'project_id.*'    => 'integer|exists:projects,id',
                     ], $this->employeeOwnerValidationRules(), $this->cnicRulesForEmployee((int) $employee))
                 );
             }
@@ -1098,11 +1108,13 @@ if ($request->remove_profile_photo == 1) {
             DB::beginTransaction();
             try {
                 User::whereId($employee)->update($user);
-                Employee::find($employee)->update($data);
+                $employeeModel = Employee::find($employee);
+                $employeeModel->update($data);
 
                 if (! $workReadonly) {
                     $usertest = User::find($employee);
                     $usertest->syncRoles($request->role_users_id);
+                    $this->syncEmployeeProjectsFromRequest($employeeModel->fresh(), $request);
                 }
 
                 DB::commit();
@@ -1120,7 +1132,46 @@ if ($request->remove_profile_photo == 1) {
             ]);
         }
 
-}
+    }
+
+    private function syncEmployeeProjectsFromRequest(Employee $employee, Request $request): void
+    {
+        if ($request->input('employee_owner_type') !== 'client' && ! $employee->client_id) {
+            return;
+        }
+
+        $clientId = (int) ($request->input('client_id') ?: $employee->client_id);
+
+        if (! $clientId) {
+            return;
+        }
+
+        $projectIds = collect($request->input('project_id', []))
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($projectIds->isEmpty()) {
+            // Keep existing assignments if no project field was submitted (e.g. company mode / readonly).
+            if (! $request->has('project_id')) {
+                return;
+            }
+
+            $employee->projects()->detach();
+
+            return;
+        }
+
+        $validIds = Project::query()
+            ->where('client_id', $clientId)
+            ->whereIn('id', $projectIds)
+            ->pluck('id')
+            ->all();
+
+        $employee->projects()->sync($validIds);
+    }
+
     public function socialProfileShow(Employee $employee)
     {
         return view('employee.social_profile.index', compact('employee'));

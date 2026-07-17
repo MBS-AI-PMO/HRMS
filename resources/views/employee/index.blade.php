@@ -265,6 +265,17 @@
                                                 @endforeach
                                             </select>
                                         </div>
+                                        <div class="col-md-12 form-group mb-0 mt-2 d-none" id="employee_owner_project_wrap">
+                                            <label class="text-bold small">{{ trans('file.Projects') }}</label>
+                                            <select name="project_id[]" id="employee_project_id"
+                                                    class="form-control selectpicker"
+                                                    data-live-search="true" data-live-search-style="contains"
+                                                    multiple
+                                                    title="{{ __('Selecting', ['key' => trans('file.Projects')]) }}..."
+                                                    disabled>
+                                            </select>
+                                            <small class="text-muted">{{ __('Select client first, then assign one or more projects to this employee.') }}</small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -509,6 +520,11 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const lockedLocationId = @json($filterLocationId ?? null) || urlParams.get('location_id');
+        const preselectedClientId = urlParams.get('client_id');
+        if (preselectedClientId) {
+            $('#client_id_filter').selectpicker('val', preselectedClientId);
+            $('#collapseExample').collapse('show');
+        }
 
         var date = $('.date');
         date.datepicker({
@@ -744,15 +760,19 @@
         if (type === 'client') {
             $('#employee_owner_company_wrap').addClass('d-none');
             $('#employee_owner_client_wrap').removeClass('d-none');
+            $('#employee_owner_project_wrap').removeClass('d-none');
             $('#company_id').prop('disabled', true).removeAttr('name').removeAttr('required');
             $('#employee_client_id').prop('disabled', false).attr('name', 'client_id').attr('required', 'required');
             $('#employee_client_id').selectpicker('val', '');
+            clearEmployeeProjectSelectAdd();
         } else {
             $('#employee_owner_client_wrap').addClass('d-none');
+            $('#employee_owner_project_wrap').addClass('d-none');
             $('#employee_owner_company_wrap').removeClass('d-none');
             $('#employee_client_id').prop('disabled', true).removeAttr('name').removeAttr('required');
             $('#company_id').prop('disabled', false).attr('name', 'company_id').attr('required', 'required');
             $('#company_id').selectpicker('val', '');
+            clearEmployeeProjectSelectAdd();
         }
 
         repopulateEmployeeSelect($('#department_id'), '');
@@ -770,6 +790,52 @@
         $('#employee_client_id').selectpicker({ width: '100%', liveSearch: true, liveSearchStyle: 'contains' });
 
         filterLocationOptionsByCompany();
+    }
+
+    function clearEmployeeProjectSelectAdd() {
+        var $project = $('#employee_project_id');
+        if (!$project.length) {
+            return;
+        }
+        if ($project.data('selectpicker')) {
+            $project.selectpicker('destroy');
+        }
+        $project.html('').prop('disabled', true);
+        $project.selectpicker({ width: '100%', liveSearch: true, liveSearchStyle: 'contains' });
+    }
+
+    function loadEmployeeClientProjectsAdd() {
+        var $project = $('#employee_project_id');
+        var clientId = $('#employee_client_id').val();
+
+        if (!$project.length) {
+            return;
+        }
+
+        if (!clientId || $('input[name="employee_owner_type"]:checked').val() !== 'client') {
+            clearEmployeeProjectSelectAdd();
+            return;
+        }
+
+        $.ajax({
+            url: "{{ route('dynamic_client_projects') }}",
+            method: 'POST',
+            data: {
+                _token: hrmsCsrfToken(),
+                client_id: clientId
+            },
+            success: function (result) {
+                if ($project.data('selectpicker')) {
+                    $project.selectpicker('destroy');
+                }
+                $project.html(result).prop('disabled', false).attr('name', 'project_id[]');
+                $project.selectpicker({ width: '100%', liveSearch: true, liveSearchStyle: 'contains' });
+            },
+            error: function (xhr) {
+                console.error('Client projects load failed', xhr.status, xhr.responseText);
+                clearEmployeeProjectSelectAdd();
+            }
+        });
     }
 
     $('input[name="employee_owner_type"]').on('change', function () {
@@ -882,7 +948,10 @@
 
         if ($(this).val()) {
             loadEmployeeDepartments();
+            loadEmployeeClientProjectsAdd();
             filterLocationOptionsByCompany();
+        } else {
+            clearEmployeeProjectSelectAdd();
         }
     });
 

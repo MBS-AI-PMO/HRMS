@@ -303,7 +303,7 @@
 
             let date = $('.date');
             date.datepicker({
-                format: '{{ env('Date_Format_JS')}}',
+                format: @json(config('variable.date_format_js', 'dd-mm-yyyy')),
                 autoclose: true,
                 todayHighlight: true
             });
@@ -469,17 +469,59 @@
                 ],
             });
             new $.fn.dataTable.FixedHeader(table_table);
+
+            $(".range-slider").each(function () {
+                var $slider = $(this);
+                if ($slider.data('ionRangeSlider')) {
+                    return;
+                }
+
+                $slider.ionRangeSlider({
+                    type: "single",
+                    min: 0,
+                    max: 100,
+                    step: 1,
+                    grid: true,
+                    postfix: "%",
+                    skin: "round"
+                });
+            });
         });
 
-        $(".range-slider").ionRangeSlider({
-            type: "single",
-            min: 0,
-            max: 100,
-            step: 1,
-            grid: true,
-            postfix: "%",
-            skin: "round"
-        });
+        function setEditProjectProgress(value) {
+            var $el = $('#edit_project_progress');
+            if (!$el.length) {
+                return;
+            }
+
+            var from = parseInt(value, 10);
+            if (isNaN(from)) {
+                from = 0;
+            }
+            from = Math.max(0, Math.min(100, from));
+
+            var instance = $el.data('ionRangeSlider');
+            if (instance && typeof instance.update === 'function') {
+                instance.update({ from: from });
+                return;
+            }
+
+            if (typeof $el.ionRangeSlider === 'function') {
+                $el.ionRangeSlider({
+                    type: "single",
+                    min: 0,
+                    max: 100,
+                    step: 1,
+                    grid: true,
+                    postfix: "%",
+                    skin: "round",
+                    from: from
+                });
+                return;
+            }
+
+            $el.val(from);
+        }
 
 
         tinymce.init({
@@ -673,12 +715,7 @@
                     if (html.data.project_status) {
                         $('#edit_project_status').selectpicker('val', html.data.project_status);
                     }
-                    if (html.data.project_progress) {
-                        var instance = $('#edit_project_progress').data("ionRangeSlider");
-                        instance.update({
-                            from: html.data.project_progress
-                        });
-                    }
+                    setEditProjectProgress(html.data.project_progress);
                     $('#edit_summary').val(html.data.summary);
 
                     $('#hidden_id').val(html.data.id);
@@ -704,10 +741,7 @@
             $('#sample_form')[0].reset();
             $('#edit_sample_form')[0].reset();
             $('select').selectpicker('refresh');
-            var instance = $('#edit_task_progress').data("ionRangeSlider");
-            instance.update({
-                from: 0
-            });
+            setEditProjectProgress(0);
             $('#project-table').DataTable().ajax.reload();
         });
 

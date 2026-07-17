@@ -210,19 +210,25 @@ function toggleEmployeeOwnerType(type, preserveValues) {
     if (type === 'client') {
         $('#employee_owner_company_wrap').addClass('d-none');
         $('#employee_owner_client_wrap').removeClass('d-none');
+        $('#employee_owner_project_wrap').removeClass('d-none');
         $('#company_id').prop('disabled', true).removeAttr('name').removeAttr('required');
         $('#employee_client_id').prop('disabled', false).attr('name', 'client_id').attr('required', 'required');
+        $('#employee_project_id').prop('disabled', false).attr('name', 'project_id[]');
 
         if (!preserveValues) {
             $('#employee_client_id').selectpicker('val', '');
+            clearEmployeeProjectSelect();
             repopulateEmployeeOwnerSelect($('#department_id'), '');
             repopulateEmployeeOwnerSelect($('#designation_id'), '');
             repopulateEmployeeOwnerSelect($('#office_shift_id'), '');
         }
     } else {
         $('#employee_owner_client_wrap').addClass('d-none');
+        $('#employee_owner_project_wrap').addClass('d-none');
         $('#employee_owner_company_wrap').removeClass('d-none');
         $('#employee_client_id').prop('disabled', true).removeAttr('name').removeAttr('required');
+        $('#employee_project_id').prop('disabled', true).removeAttr('name');
+        clearEmployeeProjectSelect();
         $('#company_id').prop('disabled', false).attr('name', 'company_id').attr('required', 'required');
 
         if (!preserveValues) {
@@ -235,6 +241,68 @@ function toggleEmployeeOwnerType(type, preserveValues) {
 
     refreshEmployeeOwnerSelectpicker($('#company_id'));
     refreshEmployeeOwnerSelectpicker($('#employee_client_id'));
+    refreshEmployeeOwnerSelectpicker($('#employee_project_id'));
+}
+
+function clearEmployeeProjectSelect() {
+    if (!$('#employee_project_id').length) {
+        return;
+    }
+
+    if ($('#employee_project_id').data('selectpicker')) {
+        $('#employee_project_id').selectpicker('destroy');
+    }
+    $('#employee_project_id').html('').prop('disabled', true);
+    $('#employee_project_id').selectpicker({ width: '100%', liveSearch: true, liveSearchStyle: 'contains' });
+}
+
+function getEmployeeProjectHiddenIds() {
+    var raw = String($('#employee_project_ids_hidden').val() || '');
+    if (!raw) {
+        return [];
+    }
+
+    return raw.split(',').map(function (id) {
+        return String(id).trim();
+    }).filter(Boolean);
+}
+
+function loadEmployeeClientProjects(selectedIds) {
+    var $project = $('#employee_project_id');
+    if (!$project.length) {
+        return;
+    }
+
+    var clientId = $('#employee_client_id').val();
+    selectedIds = (selectedIds || []).map(String);
+
+    if (!clientId || $('input[name="employee_owner_type"]:checked').val() !== 'client') {
+        clearEmployeeProjectSelect();
+        return;
+    }
+
+    $.ajax({
+        url: "{{ route('dynamic_client_projects') }}",
+        method: "POST",
+        data: {
+            _token: hrmsOwnerCsrfToken(),
+            client_id: clientId
+        },
+        success: function (result) {
+            if ($project.data('selectpicker')) {
+                $project.selectpicker('destroy');
+            }
+            $project.html(result).prop('disabled', false).attr('name', 'project_id[]');
+            $project.selectpicker({ width: '100%', liveSearch: true, liveSearchStyle: 'contains' });
+            if (selectedIds.length) {
+                $project.selectpicker('val', selectedIds);
+            }
+        },
+        error: function (xhr) {
+            console.error('Client projects load failed', xhr.status, xhr.responseText);
+            clearEmployeeProjectSelect();
+        }
+    });
 }
 
 $('input[name="employee_owner_type"]').on('change', function() {
@@ -258,6 +326,9 @@ $(document).on('change changed.bs.select', '#employee_client_id', function() {
 
     if ($(this).val()) {
         loadEmployeeDepartments();
+        loadEmployeeClientProjects([]);
+    } else {
+        clearEmployeeProjectSelect();
     }
 });
 
@@ -282,6 +353,7 @@ $(document).on('change changed.bs.select', '#department_id', function() {
         $('#employee_client_id').selectpicker('val', $('#employee_client_id_hidden').val());
         if ($('#employee_client_id').val()) {
             loadEmployeeDepartments();
+            loadEmployeeClientProjects(getEmployeeProjectHiddenIds());
         }
     }
 })();
