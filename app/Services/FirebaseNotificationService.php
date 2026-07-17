@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
 
+
 /**
  * Sends push notifications through the Firebase Cloud Messaging HTTP v1 API.
  *
