@@ -190,7 +190,60 @@ class Employee extends Model
 
     public function projects()
     {
-        return $this->belongsToMany(Project::class, 'employee_project', 'employee_id', 'project_id');
+        return $this->belongsToMany(Project::class, 'employee_project', 'employee_id', 'project_id')->withPivot('is_lead');
+    }
+
+    public function ledProjects()
+    {
+        return $this->belongsToMany(Project::class, 'employee_project', 'employee_id', 'project_id')
+            ->withPivot('is_lead')
+            ->wherePivot('is_lead', 1);
+    }
+
+    public function memberProjects()
+    {
+        return $this->belongsToMany(Project::class, 'employee_project', 'employee_id', 'project_id')
+            ->withPivot('is_lead')
+            ->wherePivot('is_lead', 0);
+    }
+
+    /**
+     * Assign this employee as a member (is_lead = 0) to the given projects without
+     * demoting any project where the employee is already a lead.
+     */
+    public function syncMemberProjects(array $projectIds): void
+    {
+        $projectIds = collect($projectIds)
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $stale = \Illuminate\Support\Facades\DB::table('employee_project')
+            ->where('employee_id', $this->id)
+            ->where('is_lead', 0);
+
+        if ($projectIds !== []) {
+            $stale->whereNotIn('project_id', $projectIds);
+        }
+
+        $stale->delete();
+
+        foreach ($projectIds as $projectId) {
+            $exists = \Illuminate\Support\Facades\DB::table('employee_project')
+                ->where('employee_id', $this->id)
+                ->where('project_id', $projectId)
+                ->exists();
+
+            if (! $exists) {
+                \Illuminate\Support\Facades\DB::table('employee_project')->insert([
+                    'employee_id' => $this->id,
+                    'project_id' => $projectId,
+                    'is_lead' => 0,
+                ]);
+            }
+        }
     }
 
     public function activityLogs()

@@ -45,7 +45,7 @@ class LeaveController extends Controller
     protected function isTeamLeaveManager(): bool
     {
         return (int) auth()->user()->role_users_id !== 1
-            && Team::userCanManageTeamLeaveRequests((int) auth()->id());
+            && \App\Models\Project::userLeadsAnyProject((int) auth()->id());
     }
 
     protected function isLocationLeaveManager(): bool
@@ -61,7 +61,7 @@ class LeaveController extends Controller
 
     protected function teamMemberIdsForLeaveManagement(): array
     {
-        return Team::memberEmployeeIdsLedByUser((int) auth()->id());
+        return \App\Models\Project::memberEmployeeIdsLedBy((int) auth()->id());
     }
 
     protected function canAccessLeaveModule(): bool

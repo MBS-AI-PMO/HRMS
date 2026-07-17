@@ -215,12 +215,6 @@
                             </li>
                         @endcan
 
-                        @can('view-team')
-                            <li id="teams" class="{{ request()->is('organization/teams*') ? 'active' : '' }}">
-                                <a href="{{ route('teams.index') }}">{{ __('Team Management') }}</a>
-                            </li>
-                        @endcan
-
                         @can('view-designation')
                             <li id="designation"><a
                                     href="{{ route('designations.index') }}">{{ trans('file.Designation') }}</a>
@@ -339,8 +333,8 @@
                 )->pluck('id');
                 $isDepartmentManager = $managedDepartmentIds->isNotEmpty();
                 $isHrUser = $leaveManagerSidebarUser->can('view-leave');
-                $isTeamLeaveManager = \App\Models\Team::userCanManageTeamLeaveRequests((int) $leaveManagerSidebarUser->id)
-                    && $leaveManagerSidebarUser->can('scoped-manage-leave');
+                $isTeamLeaveManager = (int) $leaveManagerSidebarUser->role_users_id !== 1
+                    && \App\Models\Project::userLeadsAnyProject((int) $leaveManagerSidebarUser->id);
                 $isLocationLeaveManager = \App\Models\location::userCanManageLocationLeaveRequests((int) $leaveManagerSidebarUser->id)
                     && $leaveManagerSidebarUser->can('scoped-manage-leave');
                 $showLeaveManagementTabs = $isDepartmentManager || $isHrUser || $isTeamLeaveManager || $isLocationLeaveManager;

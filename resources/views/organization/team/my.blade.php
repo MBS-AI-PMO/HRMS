@@ -5,7 +5,7 @@
         <div class="container-fluid mb-3">
             <h4 class="mb-1">{{ __('My Team') }}</h4>
             <p class="text-muted mb-0">
-                {{ __('View your team details. Leaders can edit the team; members can only view.') }}
+                {{ __('Projects you lead and the employees assigned to them. Manage their leave/WFH requests from the L/ WFH Requests menu.') }}
             </p>
         </div>
 
@@ -13,14 +13,11 @@
             <table id="my-team-table" class="table">
                 <thead>
                 <tr>
-                    <th>{{ __('Team Name') }}</th>
-                    <th>{{ __('Your Role') }}</th>
-                    <th>{{ __('Department Heads') }}</th>
-                    <th>{{ __('Project Manager') }}</th>
-                    <th>{{ __('Assistant HR') }}</th>
-                    <th>{{ __('Department') }}</th>
+                    <th>{{ __('Project') }}</th>
+                    <th>{{ trans('file.Client') }}</th>
                     <th>{{ __('Members') }}</th>
-                    <th>{{ trans('file.Company') }}</th>
+                    <th>{{ __('Members Count') }}</th>
+                    <th>{{ __('Status') }}</th>
                     <th class="not-exported">{{ trans('file.action') }}</th>
                 </tr>
                 </thead>
@@ -28,15 +25,35 @@
         </div>
     </section>
 
-    @include('organization.team.partials.form_modal', ['allowCreate' => false])
-    @include('organization.team.partials.view_modal')
+    <div class="modal fade" id="teamMembersModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="teamMembersModalLabel">{{ __('Team Members') }}</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered mb-0">
+                            <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>{{ __('Name') }}</th>
+                                <th>{{ __('Email') }}</th>
+                                <th>{{ trans('file.Department') }}</th>
+                            </tr>
+                            </thead>
+                            <tbody id="team-members-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
 @endsection
-
-@php
-    $singleCompanyId = \App\Support\CompanyScope::teamFormCompany()?->id
-        ?? (\App\Support\CompanyScope::applies() && $companies->isNotEmpty() ? $companies->first()->id : null);
-@endphp
 
 @push('scripts')
 <script type="text/javascript">
@@ -50,14 +67,11 @@
             serverSide: true,
             ajax: "{{ route('teams.my') }}",
             columns: [
-                { data: 'team_name', name: 'team_name' },
-                { data: 'your_role', name: 'your_role', orderable: false, searchable: false },
-                { data: 'department_head', name: 'department_head' },
-                { data: 'project_manager', name: 'project_manager' },
-                { data: 'assistant_hr', name: 'assistant_hr' },
-                { data: 'department', name: 'department' },
-                { data: 'members', name: 'members', orderable: false },
-                { data: 'company', name: 'company' },
+                { data: 'title', name: 'title' },
+                { data: 'client', name: 'client', orderable: false, searchable: false },
+                { data: 'members', name: 'members', orderable: false, searchable: false },
+                { data: 'member_count', name: 'member_count', orderable: false, searchable: false },
+                { data: 'status', name: 'project_status' },
                 { data: 'action', name: 'action', orderable: false, searchable: false }
             ],
             order: [],
@@ -65,19 +79,45 @@
                 lengthMenu: '_MENU_ {{ __("records per page") }}',
                 info: '{{ __("Showing") }} _START_ - _END_ (_TOTAL_)',
                 search: '{{ __("Search") }}',
-                emptyTable: '{{ __("You are not assigned to any team yet.") }}',
+                emptyTable: '{{ __("You are not assigned as a project lead yet.") }}',
                 paginate: {
                     previous: '<i class="dripicons-chevron-left"></i>',
                     next: '<i class="dripicons-chevron-right"></i>'
                 }
             }
         });
+
+        $('#my-team-table').on('click', '.view-members', function () {
+            var projectId = $(this).data('id');
+            var title = $(this).data('title') || '{{ __('Team Members') }}';
+            var membersUrl = "{{ url('organization/teams/my') }}/" + projectId + "/members";
+
+            $('#teamMembersModalLabel').text(title);
+            $('#team-members-body').html('<tr><td colspan="4" class="text-center">{{ __('Loading...') }}</td></tr>');
+            $('#teamMembersModal').modal('show');
+
+            $.get(membersUrl, function (response) {
+                var rows = '';
+
+                if (response.members && response.members.length) {
+                    $.each(response.members, function (index, member) {
+                        rows += '<tr>' +
+                            '<td>' + (index + 1) + '</td>' +
+                            '<td>' + (member.name || '-') + '</td>' +
+                            '<td>' + (member.email || '-') + '</td>' +
+                            '<td>' + (member.department || '-') + '</td>' +
+                            '</tr>';
+                    });
+                } else {
+                    rows = '<tr><td colspan="4" class="text-center">{{ __('No members assigned to this project yet.') }}</td></tr>';
+                }
+
+                $('#team-members-body').html(rows);
+            }).fail(function () {
+                $('#team-members-body').html('<tr><td colspan="4" class="text-center text-danger">{{ __('Unable to load members.') }}</td></tr>');
+            });
+        });
     });
 })(jQuery);
 </script>
-@include('organization.team.partials.form_scripts', [
-    'allowCreate' => false,
-    'tableSelector' => '#my-team-table',
-    'singleCompanyId' => $singleCompanyId,
-])
 @endpush

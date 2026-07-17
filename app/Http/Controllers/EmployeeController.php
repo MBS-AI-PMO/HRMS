@@ -1158,7 +1158,7 @@ if ($request->remove_profile_photo == 1) {
                 return;
             }
 
-            $employee->projects()->detach();
+            $employee->syncMemberProjects([]);
 
             return;
         }
@@ -1169,7 +1169,7 @@ if ($request->remove_profile_photo == 1) {
             ->pluck('id')
             ->all();
 
-        $employee->projects()->sync($validIds);
+        $employee->syncMemberProjects($validIds);
     }
 
     public function socialProfileShow(Employee $employee)
