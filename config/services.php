@@ -30,4 +30,15 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    /*
+    | Firebase Cloud Messaging (HTTP v1).
+    | FIREBASE_CREDENTIALS: absolute path to the service-account JSON key,
+    | or a path relative to storage_path() (e.g. app/firebase/service-account.json).
+    | FIREBASE_PROJECT_ID: optional override; falls back to project_id inside the JSON.
+    */
+    'firebase' => [
+        'credentials' => env('FIREBASE_CREDENTIALS', 'app/firebase/employe-managment-system-firebase-adminsdk-fbsvc-5dcbed77b6.json'),
+        'project_id' => env('FIREBASE_PROJECT_ID', 'employe-managment-system'),
+    ],
+
 ];

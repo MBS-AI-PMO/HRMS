@@ -177,6 +177,62 @@ class ApiController extends Controller
         }
     }
 
+    /**
+     * Save/refresh the logged-in user's FCM device token (push notifications).
+     */
+    public function saveFcmToken(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'fcm_token' => 'required|string|max:4096',
+            ]);
+
+            $user = $request->user();
+            $user->fcm_token = trim($validated['fcm_token']);
+            $user->save();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'FCM token saved successfully.',
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Validation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Could not save FCM token.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove the logged-in user's FCM token (call on logout to stop pushes).
+     */
+    public function deleteFcmToken(Request $request)
+    {
+        try {
+            $user = $request->user();
+            $user->fcm_token = null;
+            $user->save();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'FCM token removed successfully.',
+            ]);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Could not remove FCM token.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function profile(Request $request)
     {
         try {

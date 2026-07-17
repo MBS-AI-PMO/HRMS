@@ -23,6 +23,10 @@ Route::post('login', [ApiController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [ApiController::class, 'logout']);
+
+    Route::post('save-fcm-token', [ApiController::class, 'saveFcmToken']);
+    Route::delete('fcm-token', [ApiController::class, 'deleteFcmToken']);
+
     Route::get('profile', [ApiController::class, 'profile']);
     Route::match(['put', 'patch'], 'profile', [ApiController::class, 'updateProfile']);
     Route::post('clock-in', [ApiController::class, 'clockIn']);
