@@ -109,19 +109,262 @@
         <div class="row mb-4">
             @foreach ($dashboard['kpis'] as $card)
                 <div class="col-6 col-md-4 col-lg-2 mb-3">
-                    <div class="entity-kpi entity-kpi--{{ $card['tone'] }}">
-                        <div class="entity-kpi__icon"><i class="{{ $card['icon'] }}"></i></div>
-                        <div class="entity-kpi__body">
-                            <div class="entity-kpi__label">{{ $card['label'] }}</div>
-                            <div class="entity-kpi__value">{{ number_format((int) $card['value']) }}</div>
-                            @if (! empty($card['hint']))
-                                <div class="entity-kpi__hint">{{ $card['hint'] }}</div>
-                            @endif
+                    @if (! empty($card['url']))
+                        <a href="{{ $card['url'] }}" class="entity-kpi entity-kpi--{{ $card['tone'] }} entity-kpi--clickable">
+                            <div class="entity-kpi__icon"><i class="{{ $card['icon'] }}"></i></div>
+                            <div class="entity-kpi__body">
+                                <div class="entity-kpi__label">{{ $card['label'] }}</div>
+                                <div class="entity-kpi__value">{{ is_numeric($card['value']) ? number_format((int) $card['value']) : $card['value'] }}</div>
+                                @if (! empty($card['hint']))
+                                    <div class="entity-kpi__hint">{{ $card['hint'] }}</div>
+                                @endif
+                                <div class="entity-kpi__cta">{{ __('View details') }} <i class="dripicons-chevron-right"></i></div>
+                            </div>
+                        </a>
+                    @else
+                        <div class="entity-kpi entity-kpi--{{ $card['tone'] }}">
+                            <div class="entity-kpi__icon"><i class="{{ $card['icon'] }}"></i></div>
+                            <div class="entity-kpi__body">
+                                <div class="entity-kpi__label">{{ $card['label'] }}</div>
+                                <div class="entity-kpi__value">{{ is_numeric($card['value']) ? number_format((int) $card['value']) : $card['value'] }}</div>
+                                @if (! empty($card['hint']))
+                                    <div class="entity-kpi__hint">{{ $card['hint'] }}</div>
+                                @endif
+                            </div>
                         </div>
-                    </div>
+                    @endif
                 </div>
             @endforeach
         </div>
+
+        @if (($dashboard['type'] ?? '') === 'client' && ! empty($dashboard['kpi_details']))
+            @php $details = $dashboard['kpi_details']; @endphp
+            <div id="entity-kpi-details-wrap" class="mb-4">
+
+            <div id="entity-detail-projects" class="entity-panel entity-detail-panel mb-0 d-none" data-page-size="5">
+                <div class="entity-panel__head entity-panel__head--row">
+                    <div>
+                        <h3>{{ trans('file.Projects') }}</h3>
+                        <p>{{ __('All projects for this client') }}</p>
+                    </div>
+                    <div class="d-flex align-items-center entity-detail-actions">
+                        <a href="{{ route('projects.index') }}" class="btn btn-sm entity-btn-outline">{{ __('Open Projects') }}</a>
+                        <button type="button" class="btn btn-sm entity-btn-ghost entity-detail-close" aria-label="{{ __('Close') }}">&times;</button>
+                    </div>
+                </div>
+                <div class="entity-panel__body p-0">
+                    @if (($details['projects'] ?? collect())->isNotEmpty())
+                        <div class="table-responsive">
+                            <table class="table entity-table mb-0 entity-paged-table">
+                                <thead>
+                                <tr>
+                                    <th>{{ trans('file.Project') }}</th>
+                                    <th>{{ __('Category') }}</th>
+                                    <th>{{ trans('file.Status') }}</th>
+                                    <th>{{ __('Progress') }}</th>
+                                    <th>{{ __('Revenue') }}</th>
+                                    <th></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach ($details['projects'] as $project)
+                                    <tr class="entity-page-row">
+                                        <td><a href="{{ $project['url'] }}" class="entity-table__title">{{ $project['title'] }}</a></td>
+                                        <td>{{ $project['category'] ?? '—' }}</td>
+                                        <td><span class="entity-status {{ $project['status_class'] }}">{{ $project['status_label'] }}</span></td>
+                                        <td style="min-width:140px">
+                                            <div class="entity-progress">
+                                                <div class="entity-progress__bar" style="width:{{ $project['progress'] }}%"></div>
+                                            </div>
+                                            <small class="text-muted">{{ $project['progress'] }}%</small>
+                                        </td>
+                                        <td class="entity-table__money">{{ $project['revenue'] }}</td>
+                                        <td class="text-right">
+                                            <a href="{{ $project['url'] }}" class="btn btn-sm entity-btn-ghost">{{ __('Open') }}</a>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="entity-pagination"></div>
+                    @else
+                        <div class="entity-empty"><i class="dripicons-checklist"></i><p>{{ __('No projects found yet.') }}</p></div>
+                    @endif
+                </div>
+            </div>
+
+            <div id="entity-detail-categories" class="entity-panel entity-detail-panel mb-0 d-none" data-page-size="5">
+                <div class="entity-panel__head entity-panel__head--row">
+                    <div>
+                        <h3>{{ __('Project Categories') }}</h3>
+                        <p>{{ __('Service lines used by this client') }}</p>
+                    </div>
+                    <div class="d-flex align-items-center entity-detail-actions">
+                        <a href="{{ route('project_categories.index') }}" class="btn btn-sm entity-btn-outline">{{ __('Open Categories') }}</a>
+                        <button type="button" class="btn btn-sm entity-btn-ghost entity-detail-close" aria-label="{{ __('Close') }}">&times;</button>
+                    </div>
+                </div>
+                <div class="entity-panel__body p-0">
+                    @if (($details['categories'] ?? collect())->isNotEmpty())
+                        <div class="table-responsive">
+                            <table class="table entity-table mb-0 entity-paged-table">
+                                <thead>
+                                <tr>
+                                    <th>{{ __('Category') }}</th>
+                                    <th>{{ __('Description') }}</th>
+                                    <th>{{ __('Projects') }}</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach ($details['categories'] as $category)
+                                    <tr class="entity-page-row">
+                                        <td class="entity-table__title">{{ $category['name'] }}</td>
+                                        <td>{{ $category['description'] ?: '—' }}</td>
+                                        <td>{{ $category['project_count'] }}</td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="entity-pagination"></div>
+                    @else
+                        <div class="entity-empty"><i class="dripicons-folder"></i><p>{{ __('No project categories found.') }}</p></div>
+                    @endif
+                </div>
+            </div>
+
+            <div id="entity-detail-employees" class="entity-panel entity-detail-panel mb-0 d-none" data-page-size="5">
+                <div class="entity-panel__head entity-panel__head--row">
+                    <div>
+                        <h3>{{ trans('file.Employees') }}</h3>
+                        <p>{{ __('Active employees belonging to this client') }}</p>
+                    </div>
+                    <div class="d-flex align-items-center entity-detail-actions">
+                        <a href="{{ route('employees.index', ['client_id' => $dashboard['entity_id']]) }}" class="btn btn-sm entity-btn-outline">{{ __('Open Employees') }}</a>
+                        <button type="button" class="btn btn-sm entity-btn-ghost entity-detail-close" aria-label="{{ __('Close') }}">&times;</button>
+                    </div>
+                </div>
+                <div class="entity-panel__body p-0">
+                    @if (($details['employees'] ?? collect())->isNotEmpty())
+                        <div class="table-responsive">
+                            <table class="table entity-table mb-0 entity-paged-table">
+                                <thead>
+                                <tr>
+                                    <th>{{ trans('file.Employee') }}</th>
+                                    <th>{{ __('Staff Id') }}</th>
+                                    <th>{{ trans('file.Department') }}</th>
+                                    <th>{{ trans('file.Designation') }}</th>
+                                    <th></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach ($details['employees'] as $employee)
+                                    <tr class="entity-page-row">
+                                        <td><a href="{{ $employee['url'] }}" class="entity-table__title">{{ $employee['name'] }}</a></td>
+                                        <td>{{ $employee['staff_id'] }}</td>
+                                        <td>{{ $employee['department'] }}</td>
+                                        <td>{{ $employee['designation'] }}</td>
+                                        <td class="text-right"><a href="{{ $employee['url'] }}" class="btn btn-sm entity-btn-ghost">{{ __('Open') }}</a></td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="entity-pagination"></div>
+                    @else
+                        <div class="entity-empty"><i class="dripicons-user-id"></i><p>{{ __('No client employees found.') }}</p></div>
+                    @endif
+                </div>
+            </div>
+
+            <div id="entity-detail-assigned" class="entity-panel entity-detail-panel mb-0 d-none" data-page-size="5">
+                <div class="entity-panel__head entity-panel__head--row">
+                    <div>
+                        <h3>{{ __('Assigned Employees') }}</h3>
+                        <p>{{ __('Team members assigned on this client’s projects') }}</p>
+                    </div>
+                    <div class="d-flex align-items-center entity-detail-actions">
+                        <button type="button" class="btn btn-sm entity-btn-ghost entity-detail-close" aria-label="{{ __('Close') }}">&times;</button>
+                    </div>
+                </div>
+                <div class="entity-panel__body p-0">
+                    @if (($details['assigned'] ?? collect())->isNotEmpty())
+                        <div class="table-responsive">
+                            <table class="table entity-table mb-0 entity-paged-table">
+                                <thead>
+                                <tr>
+                                    <th>{{ trans('file.Employee') }}</th>
+                                    <th>{{ __('Staff Id') }}</th>
+                                    <th>{{ trans('file.Department') }}</th>
+                                    <th>{{ __('Assigned Projects') }}</th>
+                                    <th></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach ($details['assigned'] as $employee)
+                                    <tr class="entity-page-row">
+                                        <td><a href="{{ $employee['url'] }}" class="entity-table__title">{{ $employee['name'] }}</a></td>
+                                        <td>{{ $employee['staff_id'] }}</td>
+                                        <td>{{ $employee['department'] }}</td>
+                                        <td>{{ $employee['projects'] ?? '—' }}</td>
+                                        <td class="text-right"><a href="{{ $employee['url'] }}" class="btn btn-sm entity-btn-ghost">{{ __('Open') }}</a></td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="entity-pagination"></div>
+                    @else
+                        <div class="entity-empty"><i class="dripicons-user-group"></i><p>{{ __('No assigned employees found.') }}</p></div>
+                    @endif
+                </div>
+            </div>
+
+            <div id="entity-detail-invoices" class="entity-panel entity-detail-panel mb-0 d-none" data-page-size="5">
+                <div class="entity-panel__head entity-panel__head--row">
+                    <div>
+                        <h3>{{ trans('file.Invoice') }}</h3>
+                        <p>{{ __('Billing records for this client') }}</p>
+                    </div>
+                    <div class="d-flex align-items-center entity-detail-actions">
+                        <a href="{{ route('invoices.index') }}" class="btn btn-sm entity-btn-outline">{{ __('Open Invoices') }}</a>
+                        <button type="button" class="btn btn-sm entity-btn-ghost entity-detail-close" aria-label="{{ __('Close') }}">&times;</button>
+                    </div>
+                </div>
+                <div class="entity-panel__body p-0">
+                    @if (($details['invoices'] ?? collect())->isNotEmpty())
+                        <div class="table-responsive">
+                            <table class="table entity-table mb-0 entity-paged-table">
+                                <thead>
+                                <tr>
+                                    <th>{{ __('Invoice #') }}</th>
+                                    <th>{{ trans('file.Status') }}</th>
+                                    <th>{{ __('Amount') }}</th>
+                                    <th></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                @foreach ($details['invoices'] as $invoice)
+                                    <tr class="entity-page-row">
+                                        <td class="entity-table__title">{{ $invoice['number'] }}</td>
+                                        <td>{{ $invoice['status'] }}</td>
+                                        <td class="entity-table__money">{{ $invoice['grand_total'] }}</td>
+                                        <td class="text-right"><a href="{{ $invoice['url'] }}" class="btn btn-sm entity-btn-ghost">{{ __('Open') }}</a></td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="entity-pagination"></div>
+                    @else
+                        <div class="entity-empty"><i class="dripicons-document"></i><p>{{ __('No invoices found.') }}</p></div>
+                    @endif
+                </div>
+            </div>
+
+            </div>
+        @endif
 
         <div class="row">
             {{-- Project status --}}
@@ -413,9 +656,52 @@
     .entity-kpi {
         display: flex; gap: 14px; align-items: flex-start; padding: 20px; border-radius: 16px;
         background: var(--ed-surface); border: 1px solid var(--ed-border); height: 100%;
-        box-shadow: 0 8px 24px rgba(15,23,42,.04); transition: transform .2s ease;
+        box-shadow: 0 8px 24px rgba(15,23,42,.04); transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+        text-decoration: none; color: inherit;
     }
-    .entity-kpi:hover { transform: translateY(-2px); }
+    .entity-kpi:hover { transform: translateY(-2px); text-decoration: none; color: inherit; }
+    a.entity-kpi--clickable { cursor: pointer; }
+    a.entity-kpi--clickable:hover {
+        border-color: rgba(91,74,154,.35);
+        box-shadow: 0 12px 28px rgba(55,32,91,.12);
+    }
+    .entity-kpi__cta {
+        margin-top: 8px; font-size: 0.72rem; font-weight: 700; color: var(--ed-violet-mid);
+        display: inline-flex; align-items: center; gap: 2px; opacity: .85;
+    }
+    a.entity-kpi--clickable:hover .entity-kpi__cta { opacity: 1; }
+    a.entity-kpi--clickable.is-active {
+        border-color: rgba(91,74,154,.45);
+        box-shadow: 0 12px 28px rgba(55,32,91,.14);
+        background: #faf8ff;
+    }
+    .entity-detail-panel { scroll-margin-top: 88px; }
+    .entity-detail-panel.is-focused {
+        outline: 2px solid rgba(91,74,154,.35);
+        box-shadow: 0 0 0 6px rgba(91,74,154,.08);
+    }
+    .entity-detail-actions { gap: 8px; }
+    .entity-detail-close {
+        font-size: 1.35rem; line-height: 1; padding: 2px 10px !important; color: var(--ed-muted);
+    }
+    .entity-detail-close:hover { color: var(--ed-ink); }
+    .entity-pagination {
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 14px 20px; border-top: 1px solid var(--ed-border); background: #fafbfc;
+    }
+    .entity-pagination__meta { font-size: 0.82rem; color: var(--ed-muted); }
+    .entity-pagination__controls { display: flex; align-items: center; gap: 6px; }
+    .entity-pagination__btn {
+        border: 1px solid var(--ed-border); background: #fff; color: var(--ed-ink);
+        border-radius: 8px; min-width: 34px; height: 34px; padding: 0 10px;
+        font-size: 0.82rem; font-weight: 600; cursor: pointer;
+    }
+    .entity-pagination__btn:hover:not(:disabled) { border-color: var(--ed-violet-mid); color: var(--ed-violet-mid); }
+    .entity-pagination__btn:disabled { opacity: .45; cursor: not-allowed; }
+    .entity-pagination__btn.is-current {
+        background: var(--ed-violet-mid); border-color: var(--ed-violet-mid); color: #fff;
+    }
+    #entity-kpi-details-wrap:not(:empty) .entity-detail-panel:not(.d-none) { margin-bottom: 1.5rem; }
     .entity-kpi--violet { border-top: 3px solid var(--ed-violet-mid); }
     .entity-kpi--cyan { border-top: 3px solid var(--ed-cyan); }
     .entity-kpi--amber { border-top: 3px solid var(--ed-amber); }
@@ -576,6 +862,142 @@
                     },
                 },
             });
+        }
+
+        function initEntityPanelPagination(panel) {
+            var table = panel.querySelector('.entity-paged-table');
+            var pager = panel.querySelector('.entity-pagination');
+            if (!table || !pager) {
+                return;
+            }
+
+            var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr.entity-page-row'));
+            var pageSize = parseInt(panel.getAttribute('data-page-size') || '5', 10) || 5;
+            var currentPage = 1;
+            var totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+
+            function render() {
+                var start = (currentPage - 1) * pageSize;
+                var end = start + pageSize;
+
+                rows.forEach(function (row, index) {
+                    row.style.display = (index >= start && index < end) ? '' : 'none';
+                });
+
+                var from = rows.length ? (start + 1) : 0;
+                var to = Math.min(end, rows.length);
+                var meta = from && to
+                    ? (from + '–' + to + ' / ' + rows.length)
+                    : ('0 / ' + rows.length);
+
+                var controls = '';
+                controls += '<button type="button" class="entity-pagination__btn" data-page="prev" ' + (currentPage <= 1 ? 'disabled' : '') + '>&laquo;</button>';
+
+                for (var page = 1; page <= totalPages; page++) {
+                    controls += '<button type="button" class="entity-pagination__btn' + (page === currentPage ? ' is-current' : '') + '" data-page="' + page + '">' + page + '</button>';
+                }
+
+                controls += '<button type="button" class="entity-pagination__btn" data-page="next" ' + (currentPage >= totalPages ? 'disabled' : '') + '>&raquo;</button>';
+
+                pager.innerHTML =
+                    '<div class="entity-pagination__meta">' + meta + '</div>' +
+                    '<div class="entity-pagination__controls">' + controls + '</div>';
+            }
+
+            pager.onclick = function (event) {
+                var button = event.target.closest('[data-page]');
+                if (!button || button.disabled) {
+                    return;
+                }
+
+                var action = button.getAttribute('data-page');
+                if (action === 'prev') {
+                    currentPage = Math.max(1, currentPage - 1);
+                } else if (action === 'next') {
+                    currentPage = Math.min(totalPages, currentPage + 1);
+                } else {
+                    currentPage = parseInt(action, 10) || 1;
+                }
+
+                render();
+            };
+
+            panel._entityResetPage = function () {
+                currentPage = 1;
+                render();
+            };
+
+            render();
+        }
+
+        document.querySelectorAll('.entity-detail-panel').forEach(initEntityPanelPagination);
+
+        function hideAllEntityDetails() {
+            document.querySelectorAll('.entity-detail-panel').forEach(function (panel) {
+                panel.classList.add('d-none');
+                panel.classList.remove('is-focused');
+            });
+            document.querySelectorAll('a.entity-kpi--clickable').forEach(function (card) {
+                card.classList.remove('is-active');
+            });
+        }
+
+        function showEntityDetail(hash, triggerCard) {
+            if (!hash || hash.charAt(0) !== '#') {
+                return;
+            }
+
+            var target = document.querySelector(hash);
+            if (!target || !target.classList.contains('entity-detail-panel')) {
+                return;
+            }
+
+            hideAllEntityDetails();
+            target.classList.remove('d-none');
+            target.classList.add('is-focused');
+
+            if (typeof target._entityResetPage === 'function') {
+                target._entityResetPage();
+            }
+
+            if (triggerCard) {
+                triggerCard.classList.add('is-active');
+            } else {
+                var linkedCard = document.querySelector('a.entity-kpi--clickable[href="' + hash + '"]');
+                if (linkedCard) {
+                    linkedCard.classList.add('is-active');
+                }
+            }
+
+            setTimeout(function () {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 40);
+
+            setTimeout(function () {
+                target.classList.remove('is-focused');
+            }, 1600);
+        }
+
+        document.querySelectorAll('a.entity-kpi--clickable[href^="#"]').forEach(function (link) {
+            link.addEventListener('click', function (event) {
+                event.preventDefault();
+                var hash = this.getAttribute('href');
+                history.replaceState(null, '', hash);
+                showEntityDetail(hash, this);
+            });
+        });
+
+        document.querySelectorAll('.entity-detail-close').forEach(function (button) {
+            button.addEventListener('click', function () {
+                hideAllEntityDetails();
+                if (window.location.hash) {
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                }
+            });
+        });
+
+        if (window.location.hash && document.querySelector(window.location.hash + '.entity-detail-panel')) {
+            showEntityDetail(window.location.hash);
         }
     })();
 </script>

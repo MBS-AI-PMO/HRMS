@@ -542,7 +542,7 @@
 
             let date = $('.date');
             date.datepicker({
-                format: '{{ env('Date_Format_JS')}}',
+                format: @json(config('variable.date_format_js', 'dd-mm-yyyy')),
                 autoclose: true,
                 todayHighlight: true
             });
@@ -553,8 +553,9 @@
                 width: 'resolve',
                 theme: "classic",
             });
-            $('#employee_id').val(assigned);
-            $('#employee_id').trigger('change');
+            if (Array.isArray(assigned) && assigned.length) {
+                $('#employee_id').val(assigned.map(String)).trigger('change');
+            }
 
 
 

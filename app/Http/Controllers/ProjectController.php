@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Models\company;
+use App\Models\Employee;
 use App\Notifications\ProjectCreatedNotifiaction;
 use App\Notifications\ProjectUpdatedNotification;
 use App\Models\Project;
 use App\Models\User;
+use App\Scopes\AuthCompanyScope;
 use App\Services\ProjectTimelineService;
+use App\Support\CompanyScope;
 use DB;
 use Exception;
 use Illuminate\Http\Request;
@@ -228,10 +231,8 @@ class ProjectController extends Controller {
 			]);
 
 			$company_name = $project->company->company_name ?? '';
-
-			$employees = DB::table('employees')->where('company_id', $project->company_id)
-				->select('employees.id', DB::raw("CONCAT(employees.first_name,' ',employees.last_name) as full_name"))
-				->get();
+			$assignedIds = array_values(array_filter(array_map('intval', $name ?? [])));
+			$employees = $this->employeesForProjectSelect($project, $assignedIds);
 
 			return view('projects.project.details', compact('project', 'employees', 'company_name', 'name'));
 		}
@@ -417,6 +418,12 @@ class ProjectController extends Controller {
 
 	protected function resolveCompanyIdFromClient(Client $client): ?int
 	{
+		$resolved = CompanyScope::resolveCompanyIdForClient((int) $client->id);
+
+		if ($resolved) {
+			return $resolved;
+		}
+
 		$companyName = trim((string) $client->company_name);
 
 		if ($companyName === '') {
@@ -428,6 +435,51 @@ class ProjectController extends Controller {
 			->value('id');
 
 		return $id ? (int) $id : null;
+	}
+
+	/**
+	 * Employees available to assign on a project details page.
+	 * Includes client employees, company employees, and any already-assigned staff
+	 * so Select2 can always pre-select current assignees.
+	 *
+	 * @param  list<int>  $assignedIds
+	 * @return \Illuminate\Support\Collection<int, object{id:int, full_name:string}>
+	 */
+	protected function employeesForProjectSelect(Project $project, array $assignedIds)
+	{
+		$companyId = $project->company_id
+			?: ($project->client_id ? CompanyScope::resolveCompanyIdForClient((int) $project->client_id) : null);
+
+		if (! $project->client_id && ! $companyId && $assignedIds === []) {
+			return collect();
+		}
+
+		$query = Employee::withoutGlobalScope(AuthCompanyScope::class)
+			->where(function ($builder) use ($project, $companyId, $assignedIds) {
+				if ($project->client_id) {
+					$builder->orWhere('client_id', (int) $project->client_id);
+				}
+
+				if ($companyId) {
+					$builder->orWhere('company_id', (int) $companyId);
+				}
+
+				if ($assignedIds !== []) {
+					$builder->orWhereIn('id', $assignedIds);
+				}
+			})
+			->orderBy('first_name')
+			->orderBy('last_name');
+
+		return $query->get(['id', 'first_name', 'last_name'])
+			->map(function (Employee $employee) {
+				return (object) [
+					'id' => $employee->id,
+					'full_name' => trim($employee->first_name.' '.$employee->last_name),
+				];
+			})
+			->unique('id')
+			->values();
 	}
 
 

@@ -8,6 +8,7 @@ use App\Models\department;
 use App\Models\Employee;
 use App\Models\Invoice;
 use App\Models\Project;
+use App\Models\ProjectCategory;
 use App\Support\ClientDisplay;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -149,27 +150,86 @@ class EntityDashboardService
         $clientId = (int) $client->id;
         $projectsQuery = Project::query()->where('client_id', $clientId);
 
-        $assignedEmployees = Employee::query()
+        $assignedEmployeeModels = Employee::query()
             ->where('is_active', 1)
             ->whereNull('exit_date')
             ->whereHas('projects', function ($query) use ($clientId) {
                 $query->where('client_id', $clientId);
             })
-            ->count();
+            ->with([
+                'department:id,department_name',
+                'designation:id,designation_name',
+                'projects' => function ($query) use ($clientId) {
+                    $query->where('client_id', $clientId)->select('projects.id', 'projects.title', 'projects.client_id');
+                },
+            ])
+            ->orderBy('first_name')
+            ->get();
 
-        $totalClientEmployees = Employee::query()
+        $clientEmployeeModels = Employee::query()
             ->where('client_id', $clientId)
             ->where('is_active', 1)
             ->whereNull('exit_date')
-            ->count();
+            ->with(['department:id,department_name', 'designation:id,designation_name'])
+            ->orderBy('first_name')
+            ->get();
 
-        $categoriesCount = (clone $projectsQuery)->whereNotNull('project_category_id')->distinct()->count('project_category_id');
+        $categoryIds = (clone $projectsQuery)
+            ->whereNotNull('project_category_id')
+            ->pluck('project_category_id')
+            ->unique()
+            ->filter()
+            ->values();
 
-        $recentProjects = (clone $projectsQuery)
-            ->latest('id')
-            ->limit(10)
+        $categories = ProjectCategory::query()
+            ->whereIn('id', $categoryIds)
+            ->orderBy('category_name')
             ->get()
-            ->map(fn (Project $project) => $this->mapProjectRow($project));
+            ->map(function (ProjectCategory $category) use ($clientId) {
+                $projectCount = Project::query()
+                    ->where('client_id', $clientId)
+                    ->where('project_category_id', $category->id)
+                    ->count();
+
+                return [
+                    'id' => $category->id,
+                    'name' => $category->category_name,
+                    'description' => $category->description,
+                    'project_count' => $projectCount,
+                    'url' => route('project_categories.index'),
+                ];
+            })
+            ->values();
+
+        $allProjects = (clone $projectsQuery)
+            ->with('projectCategory:id,category_name')
+            ->latest('id')
+            ->get()
+            ->map(function (Project $project) {
+                $row = $this->mapProjectRow($project);
+                $row['category'] = $project->projectCategory->category_name ?? '—';
+
+                return $row;
+            });
+
+        $invoices = Invoice::query()
+            ->where('client_id', $clientId)
+            ->latest('id')
+            ->limit(50)
+            ->get()
+            ->map(function (Invoice $invoice) {
+                return [
+                    'id' => $invoice->id,
+                    'number' => $invoice->invoice_number ?? ('#'.$invoice->id),
+                    'status' => $invoice->status ?? '—',
+                    'grand_total' => $this->formatMoney($invoice->grand_total ?? 0),
+                    'url' => route('invoices.show', $invoice),
+                ];
+            });
+
+        $invoiceCount = Invoice::query()->where('client_id', $clientId)->count();
+
+        $recentProjects = $allProjects->take(10)->values();
 
         $company = company::query()
             ->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower(trim((string) $client->company_name))])
@@ -224,11 +284,63 @@ class EntityDashboardService
                 ],
             ],
             'kpis' => [
-                ['label' => trans('file.Projects'), 'value' => (clone $projectsQuery)->count(), 'icon' => 'dripicons-checklist', 'tone' => 'amber', 'hint' => __('Total projects')],
-                ['label' => __('Project Categories'), 'value' => $categoriesCount, 'icon' => 'dripicons-folder', 'tone' => 'emerald', 'hint' => __('Service lines')],
-                ['label' => trans('file.Employees'), 'value' => $totalClientEmployees, 'icon' => 'dripicons-user-id', 'tone' => 'indigo', 'hint' => __('Active under this client')],
-                ['label' => __('Assigned Employees'), 'value' => $assignedEmployees, 'icon' => 'dripicons-user-group', 'tone' => 'violet', 'hint' => __('On active projects')],
-                ['label' => trans('file.Invoice'), 'value' => Invoice::query()->where('client_id', $clientId)->count(), 'icon' => 'dripicons-document', 'tone' => 'cyan', 'hint' => __('Billing records')],
+                [
+                    'key' => 'projects',
+                    'label' => trans('file.Projects'),
+                    'value' => $allProjects->count(),
+                    'icon' => 'dripicons-checklist',
+                    'tone' => 'amber',
+                    'hint' => __('Total projects'),
+                    'url' => '#entity-detail-projects',
+                ],
+                [
+                    'key' => 'categories',
+                    'label' => __('Project Categories'),
+                    'value' => $categories->count(),
+                    'icon' => 'dripicons-folder',
+                    'tone' => 'emerald',
+                    'hint' => __('Service lines'),
+                    'url' => '#entity-detail-categories',
+                ],
+                [
+                    'key' => 'employees',
+                    'label' => trans('file.Employees'),
+                    'value' => $clientEmployeeModels->count(),
+                    'icon' => 'dripicons-user-id',
+                    'tone' => 'indigo',
+                    'hint' => __('Active under this client'),
+                    'url' => '#entity-detail-employees',
+                ],
+                [
+                    'key' => 'assigned',
+                    'label' => __('Assigned  Leads'),
+                    'value' => $assignedEmployeeModels->count(),
+                    'icon' => 'dripicons-user-group',
+                    'tone' => 'violet',
+                    'hint' => __('On active projects'),
+                    'url' => '#entity-detail-assigned',
+                ],
+                [
+                    'key' => 'invoices',
+                    'label' => trans('file.Invoice'),
+                    'value' => $invoiceCount,
+                    'icon' => 'dripicons-document',
+                    'tone' => 'cyan',
+                    'hint' => __('Billing records'),
+                    'url' => '#entity-detail-invoices',
+                ],
+            ],
+            'kpi_details' => [
+                'projects' => $allProjects,
+                'categories' => $categories,
+                'employees' => $clientEmployeeModels->map(fn (Employee $employee) => $this->mapEmployeeRow($employee))->values(),
+                'assigned' => $assignedEmployeeModels->map(function (Employee $employee) {
+                    $row = $this->mapEmployeeRow($employee);
+                    $row['projects'] = $employee->projects->pluck('title')->filter()->values()->implode(', ') ?: '—';
+
+                    return $row;
+                })->values(),
+                'invoices' => $invoices,
             ],
             'quick_links' => array_values(array_filter([
                 ['label' => trans('file.Projects'), 'url' => route('projects.index'), 'icon' => 'dripicons-checklist'],
@@ -240,6 +352,18 @@ class EntityDashboardService
                 'department_headcount' => collect(),
             ],
             'recent_projects' => $recentProjects,
+        ];
+    }
+
+    protected function mapEmployeeRow(Employee $employee): array
+    {
+        return [
+            'id' => $employee->id,
+            'name' => trim($employee->first_name.' '.$employee->last_name),
+            'staff_id' => $employee->staff_id ?? '—',
+            'department' => $employee->department->department_name ?? '—',
+            'designation' => $employee->designation->designation_name ?? '—',
+            'url' => route('employees.show', $employee->id),
         ];
     }
 

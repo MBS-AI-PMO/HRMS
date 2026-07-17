@@ -390,6 +390,13 @@ $profileWorkFieldsReadonly = isset($workFieldsReadonly)
                                                 <input type="text" readonly class="form-control bg-light"
                                                     value="{{ $ownerTypeLabel }}: {{ $ownerLabel }}">
                                             </div>
+                                            @if ($employee->client_id)
+                                            <div class="form-group">
+                                                <label>{{ trans('file.Projects') }}</label>
+                                                <input type="text" readonly class="form-control bg-light"
+                                                    value="{{ $employee->projects->pluck('title')->filter()->implode(', ') ?: '—' }}">
+                                            </div>
+                                            @endif
                                             @else
                                             @include('employee.partials.owner_fields', [
                                             'employee' => $employee,

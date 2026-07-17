@@ -120,77 +120,34 @@
 
                         @csrf
                         <div class="row">
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-4 form-group">
                                 <label>{{trans('file.Location')}} *</label>
                                 <input type="text" name="location_name" id="location_name" required class="form-control"
                                        placeholder="{{__('Unique Value',['key'=>trans('file.Location')])}}">
                             </div>
 
-                            <div class="col-md-6 form-group">
+                            <div class="col-md-4 form-group">
+                                <label>{{ trans('file.Company') }} *</label>
+                                <select name="owner_company_id" id="owner_company_id" required
+                                        class="form-control selectpicker"
+                                        data-live-search="true"
+                                        data-live-search-style="contains"
+                                        title='{{ __('Selecting', ['key' => trans('file.Company')]) }}...'>
+                                    @foreach ($companies as $company)
+                                        <option value="{{ $company->id }}">{{ $company->company_name }}</option>
+                                    @endforeach
+                                </select>
+                                <input type="hidden" name="owner_type" id="owner_type_hidden" value="company">
+                            </div>
+
+                            <div class="col-md-4 form-group">
                                 <label>{{__('Location Head')}}</label>
                                 <select name="location_head_ids[]" id="location_head" class="form-control selectpicker"
                                         data-live-search="true" data-live-search-style="contains" multiple
-                                        title='{{__('Selecting',['key'=>trans('file.Employee')])}}...'>
+                                        title='{{__('Selecting',['key'=>trans('file.Employee')])}}...'
+                                        disabled>
                                 </select>
-                                <small class="text-muted">{{ __('Select company, client, project, and department first to load employees.') }}</small>
-                            </div>
-
-                            <div class="col-md-12">
-                                <div class="location-hierarchy-panel border rounded bg-light p-3 mb-3">
-                                    <label class="d-block font-weight-bold mb-3 text-center">{{ __('Company') }} &rarr; {{ trans('file.Client') }} &rarr; {{ trans('file.Project') }} &rarr; {{ trans('file.Department') }} &rarr; {{ trans('file.Employee') }}</label>
-                                    <div class="row location-hierarchy-flow">
-                                        <div class="col-md-2 form-group">
-                                            <label>{{ trans('file.Company') }} *</label>
-                                            <select name="owner_company_id" id="hierarchy_company_id" required
-                                                    class="form-control selectpicker hierarchy-select"
-                                                    data-live-search="true"
-                                                    data-live-search-style="contains"
-                                                    title='{{ __('Selecting', ['key' => trans('file.Company')]) }}...'>
-                                                @foreach ($companies as $company)
-                                                    <option value="{{ $company->id }}">{{ $company->company_name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        <div class="col-md-2 form-group">
-                                            <label>{{ trans('file.Client') }} *</label>
-                                            <select name="client_id" id="hierarchy_client_id" disabled
-                                                    class="form-control selectpicker hierarchy-select"
-                                                    data-live-search="true"
-                                                    data-live-search-style="contains"
-                                                    title='{{ __('Selecting', ['key' => trans('file.Client')]) }}...'>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-2 form-group">
-                                            <label>{{ trans('file.Project') }}</label>
-                                            <select id="hierarchy_project_id" disabled
-                                                    class="form-control selectpicker hierarchy-select"
-                                                    data-live-search="true"
-                                                    data-live-search-style="contains"
-                                                    title='{{ __('Selecting', ['key' => trans('file.Project')]) }}...'>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-2 form-group">
-                                            <label>{{ trans('file.Department') }}</label>
-                                            <select id="hierarchy_department_id" disabled
-                                                    class="form-control selectpicker hierarchy-select"
-                                                    data-live-search="true"
-                                                    data-live-search-style="contains"
-                                                    title='{{ __('Selecting', ['key' => trans('file.Department')]) }}...'>
-                                            </select>
-                                        </div>
-                                        <div class="col-md-4 form-group">
-                                            <label>{{ trans('file.Employee') }}</label>
-                                            <select id="hierarchy_employee_id" disabled
-                                                    class="form-control selectpicker hierarchy-select"
-                                                    data-live-search="true"
-                                                    data-live-search-style="contains"
-                                                    title='{{ __('Selecting', ['key' => trans('file.Employee')]) }}...'>
-                                            </select>
-                                            <small class="text-muted">{{ __('Optional: pick an employee to add as location head.') }}</small>
-                                        </div>
-                                    </div>
-                                    <input type="hidden" name="owner_type" id="owner_type_hidden" value="client">
-                                </div>
+                                <small class="text-muted">{{ __('Select company first to load employees.') }}</small>
                             </div>
 
 
@@ -578,6 +535,26 @@
             refreshHierarchySelect($select);
         }
 
+        function populateLocationHeadSelect(items, selectedIds) {
+            var $select = $('#location_head');
+            var selected = (selectedIds || []).map(String);
+            $select.prop('disabled', false);
+            $select.empty();
+            (items || []).forEach(function (item) {
+                $select.append($('<option>', { value: item.id, text: item.label }));
+            });
+            selected.forEach(function (headId) {
+                if (!$select.find('option[value="' + headId + '"]').length) {
+                    $select.append($('<option>', {
+                        value: headId,
+                        text: '{{ __('Employee') }} #' + headId
+                    }));
+                }
+            });
+            refreshHierarchySelect($select);
+            $select.selectpicker('val', selected);
+        }
+
         function fetchHierarchyItems(url, params) {
             return $.getJSON(url, params).then(function (response) {
                 return response.items || [];
@@ -591,6 +568,20 @@
                 project_id: $('#' + prefix + 'project_id').val(),
                 department_id: $('#' + prefix + 'department_id').val(),
             };
+        }
+
+        function loadLocationHeadsByCompany(companyId, selectedIds) {
+            if (!companyId) {
+                $('#location_head').prop('disabled', true).empty();
+                refreshHierarchySelect($('#location_head'));
+                $('#location_head').selectpicker('val', []);
+                return $.Deferred().resolve().promise();
+            }
+
+            return fetchHierarchyItems(hierarchyRoutes.employees, { company_id: companyId })
+                .then(function (items) {
+                    populateLocationHeadSelect(items, selectedIds || []);
+                });
         }
 
         function loadHierarchyClients(prefix, selectedClientId) {
@@ -641,94 +632,33 @@
                 });
         }
 
-        function loadHierarchyEmployees(prefix, selectedEmployeeId, targetHeadSelect) {
+        function loadHierarchyEmployees(prefix, selectedEmployeeId) {
             var params = getHierarchyParams(prefix);
 
             if (!params.company_id || !params.client_id) {
-                if (targetHeadSelect) {
-                    resetHierarchySelect(targetHeadSelect, true);
-                } else {
-                    resetHierarchySelect($('#' + prefix + 'employee_id'), true);
-                }
+                resetHierarchySelect($('#' + prefix + 'employee_id'), true);
                 return $.Deferred().resolve().promise();
             }
 
             return fetchHierarchyItems(hierarchyRoutes.employees, params)
                 .then(function (items) {
-                    var $target = targetHeadSelect || $('#' + prefix + 'employee_id');
-                    populateHierarchySelect($target, items, selectedEmployeeId, false);
+                    populateHierarchySelect($('#' + prefix + 'employee_id'), items, selectedEmployeeId, false);
                 });
         }
 
-        function applyEditHierarchy(editData) {
-            var ownerType = editData.owner_type || 'client';
-            $('#owner_type_hidden').val(ownerType === 'company' ? 'company' : 'client');
+        function applyEditLocationOwner(editData) {
+            $('#owner_type_hidden').val('company');
+            var companyId = editData.owner_company_id ? String(editData.owner_company_id) : '';
+            $('#owner_company_id').selectpicker('val', companyId);
 
-            $('#hierarchy_company_id').selectpicker('val', editData.owner_company_id ? String(editData.owner_company_id) : '');
-
-            loadHierarchyClients('hierarchy_', editData.client_id || '')
+            return loadLocationHeadsByCompany(companyId, editData.location_head_ids || [])
                 .then(function () {
-                    if (!editData.client_id) {
-                        return loadHierarchyEmployees('hierarchy_', '', $('#location_head'));
-                    }
-
-                    return loadHierarchyProjects('hierarchy_', '')
-                        .then(function () {
-                            return loadHierarchyDepartments('hierarchy_', '');
-                        })
-                        .then(function () {
-                            return loadHierarchyEmployees('hierarchy_', '', $('#location_head'));
-                        });
-                })
-                .then(function () {
-                    (editData.location_head_ids || []).forEach(function (headId) {
-                        if (!$('#location_head option[value="' + headId + '"]').length) {
-                            $('#location_head').append($('<option>', {
-                                value: headId,
-                                text: '{{ __('Employee') }} #' + headId
-                            }));
-                        }
-                    });
-                    $('#location_head').selectpicker('val', (editData.location_head_ids || []).map(String));
                     $('#country').selectpicker('val', editData.country);
-                    refreshHierarchySelect($('#location_head'));
                 });
         }
 
-        $('#hierarchy_company_id').on('changed.bs.select', function () {
-            loadHierarchyClients('hierarchy_');
-        });
-
-        $('#hierarchy_client_id').on('changed.bs.select', function () {
-            $('#owner_type_hidden').val($(this).val() ? 'client' : 'company');
-            loadHierarchyProjects('hierarchy_').then(function () {
-                return loadHierarchyDepartments('hierarchy_');
-            }).then(function () {
-                return loadHierarchyEmployees('hierarchy_', '', $('#location_head'));
-            });
-        });
-
-        $('#hierarchy_project_id').on('changed.bs.select', function () {
-            loadHierarchyDepartments('hierarchy_').then(function () {
-                return loadHierarchyEmployees('hierarchy_', '', $('#location_head'));
-            });
-        });
-
-        $('#hierarchy_department_id').on('changed.bs.select', function () {
-            loadHierarchyEmployees('hierarchy_', '', $('#location_head'));
-        });
-
-        $('#hierarchy_employee_id').on('changed.bs.select', function () {
-            var employeeId = $(this).val();
-            if (!employeeId) {
-                return;
-            }
-
-            var currentHeads = $('#location_head').val() || [];
-            if (currentHeads.indexOf(String(employeeId)) === -1) {
-                currentHeads.push(String(employeeId));
-                $('#location_head').selectpicker('val', currentHeads);
-            }
+        $('#owner_company_id').on('changed.bs.select', function () {
+            loadLocationHeadsByCompany($(this).val(), []);
         });
 
         $('#filter_company_id').on('changed.bs.select', function () {
@@ -764,17 +694,14 @@
         $('#formModal').on('shown.bs.modal', function () {
             ensureLocationFormSelectpickers();
             if ($('#action').val() === '{{trans('file.Add')}}') {
-                $('#hierarchy_company_id').selectpicker('val', '');
-                resetHierarchySelect($('#hierarchy_client_id'), true);
-                resetHierarchySelect($('#hierarchy_project_id'), true);
-                resetHierarchySelect($('#hierarchy_department_id'), true);
-                resetHierarchySelect($('#hierarchy_employee_id'), true);
-                resetHierarchySelect($('#location_head'), true);
+                $('#owner_company_id').selectpicker('val', '');
+                $('#location_head').prop('disabled', true).empty();
+                refreshHierarchySelect($('#location_head'));
                 $('#location_head').selectpicker('val', []);
                 $('#country').selectpicker('val', '');
-                $('#owner_type_hidden').val('client');
+                $('#owner_type_hidden').val('company');
             } else if (editLocationData) {
-                applyEditHierarchy(editLocationData);
+                applyEditLocationOwner(editLocationData);
                 editLocationData = null;
             }
         });
@@ -799,17 +726,11 @@
 
         $('#sample_form').on('submit', function (event) {
             event.preventDefault();
+            $('#owner_type_hidden').val('company');
 
-            if ($('#action').val() == '{{trans('file.Add')}}') {
-                if (!$('#hierarchy_company_id').val()) {
-                    $('#form_result').html('<div class="alert alert-danger">{{ __('Please select a company.') }}</div>').slideDown(300);
-                    return;
-                }
-                if (!$('#hierarchy_client_id').val()) {
-                    $('#form_result').html('<div class="alert alert-danger">{{ __('Please select a client.') }}</div>').slideDown(300);
-                    return;
-                }
-                $('#owner_type_hidden').val('client');
+            if (!$('#owner_company_id').val()) {
+                $('#form_result').html('<div class="alert alert-danger">{{ __('Please select a company.') }}</div>').slideDown(300);
+                return;
             }
 
             if ($('#action').val() == '{{trans('file.Add')}}') {

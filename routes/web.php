@@ -821,6 +821,7 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::post('dynamic_dependent/fetch_employee_department', [DynamicDependent::class, 'fetchEmployeeDepartment'])->name('dynamic_employee_department');
     Route::post('dynamic_dependent/fetch_project_categories', [DynamicDependent::class, 'fetchProjectCategories'])->name('dynamic_project_categories');
     Route::post('dynamic_dependent/fetch_project_employees', [DynamicDependent::class, 'fetchProjectEmployees'])->name('dynamic_project_employees');
+    Route::post('dynamic_dependent/fetch_client_projects', [DynamicDependent::class, 'fetchClientProjects'])->name('dynamic_client_projects');
     Route::post('dynamic_dependent/fetch_designation_department', [DynamicDependent::class, 'fetchDesignationDepartment'])->name('dynamic_designation_department');
     Route::post('dynamic_dependent/fetch_office_shifts', [DynamicDependent::class, 'fetchOfficeShifts'])->name('dynamic_office_shifts');
     Route::post('dynamic_dependent/fetch_balance', [DynamicDependent::class, 'fetchBalance'])->name('dynamic_balance');

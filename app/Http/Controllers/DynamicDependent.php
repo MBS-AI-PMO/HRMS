@@ -162,35 +162,40 @@ class DynamicDependent extends Controller {
 			return '';
 		}
 
-		$companyName = trim((string) $client->company_name);
-		$companyId = $companyName !== ''
-			? company::query()
-				->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower($companyName)])
-				->value('id')
-			: null;
+		$companyId = CompanyScope::resolveCompanyIdForClient($clientId);
+
+		if (! $companyId) {
+			$companyName = trim((string) $client->company_name);
+			$companyId = $companyName !== ''
+				? company::query()
+					->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower($companyName)])
+					->value('id')
+				: null;
+		}
 
 		if (! $companyId) {
 			$companyId = CompanyScope::companyId();
 		}
 
-		if (! $companyId) {
-			return '';
-		}
-
-		$companyId = CompanyScope::resolveCompanyIdForInput((int) $companyId);
 		$first_name = $request->get('first_name', 'first_name');
 		$last_name = $request->get('last_name', 'last_name');
 		$loggedUser = auth()->user();
 		$useManagedScope = $loggedUser
 			&& ManagedEmployeeScope::canAccessScopedEmployeeList((int) $loggedUser->id, (int) $loggedUser->role_users_id);
 
-		$dataQuery = Employee::query()
-			->where('company_id', $companyId)
+		$dataQuery = Employee::withoutGlobalScope(AuthCompanyScope::class)
 			->where('is_active', 1)
 			->where(function ($query) {
 				$query->whereNull('exit_date')
 					->orWhere('exit_date', '>=', date('Y-m-d'))
 					->orWhere('exit_date', '0000-00-00');
+			})
+			->where(function ($query) use ($clientId, $companyId) {
+				$query->where('client_id', $clientId);
+
+				if ($companyId) {
+					$query->orWhere('company_id', (int) $companyId);
+				}
 			})
 			->orderBy('first_name')
 			->orderBy('last_name');
@@ -227,6 +232,32 @@ class DynamicDependent extends Controller {
 
 		foreach ($categories as $row) {
 			$output .= '<option value="'.$row->id.'">'.e($row->category_name).'</option>';
+		}
+
+		return $output;
+	}
+
+	public function fetchClientProjects(Request $request)
+	{
+		$clientId = (int) $request->get('client_id');
+
+		if (! $clientId) {
+			return '';
+		}
+
+		$projects = Project::query()
+			->where('client_id', $clientId)
+			->orderBy('title')
+			->get(['id', 'title', 'project_status']);
+
+		$output = '';
+
+		foreach ($projects as $project) {
+			$status = trim((string) ($project->project_status ?? ''));
+			$label = $status !== ''
+				? $project->title.' ('.ucwords(str_replace('_', ' ', $status)).')'
+				: $project->title;
+			$output .= '<option value="'.$project->id.'">'.e($label).'</option>';
 		}
 
 		return $output;
