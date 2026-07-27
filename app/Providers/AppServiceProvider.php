@@ -52,6 +52,7 @@ use App\Scopes\AuthCompanyScope;
 use App\Scopes\AuthCompanySelfScope;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -61,8 +62,6 @@ class AppServiceProvider extends ServiceProvider
      *
      * @return void
      */
-     
-     
     public function register()
     {
         if ($this->app->isLocal() && class_exists(\Barryvdh\Debugbar\ServiceProvider::class)) {
@@ -77,21 +76,26 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        // Force HTTPS in production
+        if ($this->app->environment('production')) {
+            URL::forceScheme('https');
+        }
+
         $this->registerCompanyScopes();
 
-		// Default application language is English.
-		App::setLocale('English');
+        // Default application language is English.
+        App::setLocale('English');
 
-		if (($_COOKIE['language'] ?? '') !== 'English') {
-			setcookie('language', 'English', time() + (86400 * 365), '/');
-		}
+        if (($_COOKIE['language'] ?? '') !== 'English') {
+            setcookie('language', 'English', time() + (86400 * 365), '/');
+        }
 
-		$viewDateFormatJs = config('variable.date_format_js')
-			?: config('date_format_conversion.'.config('variable.date_format', 'd-m-Y'))
-			?: 'dd-mm-yyyy';
+        $viewDateFormatJs = config('variable.date_format_js')
+            ?: config('date_format_conversion.' . config('variable.date_format', 'd-m-Y'))
+            ?: 'dd-mm-yyyy';
 
-		\Illuminate\Support\Facades\View::share('dateFormatJs', $viewDateFormatJs);
-		\Illuminate\Support\Facades\View::share('dateFormat', config('variable.date_format', 'd-m-Y'));
+        \Illuminate\Support\Facades\View::share('dateFormatJs', $viewDateFormatJs);
+        \Illuminate\Support\Facades\View::share('dateFormat', config('variable.date_format', 'd-m-Y'));
     }
 
     protected function registerCompanyScopes(): void
