@@ -2,7 +2,7 @@
 
 namespace App\Support;
 
-use App\Models\location;
+use App\Models\Location;
 use App\Models\Project;
 
 class ManagedEmployeeScope
@@ -14,7 +14,7 @@ class ManagedEmployeeScope
         }
 
         return Project::userLeadsAnyProject($userId)
-            || location::userCanAccessLocationEmployeeList($userId);
+            || Location::userCanAccessLocationEmployeeList($userId);
     }
 
     public static function managedEmployeeIds(int $userId): array
@@ -25,8 +25,8 @@ class ManagedEmployeeScope
             $ids = array_merge($ids, Project::memberEmployeeIdsLedBy($userId));
         }
 
-        if (location::userCanAccessLocationEmployeeList($userId)) {
-            $ids = array_merge($ids, location::employeeIdsAtLocationsHeadedByUser($userId));
+        if (Location::userCanAccessLocationEmployeeList($userId)) {
+            $ids = array_merge($ids, Location::employeeIdsAtLocationsHeadedByUser($userId));
         }
 
         return array_values(array_unique(array_map('intval', $ids)));
@@ -35,7 +35,7 @@ class ManagedEmployeeScope
     public static function canManageLeaveRequests(int $userId): bool
     {
         return Project::userLeadsAnyProject($userId)
-            || location::userCanManageLocationLeaveRequests($userId);
+            || Location::userCanManageLocationLeaveRequests($userId);
     }
 
     public static function canAccessScopedEmployeeList(int $userId, int $roleUsersId): bool
@@ -55,7 +55,7 @@ class ManagedEmployeeScope
             return false;
         }
 
-        return location::userCanAccessLocationEmployeeList($userId);
+        return Location::userCanAccessLocationEmployeeList($userId);
     }
 
     public static function canManageScopedLeave(int $userId): bool
@@ -71,7 +71,7 @@ class ManagedEmployeeScope
             return false;
         }
 
-        return location::userCanManageLocationLeaveRequests($userId);
+        return Location::userCanManageLocationLeaveRequests($userId);
     }
 
     public static function canAccessMyLocations(int $userId): bool
@@ -82,7 +82,7 @@ class ManagedEmployeeScope
             return false;
         }
 
-        return location::userCanAccessMyLocationsPage($userId);
+        return Location::userCanAccessMyLocationsPage($userId);
     }
 
     public static function canAccessClockInLocationReport(int $userId, int $roleUsersId): bool

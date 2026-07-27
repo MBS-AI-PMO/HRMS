@@ -5,13 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Country;
-use App\Models\department;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeActivityLog;
 use App\Models\EmployeeLeaveTypeDetail;
 use App\Models\GeneralSetting;
 use App\Models\IpSetting;
-use App\Models\leave;
+use App\Models\Leave;
 use App\Models\LeaveType;
 use App\Models\User;
 use App\Services\AttendanceOvertimeService;
@@ -645,7 +645,7 @@ class ApiController extends Controller
             }
 
             $today = now()->format('Y-m-d');
-            $dateFmt = env('Date_Format', 'd-m-Y');
+            $dateFmt = config('variable.date_format', 'd-m-Y');
             // Mobile sends `attendance_date` as `Date_Format` so Model mutator can parse it; fallback = server today.
             $attendanceDateForMutator = now()->format($dateFmt);
             $postedDate = $request->input('attendance_date');
@@ -734,7 +734,7 @@ class ApiController extends Controller
 
                 if ($currentTime > $shiftIn) {
                     $data['time_late'] = $shiftIn->diff(new \DateTime($data['clock_in']))->format('%H:%I');
-                } elseif (env('ENABLE_EARLY_CLOCKIN') === null) {
+                } elseif (config('variable.enable_early_clockin') === null) {
                     $data['clock_in'] = $shiftIn->format('H:i');
                 }
 
@@ -842,7 +842,7 @@ class ApiController extends Controller
             $shiftIn = new \DateTime($shiftInValue);
             $shiftOut = new \DateTime($shiftOutValue);
 
-            if ($currentTime <= $shiftIn && env('ENABLE_EARLY_CLOCKIN') === null) {
+            if ($currentTime <= $shiftIn && config('variable.enable_early_clockin') === null) {
                 Attendance::whereKey($attendance->id)->delete();
                 return response()->json([
                     'status' => true,
@@ -1110,7 +1110,7 @@ class ApiController extends Controller
                 ], 422);
             }
 
-            $query = leave::query()
+            $query = Leave::query()
                 ->with([
                     'LeaveType:id,leave_type,allocated_day',
                     'department:id,department_name',
@@ -1159,7 +1159,7 @@ class ApiController extends Controller
         try {
             $userId = (int) $request->user()->id;
 
-            $query = leave::query()
+            $query = Leave::query()
                 ->with([
                     'LeaveType:id,leave_type,allocated_day',
                     'department:id,department_name',
@@ -1208,11 +1208,11 @@ class ApiController extends Controller
         }
 
         if (! $departmentId && $companyId) {
-            $departmentId = (int) (department::where('company_id', $companyId)->orderBy('id')->value('id') ?? 0);
+            $departmentId = (int) (Department::where('company_id', $companyId)->orderBy('id')->value('id') ?? 0);
         }
 
         if (! $departmentId) {
-            $departmentId = (int) (department::orderBy('id')->value('id') ?? 0);
+            $departmentId = (int) (Department::orderBy('id')->value('id') ?? 0);
         }
 
         if (! $companyId || ! $departmentId) {
@@ -1323,7 +1323,7 @@ class ApiController extends Controller
                 }
             }
 
-            $dateFmt = env('Date_Format', 'd-m-Y');
+            $dateFmt = config('variable.date_format', 'd-m-Y');
             $data = [
                 'employee_id' => $employee->id,
                 'company_id' => $orgIds['company_id'],
@@ -1343,7 +1343,7 @@ class ApiController extends Controller
                 $data['manager_approval_status'] = 'pending';
             }
 
-            $leave = leave::create($data);
+            $leave = Leave::create($data);
             $leave->refresh();
             $leave->load(['employee', 'LeaveType', 'company', 'department']);
 
@@ -1531,7 +1531,7 @@ class ApiController extends Controller
             return Carbon::createFromFormat('Y-m-d', $value)->format('Y-m-d');
         }
 
-        $dateFmt = env('Date_Format', 'd-m-Y');
+        $dateFmt = config('variable.date_format', 'd-m-Y');
 
         return Carbon::createFromFormat($dateFmt, $value)->format('Y-m-d');
     }
@@ -1641,7 +1641,7 @@ class ApiController extends Controller
             }
             $allocated = (int) ($row['allocated_day'] ?? 0);
             $stored = (int) ($row['remaining_allocated_day'] ?? $allocated);
-            $used = (int) leave::query()
+            $used = (int) Leave::query()
                 ->where('employee_id', $employeeId)
                 ->where('leave_type_id', $typeId)
                 ->where('status', 'approved')

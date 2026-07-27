@@ -60,7 +60,7 @@
                                                     <span class="text-muted small">{{ __('Enable registration to get URL') }}</span>
                                                 @endif
                                             </td>
-                                            <td>{{ $row->updated_at ? $row->updated_at->format(env('Date_Format', 'Y-m-d') . ' H:i') : '—' }}</td>
+                                            <td>{{ $row->updated_at ? $row->updated_at->format(config('variable.date_format', 'd-m-Y') . ' H:i') : '—' }}</td>
                                             <td>
                                                 <a href="{{ route('employee_registration_settings.edit', $row->company_id) }}"
                                                    class="btn btn-primary btn-sm">

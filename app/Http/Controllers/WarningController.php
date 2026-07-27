@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\company;
+use App\Models\Company;
 use App\Models\Employee;
 use App\Notifications\EmployeeWarningNotify;
 use App\Models\User;
@@ -22,7 +22,7 @@ class WarningController extends Controller {
 	public function index()
 	{
 		$logged_user = auth()->user();
-		$companies = company::select('id', 'company_name')->get();
+		$companies = Company::select('id', 'company_name')->get();
 		$warning_types = WarningType::select('id', 'warning_title')->get();
 
 
@@ -250,7 +250,7 @@ class WarningController extends Controller {
 	 */
 	public function destroy($id)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -268,7 +268,7 @@ class WarningController extends Controller {
 
 	public function delete_by_selection(Request $request)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}

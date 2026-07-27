@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
-use App\Models\department;
+use App\Models\Department;
 use App\Models\EmployeeDocument;
 use App\Services\NotificationRecipientResolver;
 use App\Notifications\DocumentExpiry;
@@ -82,7 +82,7 @@ class DocumentExpiryReminder extends Command
                 }
 
                 //Send to department-head
-                $department = department::with('DepartmentHead:id')->where('id',$document->employee->department_id)->first();
+                $department = Department::with('DepartmentHead:id')->where('id',$document->employee->department_id)->first();
                 $data[$key]['document_title'] = $document->document_title;
                 $data[$key]['expiry_date']     = $document->expiry_date;
                 $data[$key]['document_type']   = $document->DocumentType->document_type;

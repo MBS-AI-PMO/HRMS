@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\company;
+use App\Models\Company;
 use App\Models\CompanyType;
-use App\Models\location;
+use App\Models\Location;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
@@ -15,12 +15,12 @@ class CompanyController extends Controller {
 
 	public function index()
 	{
-		$locations = location::all('id','location_name');
+		$locations = Location::all('id','location_name');
 		$companyTypes = CompanyType::all('id','type_name');
 
 		if (request()->ajax())
 		{
-			return datatables()->of(company::with('Location.Country')->latest()->get())
+			return datatables()->of(Company::with('Location.Country')->latest()->get())
 				->setRowId(function ($company)
 				{
 					return $company->id;
@@ -93,7 +93,7 @@ class CompanyController extends Controller {
 			$data['website'] = $request->website;
 			$data['tax_no'] = $request->tax_no;
 			$data['location_id'] = $request->location_id;
-			$data['registration_slug'] = company::makeUniqueRegistrationSlug((string) $request->company_name);
+			$data['registration_slug'] = Company::makeUniqueRegistrationSlug((string) $request->company_name);
 
 			$company_logo = $request->company_logo;
 
@@ -106,7 +106,7 @@ class CompanyController extends Controller {
 			}
 
 
-			company::create($data);
+			Company::create($data);
 
 
 			return response()->json(['success' => __('Data Added successfully.')]);
@@ -117,7 +117,7 @@ class CompanyController extends Controller {
 	public function show($id)
 	{
 		if (request()->ajax()) {
-			$data = company::with(['location.country','companyType:id,type_name'])->findOrFail($id);
+			$data = Company::with(['location.country','companyType:id,type_name'])->findOrFail($id);
 
 			return response()->json(['data' => $data]);
 		}
@@ -128,7 +128,7 @@ class CompanyController extends Controller {
 	{
 		if (request()->ajax())
 		{
-            $data = company::with(['location.country','companyType:id,type_name'])->findOrFail($id);
+            $data = Company::with(['location.country','companyType:id,type_name'])->findOrFail($id);
 
 			return response()->json(['data' => $data]);
 		}
@@ -188,7 +188,7 @@ class CompanyController extends Controller {
 					$data['company_logo'] = $file_name;
 				}
 			}
-			company::whereId($id)->update($data);
+			Company::whereId($id)->update($data);
 
 			return response()->json(['success' => __('Data is successfully updated')]);
 
@@ -203,7 +203,7 @@ class CompanyController extends Controller {
 
 	public function destroy($id)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -225,7 +225,7 @@ class CompanyController extends Controller {
 				], 422);
 			}
 
-            company::whereId($id)->delete();
+            Company::whereId($id)->delete();
 			return response()->json(['success' => __('Data is successfully deleted')]);
 
 		}
@@ -237,7 +237,7 @@ class CompanyController extends Controller {
 
 	public function delete_by_selection(Request $request)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -247,7 +247,7 @@ class CompanyController extends Controller {
 		{
 
 			$company_id = $request['companyIdArray'];
-			$company = company::whereIntegerInRaw('id', $company_id);
+			$company = Company::whereIntegerInRaw('id', $company_id);
 
 			if ($company->delete())
 			{

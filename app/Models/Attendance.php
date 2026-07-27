@@ -19,11 +19,11 @@ class Attendance extends Model
 
 	public function setAttendanceDateAttribute($value)
 	{
-		$this->attributes['attendance_date'] = Carbon::createFromFormat(env('Date_Format'), $value)->format('Y-m-d');
+		$this->attributes['attendance_date'] = Carbon::createFromFormat(config('variable.date_format', 'd-m-Y'), $value)->format('Y-m-d');
 	}
 
 	public function getAttendanceDateAttribute($value)
 	{
-		return Carbon::parse($value)->format(env('Date_Format'));
+		return Carbon::parse($value)->format(config('variable.date_format', 'd-m-Y'));
 	}
 }

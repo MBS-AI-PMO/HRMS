@@ -17,7 +17,7 @@
                                     <label for="day_month_year">{{__('Select Date')}}</label>
                                     <input class="form-control month_year date" placeholder="{{__('Select Date')}}" readonly=""
                                            id="day_month_year" name="day_month_year" type="text"
-                                           value="{{ now()->format(env('Date_Format')) }}">
+                                           value="{{ now()->format(config('variable.date_format', 'd-m-Y')) }}">
                                 </div>
                             </div>
 
@@ -115,7 +115,7 @@
 
             let date = $('.date');
             date.datepicker({
-                format: '{{ env('Date_Format_JS')}}',
+                format: '{{ config('variable.date_format_js', 'dd-mm-yyyy')}}',
                 autoclose: true,
                 todayHighlight: true,
                 endDate: new Date()

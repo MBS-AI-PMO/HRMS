@@ -4,7 +4,7 @@
 namespace App\Http\Controllers\Variables;
 
 
-use App\Models\status;
+use App\Models\Status;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -15,7 +15,7 @@ class StatusTypeController {
 
 		if (request()->ajax())
 		{
-			return datatables()->of(status::select('id', 'status_title')->get())
+			return datatables()->of(Status::select('id', 'status_title')->get())
 				->setRowId(function ($status_type)
 				{
 					return $status_type->id;
@@ -67,7 +67,7 @@ class StatusTypeController {
 
 			$data['status_title'] = $request->get('status_title');
 
-			status::create($data);
+			Status::create($data);
 
 			return response()->json(['success' => __('Data Added successfully.')]);
 		}
@@ -88,7 +88,7 @@ class StatusTypeController {
 	{
 		if(request()->ajax())
 		{
-			$data = status::findOrFail($id);
+			$data = Status::findOrFail($id);
 
 			return response()->json(['data' => $data]);
 		}
@@ -132,7 +132,7 @@ class StatusTypeController {
 
 
 
-			status::whereId($id)->update($data);
+			Status::whereId($id)->update($data);
 
 			return response()->json(['success' => __('Data is successfully updated')]);
 		} else
@@ -150,14 +150,14 @@ class StatusTypeController {
 	 */
 	public function destroy($id)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
 		$logged_user = auth()->user();
 
 		if ($logged_user->can('access-variable_type')) {
-			status::whereId($id)->delete();
+			Status::whereId($id)->delete();
 			return response()->json(['success' => __('Data is successfully deleted')]);
 		}
 		return abort('403',__('You are not authorized'));

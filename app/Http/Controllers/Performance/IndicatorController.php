@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Performance;
 
-use App\Models\company;
-use App\Models\designation;
+use App\Models\Company;
+use App\Models\Designation;
 use App\Http\Controllers\Controller;
 use App\Models\Indicator;
 use Illuminate\Http\Request;
@@ -51,7 +51,7 @@ class IndicatorController extends Controller
                 ->make(true);
         }
 
-        $companies = company::select('id','company_name')->get();
+        $companies = Company::select('id','company_name')->get();
 
         return view('performance.indicator.index',compact('companies'));
     }
@@ -60,7 +60,7 @@ class IndicatorController extends Controller
     {
         if ($request->ajax()) 
         {
-            $designations = designation::where('company_id',$request->company_id)
+            $designations = Designation::where('company_id',$request->company_id)
                                         ->select('id','designation_name')
                                         ->orderBy('designation_name','ASC')
                                         ->get();
@@ -84,7 +84,7 @@ class IndicatorController extends Controller
                     return response()->json(['errors' => "<b>Please fill the required Option</b>"]);
                 }
     
-                $designation = designation::find($request->designation_id);
+                $designation = Designation::find($request->designation_id);
     
                 $indicator = new Indicator();
                 $indicator->company_id     = $request->company_id;
@@ -108,7 +108,7 @@ class IndicatorController extends Controller
     {
         if ($request->ajax()) {
             $indicator = Indicator::find($request->id);
-            $designations = designation::select('id','designation_name')->where('company_id',$indicator->company_id)->get();
+            $designations = Designation::select('id','designation_name')->where('company_id',$indicator->company_id)->get();
 
             return response()->json(['indicator' => $indicator, 'designations' => $designations]);
         }
@@ -122,7 +122,7 @@ class IndicatorController extends Controller
 		{
             if ($request->ajax()) {
 
-                $designation = designation::find($request->designation_id);
+                $designation = Designation::find($request->designation_id);
     
                 $indicator = Indicator::find($request->indicator_id);
                 $indicator->company_id     = $request->company_id;

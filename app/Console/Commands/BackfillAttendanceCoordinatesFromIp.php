@@ -43,7 +43,7 @@ class BackfillAttendanceCoordinatesFromIp extends Command
 
         $query->chunkById(50, function ($rows) use ($dryRun, &$updated, &$skipped, &$fromIp, &$fromOffice) {
             foreach ($rows as $attendance) {
-                $coordinates = IpGeolocation::coordinatesForIp($attendance->clock_in_ip);
+                $coordinates = IpGeoLocation::coordinatesForIp($attendance->clock_in_ip);
                 $source = 'ip';
 
                 if ($coordinates === null) {

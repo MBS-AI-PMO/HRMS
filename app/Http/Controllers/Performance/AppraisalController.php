@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Performance;
 use App\Models\Appraisal;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\company;
+use App\Models\Company;
 use App\Models\Employee;
 use Illuminate\Support\Facades\Validator;
 use Yajra\DataTables\Facades\DataTables;
@@ -60,7 +60,7 @@ class AppraisalController extends Controller
                 ->make(true);
         }
 
-        $companies = company::select('id','company_name')->get();
+        $companies = Company::select('id','company_name')->get();
 
         return view('performance.appraisal.index',compact('companies'));
     }

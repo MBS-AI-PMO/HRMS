@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\department;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Project;
 use App\Models\Team;
@@ -155,7 +155,7 @@ class TeamController extends Controller
 
         return response()->json([
             'employees' => CompanyScope::employeesForCompany($companyId),
-            'departments' => department::withoutGlobalScopes()
+            'departments' => Department::withoutGlobalScopes()
                 ->select('id', 'department_name')
                 ->where('company_id', $companyId)
                 ->orderBy('department_name')

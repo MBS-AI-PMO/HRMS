@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Client;
-use App\Models\company;
-use App\Models\department;
-use App\Models\designation;
+use App\Models\Company;
+use App\Models\Department;
+use App\Models\Designation;
 use App\Models\Employee;
-use App\Models\location;
+use App\Models\Location;
 use App\Models\Project;
 use App\Models\ProjectCategory;
 use App\Support\ClientDisplay;
@@ -15,7 +15,7 @@ use App\Support\CompanyScope;
 use App\Scopes\AuthCompanyScope;
 use App\Models\FinanceBankCash;
 use App\Models\JobCandidate;
-use App\Models\office_shift;
+use App\Models\OfficeShift;
 use App\Models\SupportTicket;
 use App\Models\TaxType;
 use App\Support\ManagedEmployeeScope;
@@ -51,7 +51,7 @@ class DynamicDependent extends Controller {
 			return '';
 		}
 
-		$data = department::withoutGlobalScope(AuthCompanyScope::class)
+		$data = Department::withoutGlobalScope(AuthCompanyScope::class)
 			->where('company_id', $value)
 			->orderBy('department_name')
 			->get()
@@ -71,13 +71,13 @@ class DynamicDependent extends Controller {
 		$dependent = $request->get('dependent', 'shift_name');
 
 		if ($request->filled('client_id')) {
-			$data = office_shift::query()
+			$data = OfficeShift::query()
 				->where('client_id', (int) $request->client_id)
 				->orderBy('shift_name')
 				->get();
 		} else {
 			$value = CompanyScope::resolveCompanyIdForInput((int) $request->get('value'));
-			$data = office_shift::query()
+			$data = OfficeShift::query()
 				->where('company_id', $value)
 				->whereNull('client_id')
 				->orderBy('shift_name')
@@ -167,7 +167,7 @@ class DynamicDependent extends Controller {
 		if (! $companyId) {
 			$companyName = trim((string) $client->company_name);
 			$companyId = $companyName !== ''
-				? company::query()
+				? Company::query()
 					->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower($companyName)])
 					->value('id')
 				: null;
@@ -330,7 +330,7 @@ class DynamicDependent extends Controller {
 			: null;
 		$clientId = $request->filled('client_id') ? (int) $request->client_id : null;
 
-		$query = location::query()
+		$query = Location::query()
 			->select('id', 'location_name', 'client_id')
 			->orderBy('location_name');
 
@@ -379,7 +379,7 @@ class DynamicDependent extends Controller {
 	{
 		$value = $request->get('value');
 		$designation_name = $request->get('designation_name');
-		$data = designation::withoutGlobalScope(AuthCompanyScope::class)
+		$data = Designation::withoutGlobalScope(AuthCompanyScope::class)
 			->where('department_id', $value)
 			->orderBy('designation_name')
 			->get()

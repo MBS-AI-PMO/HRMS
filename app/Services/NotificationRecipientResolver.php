@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\department;
+use App\Models\Department;
 use App\Models\Employee;
-use App\Models\leave;
-use App\Models\location;
+use App\Models\Leave;
+use App\Models\Location;
 use App\Models\Team;
 use App\Models\User;
 use App\Scopes\AuthCompanyLocationScope;
@@ -131,7 +131,7 @@ class NotificationRecipientResolver
             return collect();
         }
 
-        $location = location::withoutGlobalScope(AuthCompanyLocationScope::class)
+        $location = Location::withoutGlobalScope(AuthCompanyLocationScope::class)
             ->with('locationHeads:id')
             ->find((int) $employee->location_id);
 

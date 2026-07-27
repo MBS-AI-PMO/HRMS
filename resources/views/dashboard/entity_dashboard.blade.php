@@ -21,7 +21,7 @@
                 </nav>
                 <div class="entity-hero__topbar-date text-right">
                     <div class="entity-hero__date">{{ now()->englishDayOfWeek }}</div>
-                    <div class="entity-hero__date-sub">{{ now()->format(env('Date_Format')) }}</div>
+                    <div class="entity-hero__date-sub">{{ now()->format(config('variable.date_format', 'd-m-Y')) }}</div>
                 </div>
             </div>
             <div class="entity-hero__content">

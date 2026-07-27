@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\leave;
+use App\Models\Leave;
 use App\Models\User;
 use App\Notifications\LeaveRequestNotification;
 use App\Notifications\WfhRequestNotificationToApprover;

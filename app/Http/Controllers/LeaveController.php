@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\company;
+use App\Models\Company;
 use App\Scopes\AuthCompanyScope;
 use App\Support\CompanyScope;
-use App\Models\department;
+use App\Models\Department;
 use App\Models\Employee;
-use App\Models\location;
+use App\Models\Location;
 use App\Models\Team;
 use App\Support\ManagedEmployeeScope;
 use App\Models\EmployeeActivityLog;
-use App\Models\leave;
+use App\Models\Leave;
 use App\Models\LeaveType;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -51,12 +51,12 @@ class LeaveController extends Controller
     protected function isLocationLeaveManager(): bool
     {
         return (int) auth()->user()->role_users_id !== 1
-            && location::userCanManageLocationLeaveRequests((int) auth()->id());
+            && Location::userCanManageLocationLeaveRequests((int) auth()->id());
     }
 
     protected function isOrgDepartmentManager(): bool
     {
-        return department::where('department_head', auth()->id())->exists();
+        return Department::where('department_head', auth()->id())->exists();
     }
 
     protected function teamMemberIdsForLeaveManagement(): array
@@ -84,7 +84,7 @@ class LeaveController extends Controller
         }
 
         if ($this->isOrgDepartmentManager()) {
-            $managedIds = department::where('department_head', auth()->id())->pluck('id');
+            $managedIds = Department::where('department_head', auth()->id())->pluck('id');
 
             return $managedIds->contains((int) $leave->department_id);
         }
@@ -131,7 +131,7 @@ class LeaveController extends Controller
         }
 
         if ($this->isOrgDepartmentManager()) {
-            $managedDepartmentIds = department::where('department_head', auth()->id())->pluck('id');
+            $managedDepartmentIds = Department::where('department_head', auth()->id())->pluck('id');
             $query->whereIn('department_id', $managedDepartmentIds);
 
             return;
@@ -149,7 +149,7 @@ class LeaveController extends Controller
     public function index()
     {
         $logged_user = auth()->user();
-        $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
+        $isLocationHead = Location::userIsLocationHead((int) $logged_user->id);
         $companies = $isLocationHead && ! $logged_user->can('view-leave')
             ? CompanyScope::companiesForLocationHead((int) $logged_user->id)
             : CompanyScope::companiesForSelect();
@@ -162,8 +162,8 @@ class LeaveController extends Controller
         if ($this->canAccessLeaveModule()) {
             if (request()->ajax()) {
                 $leaveQuery = $teamLeaveManagerViewOnly
-                    ? leave::withoutGlobalScope(AuthCompanyScope::class)
-                    : leave::query();
+                    ? Leave::withoutGlobalScope(AuthCompanyScope::class)
+                    : Leave::query();
                 $leaveQuery = $leaveQuery
                     ->with([
                         'employee:id,first_name,last_name',
@@ -303,7 +303,7 @@ class LeaveController extends Controller
                     }
                 }
 
-                $leave = leave::create($data);
+                $leave = Leave::create($data);
                 $leave->refresh();
                 $leave->load(['employee', 'LeaveType', 'company', 'department']);
 
@@ -344,7 +344,7 @@ class LeaveController extends Controller
     public function show($id)
     {
         if (request()->ajax()) {
-            $data = leave::with(['department:id,department_head', 'approvedByUser:id,first_name,last_name'])->findOrFail($id);
+            $data = Leave::with(['department:id,department_head', 'approvedByUser:id,first_name,last_name'])->findOrFail($id);
 
             if (! $this->canViewLeaveRecord($data)) {
                 return response()->json(['error' => __('You are not authorized')], 403);
@@ -374,7 +374,7 @@ class LeaveController extends Controller
     public function edit($id)
     {
         if (request()->ajax()) {
-            $data = leave::with('department:id,department_head')->findOrFail($id);
+            $data = Leave::with('department:id,department_head')->findOrFail($id);
 
             if (! $this->canViewLeaveRecord($data)) {
                 return response()->json(['error' => __('You are not authorized')], 403);
@@ -382,7 +382,7 @@ class LeaveController extends Controller
 
             $leaveStartDate = date('Y-m-d', strtotime($data->start_date));
 
-            $departments = department::select('id', 'department_name')
+            $departments = Department::select('id', 'department_name')
                 ->where('company_id', $data->company_id)->get();
 
             $employees = Employee::select('id', 'first_name', 'last_name')->where('department_id', $data->department_id)->where('is_active', 1)->where('exit_date', NULL)->get();
@@ -394,7 +394,7 @@ class LeaveController extends Controller
     public function update(Request $request)
     {
         $id = $request->hidden_id;
-        $leaveForPermission = leave::with('department:id,department_head')->find($id);
+        $leaveForPermission = Leave::with('department:id,department_head')->find($id);
 
         if (! $leaveForPermission || ! $this->canManageLeaveRecord($leaveForPermission)) {
             return response()->json(['success' => __('You are not authorized')]);
@@ -463,7 +463,7 @@ class LeaveController extends Controller
                 $data['status'] = $request->status;
             }
 
-            $leave = leave::find($id);
+            $leave = Leave::find($id);
             $isWfhLeave = $this->isWfhLeaveTypeId((int) ($request->leave_type ?: $leave->leave_type_id));
             $previousManagerStatus = $leave->manager_approval_status;
             $previousStatus = $leave->status;
@@ -562,7 +562,7 @@ class LeaveController extends Controller
             return response()->json(['error' => __('Invalid status')]);
         }
 
-        $leave = leave::findOrFail($id);
+        $leave = Leave::findOrFail($id);
 
         if (strtolower((string) $leave->status) === $status) {
             return response()->json(['success' => __('Data is successfully updated')]);
@@ -639,7 +639,7 @@ class LeaveController extends Controller
     private function syncEmployeeAttendanceTypeForWfh(int $employeeId): void
     {
         $today = now()->toDateString();
-        $hasActiveWfh = leave::query()
+        $hasActiveWfh = Leave::query()
             ->join('leave_types', 'leave_types.id', '=', 'leaves.leave_type_id')
             ->where('leaves.employee_id', $employeeId)
             ->where('leaves.status', 'approved')
@@ -728,13 +728,13 @@ class LeaveController extends Controller
 
     public function destroy($id)
     {
-        if (!env('USER_VERIFIED')) {
+        if (!config('variable.user_verified')) {
             return response()->json(['error' => 'This feature is disabled for demo!']);
         }
         $logged_user = auth()->user();
 
         if ($logged_user->can('delete-leave')) {
-            leave::whereId($id)->delete();
+            Leave::whereId($id)->delete();
 
             return response()->json(['success' => __('Data is successfully deleted')]);
         }
@@ -748,7 +748,7 @@ class LeaveController extends Controller
 
     public function delete_by_selection(Request $request)
     {
-        if (!env('USER_VERIFIED')) {
+        if (!config('variable.user_verified')) {
             return response()->json(['error' => 'This feature is disabled for demo!']);
         }
         $logged_user = auth()->user();
@@ -756,7 +756,7 @@ class LeaveController extends Controller
         if ($logged_user->can('delete-leave')) {
 
             $leave_id = $request['leaveIdArray'];
-            $leave = leave::whereIntegerInRaw('id', $leave_id);
+            $leave = Leave::whereIntegerInRaw('id', $leave_id);
             if ($leave->delete()) {
                 return response()->json(['success' => __('Multi Delete', ['key' => trans('file.Leave')])]);
             } else {

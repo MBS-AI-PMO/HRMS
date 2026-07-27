@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Client;
-use App\Models\company;
+use App\Models\Company;
 use App\Notifications\ClientTaskCreated;
 use App\Models\Project;
 use App\Models\Task;
@@ -19,7 +19,7 @@ class ClientTaskController extends Controller {
 	{
 		$logged_user = auth()->user();
 
-		$companies = company::all('id', 'company_name');
+		$companies = Company::all('id', 'company_name');
 
 		if ($logged_user->role_users_id == 3)
 		{

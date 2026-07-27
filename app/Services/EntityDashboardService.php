@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\Client;
-use App\Models\company;
-use App\Models\department;
+use App\Models\Company;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Invoice;
 use App\Models\Project;
@@ -119,7 +119,7 @@ class EntityDashboardService
                 ['label' => trans('file.Employees'), 'value' => $activeEmployees, 'icon' => 'dripicons-user-group', 'tone' => 'violet', 'hint' => __('Active workforce')],
                 ['label' => trans('file.Client'), 'value' => $clients->count(), 'icon' => 'dripicons-briefcase', 'tone' => 'cyan', 'hint' => __('Linked accounts')],
                 ['label' => trans('file.Projects'), 'value' => $projectIds->count(), 'icon' => 'dripicons-checklist', 'tone' => 'amber', 'hint' => __('Total projects')],
-                ['label' => trans('file.Department'), 'value' => department::query()->where('company_id', $companyId)->count(), 'icon' => 'dripicons-network-3', 'tone' => 'indigo', 'hint' => __('Organizational units')],
+                ['label' => trans('file.Department'), 'value' => Department::query()->where('company_id', $companyId)->count(), 'icon' => 'dripicons-network-3', 'tone' => 'indigo', 'hint' => __('Organizational units')],
                 ['label' => __('Project Categories'), 'value' => Project::query()->where('company_id', $companyId)->whereNotNull('project_category_id')->distinct()->count('project_category_id'), 'icon' => 'dripicons-folder', 'tone' => 'emerald', 'hint' => __('Service lines')],
             ],
             'quick_links' => array_values(array_filter([
@@ -231,7 +231,7 @@ class EntityDashboardService
 
         $recentProjects = $allProjects->take(10)->values();
 
-        $company = company::query()
+        $company = Company::query()
             ->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower(trim((string) $client->company_name))])
             ->first();
 

@@ -4,11 +4,11 @@ namespace App\Imports;
 
 use App\Models\Employee;
 use App\Models\User;
-use App\Models\company;
-use App\Models\department;
-use App\Models\designation;
+use App\Models\Company;
+use App\Models\Department;
+use App\Models\Designation;
 use App\Models\Country;
-use App\Models\office_shift;
+use App\Models\OfficeShift;
 use Spatie\Permission\Models\Role;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Hash;
@@ -32,18 +32,18 @@ class UsersImport implements ToModel, WithHeadingRow, ShouldQueue, WithChunkRead
         $roleName        = $row['role_name'] ?? null;
         $countryName     = $row['country_name'] ?? null;
 
-        $company = company::where('company_name', $companyName)->first();
+        $company = Company::where('company_name', $companyName)->first();
 
         $department = null;
         if (!empty($departmentName) && $company) {
-            $department = department::where('department_name', $departmentName)
+            $department = Department::where('department_name', $departmentName)
                 ->where('company_id', $company->id)
                 ->first();
         }
 
         $designation = null;
         if (!empty($designationName) && $company && $department) {
-            $designation = designation::where('designation_name', $designationName)
+            $designation = Designation::where('designation_name', $designationName)
                 ->where('company_id', $company->id)
                 ->where('department_id', $department->id)
                 ->first();
@@ -51,7 +51,7 @@ class UsersImport implements ToModel, WithHeadingRow, ShouldQueue, WithChunkRead
 
         $officeShift = null;
         if (!empty($shiftName) && $company) {
-            $officeShift = office_shift::where('shift_name', $shiftName)
+            $officeShift = OfficeShift::where('shift_name', $shiftName)
                 ->where('company_id', $company->id)
                 ->first();
         }
@@ -105,8 +105,8 @@ class UsersImport implements ToModel, WithHeadingRow, ShouldQueue, WithChunkRead
             '*.staff_id'         => 'required|string|max:191|unique:employees,staff_id',
             '*.email'            => 'required|email|unique:users,email',
             '*.contact_no'       => 'nullable|unique:users,contact_no',
-            '*.joining_date'     => 'nullable|date_format:' . env('Date_Format'),
-            '*.date_of_birth'    => 'nullable|date_format:' . env('Date_Format'),
+            '*.joining_date'     => 'nullable|date_format:' . config('variable.date_format', 'd-m-Y'),
+            '*.date_of_birth'    => 'nullable|date_format:' . config('variable.date_format', 'd-m-Y'),
             '*.gender'           => 'nullable|in:Male,Female,Other',
             '*.company_name'     => 'required|exists:companies,company_name',
             '*.department_name'  => 'nullable|exists:departments,department_name',

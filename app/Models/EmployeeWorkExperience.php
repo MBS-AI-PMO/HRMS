@@ -17,21 +17,21 @@ class EmployeeWorkExperience extends Model
 
 	public function setFromYearAttribute($value)
 	{
-		$this->attributes['from_year'] = Carbon::createFromFormat(env('Date_Format'), $value)->format('Y-m-d');
+		$this->attributes['from_year'] = Carbon::createFromFormat(config('variable.date_format', 'd-m-Y'), $value)->format('Y-m-d');
 	}
 
 	public function getFromYearAttribute($value)
 	{
-		return Carbon::parse($value)->format(env('Date_Format'));
+		return Carbon::parse($value)->format(config('variable.date_format', 'd-m-Y'));
 	}
 
 	public function setToYearAttribute($value)
 	{
-		$this->attributes['to_year'] = Carbon::createFromFormat(env('Date_Format'), $value)->format('Y-m-d');
+		$this->attributes['to_year'] = Carbon::createFromFormat(config('variable.date_format', 'd-m-Y'), $value)->format('Y-m-d');
 	}
 
 	public function getToYearAttribute($value)
 	{
-		return Carbon::parse($value)->format(env('Date_Format'));
+		return Carbon::parse($value)->format(config('variable.date_format', 'd-m-Y'));
 	}
 }

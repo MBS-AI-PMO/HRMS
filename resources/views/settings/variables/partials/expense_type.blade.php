@@ -10,7 +10,7 @@
                             data-live-search="true" data-live-search-style="contains"
                             title='{{__('Selecting',['key'=>trans('file.Company')])}}...'>
                         @php
-                        $companies = App\Models\company::select('id', 'company_name')->get();
+                        $companies = App\Models\Company::select('id', 'company_name')->get();
                         @endphp
                         @foreach($companies as $company)
                             <option value="{{$company->id}}">{{$company->company_name}}</option>
@@ -62,7 +62,7 @@
                                     data-live-search="true" data-live-search-style="contains"
                                     title='{{__('Selecting',['key'=>trans('file.Company')])}}...'>
                                 @php
-                                    $companies = App\Models\company::select('id', 'company_name')->get();
+                                    $companies = App\Models\Company::select('id', 'company_name')->get();
                                 @endphp
                                 @foreach($companies as $company)
                                     <option value="{{$company->id}}">{{$company->company_name}}</option>

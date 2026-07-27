@@ -87,7 +87,7 @@ class ProjectCategoryController extends Controller
 
     public function destroy($id)
     {
-        if (! env('USER_VERIFIED')) {
+        if (! config('variable.user_verified')) {
             return response()->json(['error' => 'This feature is disabled for demo!']);
         }
 
@@ -110,7 +110,7 @@ class ProjectCategoryController extends Controller
 
     public function delete_by_selection(Request $request)
     {
-        if (! env('USER_VERIFIED')) {
+        if (! config('variable.user_verified')) {
             return response()->json(['error' => 'This feature is disabled for demo!']);
         }
 

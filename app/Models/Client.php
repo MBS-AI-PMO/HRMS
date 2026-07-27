@@ -44,7 +44,7 @@ class Client extends Model
 
 	public function parentCompany()
 	{
-		return $this->belongsTo(company::class, 'parent_company_id');
+		return $this->belongsTo(Company::class, 'parent_company_id');
 	}
 
 	public function employees()

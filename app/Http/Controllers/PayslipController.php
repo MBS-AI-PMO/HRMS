@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\company;
+use App\Models\Company;
 use App\Models\Employee;
 use App\Models\EmployeeLeaveTypeDetail;
 use App\Models\Payslip;
@@ -19,7 +19,7 @@ class PayslipController extends Controller {
 	public function index(Request $request)
 	{
 		$logged_user = auth()->user();
-        $companies = company::all();
+        $companies = Company::all();
         $selected_date = empty($request->filter_month_year) ? now()->format('F-Y') : $request->filter_month_year ;
 
 		if ($logged_user->can('view-payslip'))

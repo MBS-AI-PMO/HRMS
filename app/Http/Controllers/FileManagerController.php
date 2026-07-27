@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\department;
+use App\Models\Department;
 use App\Models\FileManager;
 use App\Models\FileManagerSetting;
 
@@ -16,7 +16,7 @@ class FileManagerController extends Controller
 	public function index()
 	{
 		$logged_user = auth()->user();
-		$departments = department::select('id', 'department_name')->get();
+		$departments = Department::select('id', 'department_name')->get();
 
 		if ($logged_user->can('view-file_manager'))
 		{

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Client;
-use App\Models\company;
-use App\Models\office_shift;
+use App\Models\Company;
+use App\Models\OfficeShift;
 use App\Support\ClientDisplay;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -163,13 +163,13 @@ class OfficeShiftController extends Controller {
 	public function index()
 	{
 		$logged_user = auth()->user();
-		$companies = company::select('id', 'company_name')->get();
+		$companies = Company::select('id', 'company_name')->get();
 
 		if ($logged_user->can('view-office_shift'))
 		{
 			if (request()->ajax())
 			{
-				return datatables()->of(office_shift::with(['company', 'client'])->get())
+				return datatables()->of(OfficeShift::with(['company', 'client'])->get())
 					->setRowId(function ($office_shift)
 					{
 						return $office_shift->id;
@@ -212,7 +212,7 @@ class OfficeShiftController extends Controller {
 	{
 		//
 		$logged_user = auth()->user();
-		$companies = company::select('id', 'company_name')->get();
+		$companies = Company::select('id', 'company_name')->get();
 		$clients = $this->clientsForShiftSelect();
 
 		if ($logged_user->can('store-office_shift'))
@@ -257,7 +257,7 @@ class OfficeShiftController extends Controller {
 			]);
 			$this->assignShiftOwnerFromRequest($data, $request);
 
-			office_shift::create($data);
+			OfficeShift::create($data);
 
 			return response()->json(['success' => __('Data Added successfully.')]);
 		}
@@ -289,8 +289,8 @@ class OfficeShiftController extends Controller {
 
 		if ($logged_user->can('edit-office_shift'))
 		{
-			$office_shift = office_shift::findOrFail($id);
-			$companies = company::select('id', 'company_name')->get();
+			$office_shift = OfficeShift::findOrFail($id);
+			$companies = Company::select('id', 'company_name')->get();
 			$clients = $this->clientsForShiftSelect();
 			$shiftFormState = $this->buildShiftFormState($office_shift);
 
@@ -335,7 +335,7 @@ class OfficeShiftController extends Controller {
 			]);
 			$this->assignShiftOwnerFromRequest($data, $request);
 
-			office_shift::whereId($id)->update($data);
+			OfficeShift::whereId($id)->update($data);
 
 			return response()->json(['success' => __('Data is successfully updated')]);
 		}
@@ -351,7 +351,7 @@ class OfficeShiftController extends Controller {
 	 */
 	public function destroy($id)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -359,7 +359,7 @@ class OfficeShiftController extends Controller {
 
 		if ($logged_user->can('delete-office_shift'))
 		{
-			office_shift::whereId($id)->delete();
+			OfficeShift::whereId($id)->delete();
 
 			return response()->json(['success' => __('Data is successfully deleted')]);
 
@@ -370,7 +370,7 @@ class OfficeShiftController extends Controller {
 
 	public function delete_by_selection(Request $request)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -380,7 +380,7 @@ class OfficeShiftController extends Controller {
 		{
 
 			$office_shift_id = $request['officeShiftIdArray'];
-			$office_shift = office_shift::whereIntegerInRaw('id', $office_shift_id);
+			$office_shift = OfficeShift::whereIntegerInRaw('id', $office_shift_id);
 			if ($office_shift->delete())
 			{
 				return response()->json(['success' => __('Multi Delete', ['key' => __('Office Shift')])]);

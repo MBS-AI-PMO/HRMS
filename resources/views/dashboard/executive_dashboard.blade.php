@@ -64,7 +64,7 @@
                     </div>
                     <div class="exec-hero__date text-right">
                         <div class="exec-hero__day">{{ now()->englishDayOfWeek }}</div>
-                        <div class="exec-hero__full-date">{{ now()->format(env('Date_Format')) }}</div>
+                        <div class="exec-hero__full-date">{{ now()->format(config('variable.date_format', 'd-m-Y')) }}</div>
                         <a href="{{ route('report.summary-dashboard') }}" class="btn btn-light btn-sm mt-2 exec-hero__cta">
                             <i class="dripicons-graph-line"></i> {{ __('Operations Summary') }}
                         </a>

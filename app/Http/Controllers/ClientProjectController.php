@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 
-use App\Models\company;
+use App\Models\Company;
 use App\Notifications\ClientProjectNotification;
 use App\Models\Project;
 use Illuminate\Http\Request;
@@ -16,7 +16,7 @@ class ClientProjectController extends Controller
 	{
 		$logged_user = auth()->user();
 
-		$companies = company::all('id','company_name');
+		$companies = Company::all('id','company_name');
 
 		if ($logged_user->role_users_id == 3)
 		{

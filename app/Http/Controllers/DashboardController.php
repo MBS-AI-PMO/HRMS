@@ -9,7 +9,7 @@ use App\Http\traits\ShiftTimingOnDay;
 use App\Models\Announcement;
 use App\Models\Attendance;
 use App\Models\Award;
-use App\Models\location;
+use App\Models\Location;
 use App\Services\AttendanceOvertimeService;
 use App\Services\EntityDashboardService;
 use App\Services\ProjectTimelineService;
@@ -17,7 +17,7 @@ use App\Support\ClientDisplay;
 use App\Support\CompanyScope;
 use App\Support\ManagedEmployeeScope;
 use App\Models\Client;
-use App\Models\company;
+use App\Models\Company;
 use App\Models\DocumentType;
 use App\Models\Employee;
 use App\Models\EmployeeProject;
@@ -30,7 +30,7 @@ use App\Models\GeneralSetting;
 use App\Models\Holiday;
 use App\Models\Invoice;
 use App\Models\IpSetting;
-use App\Models\leave;
+use App\Models\Leave;
 use App\Models\LeaveType;
 use App\Models\Payslip;
 use App\Models\Project;
@@ -39,7 +39,7 @@ use App\Models\QualificationLanguage;
 use App\Models\QualificationSkill;
 use App\Models\RelationType;
 use App\Models\SalaryBasic;
-use App\Models\status;
+use App\Models\Status;
 use App\Models\SupportTicket;
 use App\Models\Trainer;
 use App\Models\TrainingType;
@@ -121,7 +121,7 @@ class DashboardController extends Controller {
 
         app(ProjectTimelineService::class)->syncAll();
 
-        $company = company::query()
+        $company = Company::query()
             ->with(['Location.Country', 'companyType:id,type_name'])
             ->findOrFail($id);
 
@@ -224,7 +224,7 @@ class DashboardController extends Controller {
 		$attendance_count = Attendance::where('attendance_date', now()->format('Y-m-d'))->distinct('employee_id')->count();
 
 
-		$leave_count = leave::where('start_date', '<=', now()->format('Y-m-d'))
+		$leave_count = Leave::where('start_date', '<=', now()->format('Y-m-d'))
 			->where('end_date', '>=', now()->format('Y-m-d'))->count();
 
 		$total_expense_raw = FinanceExpense::sum('amount');
@@ -269,7 +269,7 @@ class DashboardController extends Controller {
 		$last_six_month_payment = $payslips->whereIn('month_year', $months)->sum('net_salary');
 
 
-		$companies = company::select('id', 'company_name')->get();
+		$companies = Company::select('id', 'company_name')->get();
 		LeaveType::firstOrCreate(
             ['leave_type' => 'WFH'],
             ['allocated_day' => 365, 'company_id' => null]
@@ -387,14 +387,14 @@ class DashboardController extends Controller {
             ->whereBetween('created_at', [$lastMonthStart, $lastMonthEnd.' 23:59:59'])
             ->count();
 
-        $totalLocations = location::query()->count();
-        $totalCompanies = company::query()->count();
-        $newCompaniesThisMonth = company::query()->where('created_at', '>=', $thisMonthStart)->count();
-        $newCompaniesLastMonth = company::query()
+        $totalLocations = Location::query()->count();
+        $totalCompanies = Company::query()->count();
+        $newCompaniesThisMonth = Company::query()->where('created_at', '>=', $thisMonthStart)->count();
+        $newCompaniesLastMonth = Company::query()
             ->whereBetween('created_at', [$lastMonthStart, $lastMonthEnd.' 23:59:59'])
             ->count();
 
-        $locationsWithClient = location::query()->whereNotNull('client_id')->count();
+        $locationsWithClient = Location::query()->whereNotNull('client_id')->count();
 
         $attendanceToday = Attendance::query()
             ->whereDate('attendance_date', $today)
@@ -404,7 +404,7 @@ class DashboardController extends Controller {
             ? round(($attendanceToday / $totalEmployees) * 100, 1)
             : 0;
 
-        $pendingLeaves = leave::query()->where('status', 'pending')->count();
+        $pendingLeaves = Leave::query()->where('status', 'pending')->count();
         $openTickets = SupportTicket::query()->where('ticket_status', 'open')->count();
 
         $monthLabels = [];
@@ -425,7 +425,7 @@ class DashboardController extends Controller {
             $clientGrowthSeries[] = Client::query()
                 ->whereBetween('created_at', [$monthStart, $monthEnd.' 23:59:59'])
                 ->count();
-            $companyGrowthSeries[] = company::query()
+            $companyGrowthSeries[] = Company::query()
                 ->whereBetween('created_at', [$monthStart, $monthEnd.' 23:59:59'])
                 ->count();
             $projectGrowthSeries[] = Project::query()
@@ -449,7 +449,7 @@ class DashboardController extends Controller {
             })
             ->values();
 
-        $topCompanies = company::query()
+        $topCompanies = Company::query()
             ->select('id', 'company_name')
             ->withCount('projects')
             ->whereHas('projects')
@@ -584,7 +584,7 @@ class DashboardController extends Controller {
             ->with('client:id,company_name,first_name,last_name,is_active')
             ->get();
 
-        return company::query()
+        return Company::query()
             ->select('id', 'company_name')
             ->orderBy('company_name')
             ->get()
@@ -695,7 +695,7 @@ class DashboardController extends Controller {
 	{
 
 		$user = auth()->user();
-         $companies = company::select('id', 'company_name')->get();
+         $companies = Company::select('id', 'company_name')->get();
         $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
         $currentDate = date('Y-m-d');
 		$employee = Employee::find($user->id);
@@ -710,7 +710,7 @@ class DashboardController extends Controller {
 			return view('profile.user_profile', compact('user','companies','roles','currentDate'));
 		} else
 		{
-			$statuses = status::select('id', 'status_title')->get();
+			$statuses = Status::select('id', 'status_title')->get();
 
 			$countries = DB::table('countries')->select('id', 'name')->get();
 			$document_types = DocumentType::select('id', 'document_type')->get();
@@ -731,7 +731,7 @@ class DashboardController extends Controller {
 	public function profile_update(Request $request, $id)
 	{
 
-		if (!env('USER_VERIFIED'))
+		if (!config('variable.user_verified'))
 		{
 			return redirect()->back()->with('msg', 'This feature is disabled for demo!');
 		}
@@ -870,7 +870,7 @@ class DashboardController extends Controller {
 	public function change_password(Request $request, $id)
 	{
 
-		if (!env('USER_VERIFIED'))
+		if (!config('variable.user_verified'))
 		{
 			return redirect()->back()->with('msg', 'This feature is disabled for demo!');
 		}
@@ -1036,7 +1036,7 @@ class DashboardController extends Controller {
 			&& (int) $employee_attendance->clock_in_out === 1
 			&& ! $is_on_overtime_session;
 
-		$is_location_head = location::userCanAccessMyLocationsPage((int) $user->id)
+		$is_location_head = Location::userCanAccessMyLocationsPage((int) $user->id)
 			&& (
 				$user->can('location-head-access')
 				|| $user->can('view-my-locations')
@@ -1045,7 +1045,7 @@ class DashboardController extends Controller {
 				|| $user->can('report-clock-in-locations')
 			);
 		$location_head_employee_count = $is_location_head
-			? count(location::employeeIdsAtLocationsHeadedByUser((int) $user->id))
+			? count(Location::employeeIdsAtLocationsHeadedByUser((int) $user->id))
 			: 0;
 		$can_manage_location_scope = ManagedEmployeeScope::canAccessScopedEmployeeList(
 			(int) $user->id,

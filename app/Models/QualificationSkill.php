@@ -9,6 +9,6 @@ class QualificationSkill extends Model
 	protected $guarded= [];
 
 	public function company(){
-		return $this->hasOne('App\Models\company','id','company_id');
+		return $this->hasOne('App\Models\Company','id','company_id');
 	}
 }

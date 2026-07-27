@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Client;
-use App\Models\company;
+use App\Models\Company;
 use App\Models\User;
 use App\Support\CompanyScope;
 use Illuminate\Http\Request;
@@ -99,7 +99,7 @@ class ClientController extends Controller {
 			return null;
 		}
 
-		return company::query()->whereKey($companyId)->value('company_name');
+		return Company::query()->whereKey($companyId)->value('company_name');
 	}
 
 	protected function resolveCompanyIdFromName(?string $companyName): ?int
@@ -110,7 +110,7 @@ class ClientController extends Controller {
 			return null;
 		}
 
-		$id = company::query()
+		$id = Company::query()
 			->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower($companyName)])
 			->value('id');
 
@@ -302,7 +302,7 @@ class ClientController extends Controller {
 
 	public function destroy($id)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -334,7 +334,7 @@ class ClientController extends Controller {
 
 	public function delete_by_selection(Request $request)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}

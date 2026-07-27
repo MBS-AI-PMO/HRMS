@@ -69,7 +69,7 @@
                     </div>
                     <div class="hr-hero__date text-right">
                         <div class="hr-hero__day">{{ now()->englishDayOfWeek }}</div>
-                        <div class="hr-hero__full-date">{{ now()->format(env('Date_Format')) }}</div>
+                        <div class="hr-hero__full-date">{{ now()->format(config('variable.date_format', 'd-m-Y')) }}</div>
                     </div>
                 </div>
             </div>

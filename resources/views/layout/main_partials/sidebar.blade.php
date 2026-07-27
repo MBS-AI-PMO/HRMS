@@ -327,7 +327,7 @@
 
             @php
                 $leaveManagerSidebarUser = auth()->user();
-                $managedDepartmentIds = \App\Models\department::where(
+                $managedDepartmentIds = \App\Models\Department::where(
                     'department_head',
                     $leaveManagerSidebarUser->id,
                 )->pluck('id');
@@ -335,7 +335,7 @@
                 $isHrUser = $leaveManagerSidebarUser->can('view-leave');
                 $isTeamLeaveManager = (int) $leaveManagerSidebarUser->role_users_id !== 1
                     && \App\Models\Project::userLeadsAnyProject((int) $leaveManagerSidebarUser->id);
-                $isLocationLeaveManager = \App\Models\location::userCanManageLocationLeaveRequests((int) $leaveManagerSidebarUser->id)
+                $isLocationLeaveManager = \App\Models\Location::userCanManageLocationLeaveRequests((int) $leaveManagerSidebarUser->id)
                     && $leaveManagerSidebarUser->can('scoped-manage-leave');
                 $showLeaveManagementTabs = $isDepartmentManager || $isHrUser || $isTeamLeaveManager || $isLocationLeaveManager;
 
@@ -344,8 +344,8 @@
 
                 if ($showLeaveManagementTabs) {
                     $scopedLeaveQuery = (! $isHrUser && ($isTeamLeaveManager || $isLocationLeaveManager))
-                        ? \App\Models\leave::withoutGlobalScope(\App\Scopes\AuthCompanyScope::class)
-                        : \App\Models\leave::query();
+                        ? \App\Models\Leave::withoutGlobalScope(\App\Scopes\AuthCompanyScope::class)
+                        : \App\Models\Leave::query();
 
                     $pendingLeaveQuery = (clone $scopedLeaveQuery)
                         ->where('status', 'pending')

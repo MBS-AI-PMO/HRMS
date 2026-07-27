@@ -7,7 +7,7 @@ use App\Scopes\AuthCompanyScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
-class location extends Model
+class Location extends Model
 {
 	protected $fillable = [
 		'location_name', 'client_id', 'location_head', 'address1','address2','city','state','country','zip',
@@ -36,7 +36,7 @@ class location extends Model
 
     public function companies()
     {
-        return $this->belongsToMany(company::class, 'company_location', 'location_id', 'company_id');
+        return $this->belongsToMany(Company::class, 'company_location', 'location_id', 'company_id');
     }
 
     public function employees()

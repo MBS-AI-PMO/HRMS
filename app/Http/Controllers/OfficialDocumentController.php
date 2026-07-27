@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\company;
+use App\Models\Company;
 use App\Console\Commands\DocumentExpiryReminder;
 use App\Models\DocumentType;
 use App\Models\FileManagerSetting;
@@ -20,7 +20,7 @@ class OfficialDocumentController extends Controller {
 	public function index()
 	{
 		$logged_user = auth()->user();
-		$companies = company::select('id', 'company_name')->get();
+		$companies = Company::select('id', 'company_name')->get();
 		$document_types = DocumentType::all('id', 'document_type');
 
 		if ($logged_user->can('view-official_document'))

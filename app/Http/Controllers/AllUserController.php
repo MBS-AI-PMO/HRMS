@@ -276,7 +276,7 @@ else
 
 	public function process_update(Request $request)
 	{
-		if (!env('USER_VERIFIED'))
+		if (!config('variable.user_verified'))
 		{
 			return response()->json(['success' => 'This feature is disabled for demo!']);
 		}
@@ -420,7 +420,7 @@ else
 
 	public function delete_user($id)
 	{
-		if (!env('USER_VERIFIED'))
+		if (!config('variable.user_verified'))
 		{
 			return response()->json(['success' => 'This feature is disabled for demo!']);
 		}
@@ -431,7 +431,7 @@ else
 		{
 			$user = User::findOrFail($id);
 
-			$locationHeadBlock = \App\Models\location::deletionBlockReasonForLocationHead((int) $user->id);
+			$locationHeadBlock = \App\Models\Location::deletionBlockReasonForLocationHead((int) $user->id);
 			if ($locationHeadBlock !== null) {
 				return response()->json(['error' => $locationHeadBlock]);
 			}
@@ -460,7 +460,7 @@ else
 	public function delete_by_selection(Request $request)
 	{
 
-		if (!env('USER_VERIFIED'))
+		if (!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}

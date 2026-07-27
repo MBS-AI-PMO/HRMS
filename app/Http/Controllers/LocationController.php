@@ -5,10 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\Employee;
 use App\Models\Project;
-use App\Models\company;
-use App\Models\department;
-use App\Models\location;
-use App\Models\office_shift;
+use App\Models\Company;
+use App\Models\Department;
+use App\Models\Location;
+use App\Models\OfficeShift;
 use App\Scopes\AuthCompanyLocationScope;
 use App\Scopes\AuthCompanyScope;
 use App\Support\ClientDisplay;
@@ -45,7 +45,7 @@ class LocationController extends Controller
             return true;
         }
 
-        return location::userCanManageLocationForMyPage((int) $user->id, $locationId);
+        return Location::userCanManageLocationForMyPage((int) $user->id, $locationId);
     }
 
     protected function canAssignShiftAtLocation(int $locationId): bool
@@ -56,7 +56,7 @@ class LocationController extends Controller
             return true;
         }
 
-        return location::userCanManageLocationForMyPage((int) $user->id, $locationId);
+        return Location::userCanManageLocationForMyPage((int) $user->id, $locationId);
     }
 
     protected function isScopedLocationManager(): bool
@@ -64,7 +64,7 @@ class LocationController extends Controller
         $user = auth()->user();
 
         return ! $user->can('edit-location')
-            && location::userCanAccessMyLocationsPage((int) $user->id);
+            && Location::userCanAccessMyLocationsPage((int) $user->id);
     }
 
 	public function index(Request $request)
@@ -77,7 +77,7 @@ class LocationController extends Controller
             try {
                 $relations = array_merge(['country:id,name'], $this->locationListRelations());
 
-                $locationsQuery = location::with($relations)->latest();
+                $locationsQuery = Location::with($relations)->latest();
 
                 if ($request->filled('filter_company_id')) {
                     $companyId = (int) $request->filter_company_id;
@@ -227,7 +227,7 @@ class LocationController extends Controller
 
             DB::beginTransaction();
             try {
-                $location = location::create($data);
+                $location = Location::create($data);
                 $this->applyLocationOwner(
                     $location,
                     (string) $request->owner_type,
@@ -254,7 +254,7 @@ class LocationController extends Controller
                 return response()->json(['errors' => [__('You are not authorized')]], 403);
             }
 
-			$data = location::withoutGlobalScope(AuthCompanyLocationScope::class)->findOrFail($id);
+			$data = Location::withoutGlobalScope(AuthCompanyLocationScope::class)->findOrFail($id);
             $owner = $this->resolveLocationOwner($data);
 
 			return response()->json([
@@ -280,7 +280,7 @@ class LocationController extends Controller
             return response()->json(['success' => __('You are not authorized')]);
         }
 
-        $location = location::withoutGlobalScope(AuthCompanyLocationScope::class)->findOrFail($id);
+        $location = Location::withoutGlobalScope(AuthCompanyLocationScope::class)->findOrFail($id);
 
         if ($this->isScopedLocationManager()) {
             $owner = $this->resolveLocationOwner($location);
@@ -292,7 +292,7 @@ class LocationController extends Controller
             ]);
         }
 
-        if ($this->isScopedLocationManager() && ! location::userCanManageLocationForMyPage((int) auth()->id(), $id)) {
+        if ($this->isScopedLocationManager() && ! Location::userCanManageLocationForMyPage((int) auth()->id(), $id)) {
             return response()->json(['errors' => [__('You are not authorized')]], 403);
         }
 
@@ -354,8 +354,8 @@ class LocationController extends Controller
 
             DB::beginTransaction();
             try {
-                location::withoutGlobalScope(AuthCompanyLocationScope::class)->whereId($id)->update($data);
-                $location = location::withoutGlobalScope(AuthCompanyLocationScope::class)->findOrFail($id);
+                Location::withoutGlobalScope(AuthCompanyLocationScope::class)->whereId($id)->update($data);
+                $location = Location::withoutGlobalScope(AuthCompanyLocationScope::class)->findOrFail($id);
                 if (! $this->isScopedLocationManager()) {
                     $this->applyLocationOwner(
                         $location,
@@ -493,7 +493,7 @@ class LocationController extends Controller
             );
         }
 
-        $departmentsQuery = department::query()
+        $departmentsQuery = Department::query()
             ->select('id', 'department_name')
             ->where('company_id', $companyId)
             ->orderBy('department_name');
@@ -566,7 +566,7 @@ class LocationController extends Controller
 
     public function employeesByCompanies(Request $request)
     {
-        if (! auth()->user()->can('view-location') && ! location::userCanAccessMyLocationsPage((int) auth()->id())) {
+        if (! auth()->user()->can('view-location') && ! Location::userCanAccessMyLocationsPage((int) auth()->id())) {
             return response()->json(['employees' => [], 'companies' => []], 403);
         }
 
@@ -580,7 +580,7 @@ class LocationController extends Controller
         }
 
         if ($this->isScopedLocationManager()) {
-            $managedLocationIds = location::locationIdsForMyLocationsPage((int) auth()->id());
+            $managedLocationIds = Location::locationIdsForMyLocationsPage((int) auth()->id());
             $allowedCompanyIds = $this->companiesForLocationIds($managedLocationIds)
                 ->pluck('id')
                 ->map(fn ($id) => (int) $id)
@@ -607,14 +607,14 @@ class LocationController extends Controller
                 ];
             });
 
-        $shiftsByCompany = office_shift::query()
+        $shiftsByCompany = OfficeShift::query()
             ->select('id', 'shift_name', 'company_id')
             ->whereIn('company_id', $companyIds)
             ->orderBy('shift_name')
             ->get()
             ->groupBy('company_id');
 
-        $companies = company::query()
+        $companies = Company::query()
             ->select('id', 'company_name')
             ->whereIn('id', $companyIds)
             ->orderBy('company_name')
@@ -648,7 +648,7 @@ class LocationController extends Controller
             return response()->json(['errors' => [__('You are not authorized')]], 403);
         }
 
-        $location = location::withoutGlobalScope(AuthCompanyLocationScope::class)
+        $location = Location::withoutGlobalScope(AuthCompanyLocationScope::class)
             ->with('companies:id,company_name')
             ->findOrFail($id);
         $companyIds = $location->companies->pluck('id');
@@ -664,7 +664,7 @@ class LocationController extends Controller
             ->groupBy('company_id')
             ->pluck('total', 'company_id');
 
-        $shiftsByCompany = office_shift::query()
+        $shiftsByCompany = OfficeShift::query()
             ->select('id', 'shift_name', 'company_id')
             ->when($companyIds->isNotEmpty(), function ($query) use ($companyIds) {
                 $query->whereIn('company_id', $companyIds);
@@ -715,7 +715,7 @@ class LocationController extends Controller
         }
 
         $locationId = (int) $request->location_id;
-        $location = location::withoutGlobalScope(AuthCompanyLocationScope::class)
+        $location = Location::withoutGlobalScope(AuthCompanyLocationScope::class)
             ->with('companies:id')
             ->findOrFail($locationId);
         $locationCompanyIds = $location->companies->pluck('id')->map(fn ($id) => (int) $id)->all();
@@ -753,7 +753,7 @@ class LocationController extends Controller
             return response()->json(['errors' => [__('You are not authorized')]], 403);
         }
 
-        $location = location::withoutGlobalScope(AuthCompanyLocationScope::class)
+        $location = Location::withoutGlobalScope(AuthCompanyLocationScope::class)
             ->select('id', 'location_name')
             ->findOrFail($locationId);
 
@@ -836,7 +836,7 @@ class LocationController extends Controller
 
         if ($isDataTableRequest) {
             try {
-                $locations = location::withoutGlobalScope(AuthCompanyLocationScope::class)
+                $locations = Location::withoutGlobalScope(AuthCompanyLocationScope::class)
                     ->with($this->locationListRelations())
                     ->withCount([
                         'employees as active_employees_count' => function ($query) {
@@ -851,7 +851,7 @@ class LocationController extends Controller
                     ]);
 
                 if (! $this->userHasPermission('view-location')) {
-                    $managedLocationIds = location::locationIdsForMyLocationsPage($userId);
+                    $managedLocationIds = Location::locationIdsForMyLocationsPage($userId);
 
                     if ($managedLocationIds === []) {
                         $locations->whereRaw('1 = 0');
@@ -909,7 +909,7 @@ class LocationController extends Controller
 
     private function myLocationActionButtons(location $row, int $userId): string
     {
-        $canManage = location::userCanManageLocationForMyPage($userId, (int) $row->id);
+        $canManage = Location::userCanManageLocationForMyPage($userId, (int) $row->id);
         $canEdit = $this->userHasPermission('edit-location') || $canManage;
 
         if (! $canEdit) {
@@ -948,7 +948,7 @@ class LocationController extends Controller
             return CompanyScope::solochoicezCompanyId();
         }
 
-        $id = company::query()
+        $id = Company::query()
             ->whereRaw('LOWER(company_name) LIKE ?', ['%solochoice%'])
             ->value('id');
 
@@ -1005,7 +1005,7 @@ class LocationController extends Controller
             return collect();
         }
 
-        return company::withoutGlobalScopes()
+        return Company::withoutGlobalScopes()
             ->select('id', 'company_name')
             ->whereIn('id', $companyIds)
             ->orderBy('company_name')
@@ -1128,7 +1128,7 @@ class LocationController extends Controller
     private function syncCompaniesFromClient(location $location, int $clientId): void
     {
         $client = Client::query()->findOrFail($clientId);
-        $companyIds = company::query()
+        $companyIds = Company::query()
             ->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower(trim((string) $client->company_name))])
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
@@ -1253,7 +1253,7 @@ class LocationController extends Controller
                 continue;
             }
 
-            $shift = office_shift::find($shiftId);
+            $shift = OfficeShift::find($shiftId);
 
             if (! $shift || (int) $shift->company_id !== $companyId) {
                 $errors[] = __('Office shift does not belong to the selected company.');
@@ -1275,7 +1275,7 @@ class LocationController extends Controller
         }
 
         if ($allowedCompanyIds === null) {
-            $location = location::with('companies:id')->findOrFail($locationId);
+            $location = Location::with('companies:id')->findOrFail($locationId);
             $allowedCompanyIds = $location->companies->pluck('id')->map(fn ($id) => (int) $id)->all();
         }
 
@@ -1293,7 +1293,7 @@ class LocationController extends Controller
                 throw new \RuntimeException(__('Selected company is not linked to this location.'));
             }
 
-            $shift = office_shift::find($shiftId);
+            $shift = OfficeShift::find($shiftId);
 
             if (! $shift || (int) $shift->company_id !== $companyId) {
                 throw new \RuntimeException(__('Office shift does not belong to the selected company.'));
@@ -1338,7 +1338,7 @@ class LocationController extends Controller
 	public function delete($id)
 	{
 
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['success' => 'This feature is disabled for demo!']);
 		}
@@ -1346,7 +1346,7 @@ class LocationController extends Controller
 
 		if ($logged_user->can('delete-location'))
 		{
-		     location::whereId($id)->delete();
+		     Location::whereId($id)->delete();
 		     return "success";
 
 		}
@@ -1356,7 +1356,7 @@ class LocationController extends Controller
 
 	public function delete_by_selection(Request $request)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -1366,7 +1366,7 @@ class LocationController extends Controller
 		{
 
 			$location_id = $request['locationIdArray'];
-			$location = location::whereIntegerInRaw('id', $location_id);
+			$location = Location::whereIntegerInRaw('id', $location_id);
 			if ($location->delete())
 			{
 				return response()->json(['success' => __('Multi Delete',['key'=>trans('file.Location')])]);

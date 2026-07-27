@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\location;
+use App\Models\Location;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -24,9 +24,9 @@ class DiagnoseLocationHeadAccess extends Command
             return self::FAILURE;
         }
 
-        $identityIds = location::resolveIdentityIds((int) $user->id);
-        $locationIds = location::locationIdsHeadedByUser((int) $user->id);
-        $myPageIds = location::locationIdsForMyLocationsPage((int) $user->id);
+        $identityIds = Location::resolveIdentityIds((int) $user->id);
+        $locationIds = Location::locationIdsHeadedByUser((int) $user->id);
+        $myPageIds = Location::locationIdsForMyLocationsPage((int) $user->id);
 
         $this->info("User: {$user->username} (id={$user->id}, email={$user->email})");
         $this->line('Identity ids checked: '.implode(', ', $identityIds));
@@ -58,7 +58,7 @@ class DiagnoseLocationHeadAccess extends Command
 
         $this->line('Headed location ids: '.(implode(', ', $locationIds) ?: 'none'));
         $this->line('My Locations page ids: '.(implode(', ', $myPageIds) ?: 'none'));
-        $this->line('Can access My Locations page: '.(location::userCanAccessMyLocationsPage((int) $user->id) ? 'YES' : 'NO'));
+        $this->line('Can access My Locations page: '.(Location::userCanAccessMyLocationsPage((int) $user->id) ? 'YES' : 'NO'));
 
         return self::SUCCESS;
     }

@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class department extends Model
+class Department extends Model
 {
     use HasFactory;
 
@@ -14,7 +14,7 @@ class department extends Model
 	];
 
 	public function company(){
-		return $this->hasOne('App\Models\company','id','company_id');
+		return $this->hasOne('App\Models\Company','id','company_id');
 	}
 
 	public function DepartmentHead(){
