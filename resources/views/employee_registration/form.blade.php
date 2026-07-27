@@ -328,7 +328,7 @@
                                         <span class="hint-text">{{ __('Format: 12345-1234567-1') }}</span>
                                     @elseif ($fieldKey === 'date_of_birth')
                                         <div class="input-group date-picker-wrap">
-                                            <input type="text" name="date_of_birth" id="date_of_birth" class="form-control date-dob" placeholder="{{ env('Date_Format_JS', 'dd-mm-yyyy') }}" autocomplete="off" readonly @if(!empty($cfg['required'])) required @endif>
+                                            <input type="text" name="date_of_birth" id="date_of_birth" class="form-control date-dob" placeholder="{{ config('variable.date_format_js', 'dd-mm-yyyy') }}" autocomplete="off" readonly @if(!empty($cfg['required'])) required @endif>
                                             <div class="input-group-append">
                                                 <span class="input-group-text" data-toggle-dob><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/></svg></span>
                                             </div>
@@ -379,7 +379,7 @@
                                 <div class="col-md-6 form-group field-block {{ $showField ? 'visible' : '' }}" data-field="{{ $fieldKey }}">
                                     <label class="reg-label">{{ __('Date Of Joining') }} @if(!empty($cfg['required']))<span class="req">*</span>@endif</label>
                                     <div class="input-group date-picker-wrap">
-                                        <input type="text" name="joining_date" id="joining_date" class="form-control date-join" placeholder="{{ env('Date_Format_JS', 'dd-mm-yyyy') }}" autocomplete="off" readonly @if(!empty($cfg['required'])) required @endif>
+                                        <input type="text" name="joining_date" id="joining_date" class="form-control date-join" placeholder="{{ config('variable.date_format_js', 'dd-mm-yyyy') }}" autocomplete="off" readonly @if(!empty($cfg['required'])) required @endif>
                                         <div class="input-group-append">
                                             <span class="input-group-text" data-toggle-join><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/></svg></span>
                                         </div>
@@ -456,7 +456,7 @@
         }
     }
 
-    const dateFormat = @json(env('Date_Format_JS', 'dd-mm-yyyy'));
+    const dateFormat = @json(config('variable.date_format_js', 'dd-mm-yyyy'));
 
     function initDatePickers() {
         const dobOpts = {

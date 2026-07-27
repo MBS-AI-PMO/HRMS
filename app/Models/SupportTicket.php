@@ -13,11 +13,11 @@ class SupportTicket extends Model
 	];
 
 	public function company(){
-		return $this->hasOne('App\Models\company','id','company_id');
+		return $this->hasOne('App\Models\Company','id','company_id');
 	}
 
 	public function department(){
-		return $this->hasOne('App\Models\department','id','department_id');
+		return $this->hasOne('App\Models\Department','id','department_id');
 	}
 
 	public function employee(){
@@ -36,7 +36,7 @@ class SupportTicket extends Model
 
 	public function getCreatedAtAttribute($value)
 	{
-		return Carbon::parse($value)->format(env('Date_Format').'--H:i');
+		return Carbon::parse($value)->format(config('variable.date_format', 'd-m-Y').'--H:i');
 	}
 
 

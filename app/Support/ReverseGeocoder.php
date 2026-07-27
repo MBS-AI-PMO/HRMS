@@ -75,22 +75,24 @@ class ReverseGeocoder
             'addressdetails' => 1,
         ];
 
-        try {
-            $response = Http::timeout(12)
-                ->withHeaders(static::requestHeaders())
-                ->get('https://nominatim.openstreetmap.org/reverse', $query);
+        if (class_exists(\GuzzleHttp\Client::class)) {
+            try {
+                $response = Http::timeout(12)
+                    ->withHeaders(static::requestHeaders())
+                    ->get('https://nominatim.openstreetmap.org/reverse', $query);
 
-            if ($response->ok()) {
-                $payload = $response->json();
+                if ($response->ok()) {
+                    $payload = $response->json();
 
-                return is_array($payload) ? $payload : null;
+                    return is_array($payload) ? $payload : null;
+                }
+            } catch (\Throwable $exception) {
+                Log::warning('Reverse geocode HTTP lookup failed', [
+                    'lat' => $lat,
+                    'lng' => $lng,
+                    'message' => $exception->getMessage(),
+                ]);
             }
-        } catch (\Throwable $exception) {
-            Log::warning('Reverse geocode HTTP lookup failed', [
-                'lat' => $lat,
-                'lng' => $lng,
-                'message' => $exception->getMessage(),
-            ]);
         }
 
         return static::fetchPayloadViaStream($lat, $lng, $query);

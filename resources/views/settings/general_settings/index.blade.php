@@ -220,7 +220,7 @@
                                         <div class="mt-4 form-check">
                                             <input type="checkbox" name="enable_early_clockin" class="form-check-input"
                                                 value="1"
-                                                {{ env('ENABLE_EARLY_CLOCKIN') != null ? 'checked' : '' }} />
+                                                {{ config('variable.enable_early_clockin') != null ? 'checked' : '' }} />
                                             <label class="mr-4 form-check-label"><strong>{{ trans('file.Enable Early Clock In (Added to Worktime)') }}
                                                 </strong></label>
                                         </div>

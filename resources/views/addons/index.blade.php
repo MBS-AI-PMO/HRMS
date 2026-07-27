@@ -11,7 +11,7 @@
                     <p class="card-text">This addon works in unison with ‘PeoplePro – HRM, Payroll & Project Management’. When installed with PeoplePro, it takes employee/staff attendance data exported from biometric attendance/fingerprint reader devices at your office/factory. This data is then used to calculate employee attendance, salary (payroll) etc.</p>
                     <a href="https://peopleprohrm.com/demo/" target="_blank" class="btn btn-danger p-2">Demo</a>
                     <a href="https://codecanyon.net/item/biometric-attendance-addon-for-peoplepro-hrm-payroll-project-management/40091655" target="_blank" class="btn btn-info p-2">Buy Now</a>
-                    @if (env('USER_VERIFIED'))
+                    @if (config('variable.user_verified'))
                         <a href="{{ route('biometric-install-step-1') }}" class="btn btn-primary p-2">Go to Install</a>
                     @endif
                 </div>
@@ -37,7 +37,7 @@
                     </p>
                     <a href="https://peopleprohrmsaas.com/" class="btn btn-danger p-2" target="_blank">Demo</a>
                     <a href="https://codecanyon.net/item/peoplepro-saas-hrm-payroll-project-management/48966937" class="btn btn-info p-2" target="_blank">Buy Now</a>
-                    @if (env('USER_VERIFIED'))
+                    @if (config('variable.user_verified'))
                         <a href="{{ route('saas-install-step-1') }}" class="btn btn-primary p-2">Go to Install</a>
                     @endif
                 </div>

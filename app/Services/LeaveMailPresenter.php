@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\GeneralSetting;
-use App\Models\leave;
+use App\Models\Leave;
 
 class LeaveMailPresenter
 {

@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\company;
+use App\Models\Company;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -14,11 +14,11 @@ return new class extends Migration
             $table->string('registration_slug', 191)->nullable()->unique()->after('company_name');
         });
 
-        company::query()->select('id', 'company_name', 'registration_slug')->each(function (company $row) {
+        Company::query()->select('id', 'company_name', 'registration_slug')->each(function (company $row) {
             if ($row->registration_slug) {
                 return;
             }
-            $row->registration_slug = company::makeUniqueRegistrationSlug($row->company_name, (int) $row->id);
+            $row->registration_slug = Company::makeUniqueRegistrationSlug($row->company_name, (int) $row->id);
             $row->saveQuietly();
         });
     }

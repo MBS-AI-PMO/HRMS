@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\company;
-use App\Models\department;
-use App\Models\designation;
+use App\Models\Company;
+use App\Models\Department;
+use App\Models\Designation;
 use App\Models\Employee;
 use App\Support\CompanyScope;
 use Illuminate\Http\Request;
@@ -25,7 +25,7 @@ class DesignationController extends Controller
 
 			if (request()->ajax())
 			{
-				return datatables()->of(designation::with('company','department')->get())
+				return datatables()->of(Designation::with('company','department')->get())
 					->setRowId(function ($designation)
 					{
 						return $designation->id;
@@ -94,7 +94,7 @@ class DesignationController extends Controller
 
 
 
-			designation::create($data);
+			Designation::create($data);
 
 			return response()->json(['success' => __('Data Added successfully.')]);
 		}
@@ -113,7 +113,7 @@ class DesignationController extends Controller
 	{
 		if(request()->ajax())
 		{
-			$data = designation::findOrFail($id);
+			$data = Designation::findOrFail($id);
 
 			$departments = Department::select('id', 'department_name')->where('company_id', $data->company_id)->get();
 
@@ -168,7 +168,7 @@ class DesignationController extends Controller
 			}
 
 
-			designation::whereId($id)->update($data);
+			Designation::whereId($id)->update($data);
 
 			return response()->json(['success' => __('Data is successfully updated')]);
 		} else
@@ -185,7 +185,7 @@ class DesignationController extends Controller
 	 */
 	public function destroy($id)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -193,7 +193,7 @@ class DesignationController extends Controller
 
 		if ($logged_user->can('delete-designation'))
 		{
-			designation::whereId($id)->delete();
+			Designation::whereId($id)->delete();
 			return response()->json(['success' => __('Data is successfully deleted')]);
 
 		}
@@ -202,7 +202,7 @@ class DesignationController extends Controller
 
 	public function delete_by_selection(Request $request)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -212,7 +212,7 @@ class DesignationController extends Controller
 		{
 
 			$designation_id = $request['designationIdArray'];
-			$designation = designation::whereIntegerInRaw('id', $designation_id);
+			$designation = Designation::whereIntegerInRaw('id', $designation_id);
 			if ($designation->delete())
 			{
 				return response()->json(['success' => __('Multi Delete',['key'=>trans('file.Designation')])]);

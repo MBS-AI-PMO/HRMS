@@ -11,7 +11,7 @@ class FileManager extends Model
 	];
 
 	public function department(){
-		return $this->hasOne('App\Models\department','id','department_id');
+		return $this->hasOne('App\Models\Department','id','department_id');
 	}
 
 	public function AddedBy(){

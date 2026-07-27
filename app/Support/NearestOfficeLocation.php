@@ -2,7 +2,7 @@
 
 namespace App\Support;
 
-use App\Models\location;
+use App\Models\Location;
 use App\Scopes\AuthCompanyLocationScope;
 use App\Support\CompanyScope;
 use Illuminate\Support\Collection;
@@ -55,7 +55,7 @@ class NearestOfficeLocation
 
     public static function candidates(?int $companyId = null): Collection
     {
-        $query = location::withoutGlobalScope(AuthCompanyLocationScope::class)
+        $query = Location::withoutGlobalScope(AuthCompanyLocationScope::class)
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->where('latitude', '!=', '')

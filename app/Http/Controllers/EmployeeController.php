@@ -9,24 +9,24 @@ use App\Support\ClientDisplay;
 use App\Support\CompanyScope;
 use App\Imports\UsersImport;
 use App\Models\Client;
-use App\Models\company;
+use App\Models\Company;
 use App\Models\DeductionType;
-use App\Models\department;
-use App\Models\designation;
+use App\Models\Department;
+use App\Models\Designation;
 use App\Models\DocumentType;
 use App\Models\Employee;
 use App\Models\EmployeeActivityLog;
 use App\Models\Team;
 use App\Models\GeneralSetting;
 use App\Models\LoanType;
-use App\Models\office_shift;
+use App\Models\OfficeShift;
 use App\Models\QualificationEducationLevel;
 use App\Models\QualificationLanguage;
 use App\Models\QualificationSkill;
 use App\Models\RelationType;
-use App\Models\status;
+use App\Models\Status;
 use App\Models\User;
-use App\Models\location;
+use App\Models\Location;
 use App\Models\Project;
 use App\Support\ManagedEmployeeScope;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
@@ -136,7 +136,7 @@ class EmployeeController extends Controller
             return true;
         }
 
-        return in_array($locationId, location::locationIdsHeadedByUser($userId), true);
+        return in_array($locationId, Location::locationIdsHeadedByUser($userId), true);
     }
 
     /**
@@ -215,25 +215,25 @@ class EmployeeController extends Controller
     {
         $logged_user = auth()->user();
         if ($this->canAccessEmployeeList()) {
-            $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
+            $isLocationHead = Location::userIsLocationHead((int) $logged_user->id);
             $companies = $isLocationHead && ! $logged_user->can('view-details-employee')
                 ? CompanyScope::companiesForLocationHead((int) $logged_user->id)
                 : CompanyScope::companiesForSelect();
             $clients = $this->clientsForEmployeeSelect();
             $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
             $locations = $isLocationHead && ! $logged_user->can('view-details-employee')
-                ? location::withoutGlobalScope(\App\Scopes\AuthCompanyLocationScope::class)
+                ? Location::withoutGlobalScope(\App\Scopes\AuthCompanyLocationScope::class)
                     ->with('companies:id,company_name')
                     ->headedByUser((int) $logged_user->id)
                     ->select('id', 'location_name', 'max_radius')
                     ->get()
-                : location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
+                : Location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
             $currentDate = date('Y-m-d');
             $teamLeaderViewOnly = $this->employeeListRestrictedToTeamMembers();
             $crossCompanyList = $isLocationHead && $teamLeaderViewOnly;
             $filterLocationId = $request->filled('location_id') ? (int) $request->location_id : null;
             $filterLocationName = $filterLocationId
-                ? location::withoutGlobalScope(\App\Scopes\AuthCompanyLocationScope::class)
+                ? Location::withoutGlobalScope(\App\Scopes\AuthCompanyLocationScope::class)
                     ->where('id', $filterLocationId)
                     ->value('location_name')
                 : null;
@@ -344,7 +344,7 @@ class EmployeeController extends Controller
 
                         if (! $teamLeaderViewOnly && auth()->user()->can('modify-details-employee')) {
                             $button .= '&nbsp;&nbsp;&nbsp;';
-                            if ($data->role_users_id != 1 && ! location::userIsLocationHead((int) $data->id)) {
+                            if ($data->role_users_id != 1 && ! Location::userIsLocationHead((int) $data->id)) {
                                 $button .= '<button type="button" name="delete" id="'.$data->id.'" class="delete btn btn-danger btn-sm" data-toggle="tooltip" data-placement="top" title="Delete"><i class="dripicons-trash"></i></button>';
                                 $button .= '&nbsp;&nbsp;&nbsp;';
                             }
@@ -555,17 +555,17 @@ class EmployeeController extends Controller
         if ($this->canViewEmployeeRecord($employee)) {
             $employeeViewOnly = $this->employeeListRestrictedToTeamMembers();
             $companies = CompanyScope::companiesForSelect();
-            $departments = department::select('id', 'department_name')
+            $departments = Department::select('id', 'department_name')
                 ->where('company_id', $employee->company_id)
                 ->get();
 
-            $designations = designation::select('id', 'designation_name')
+            $designations = Designation::select('id', 'designation_name')
                 ->where('department_id', $employee->department_id)
                 ->get();
 
             $office_shifts = $this->officeShiftsForEmployee($employee);
 
-            $statuses = status::select('id', 'status_title')->get();
+            $statuses = Status::select('id', 'status_title')->get();
             // $roles = Role::select('id', 'name')->get();
             $countries = DB::table('countries')->select('id', 'name')->get();
             $document_types = DocumentType::select('id', 'document_type')->get();
@@ -577,7 +577,7 @@ class EmployeeController extends Controller
             $loanTypes = LoanType::select('id','type_name')->get();
             $deductionTypes = DeductionType::select('id','type_name')->get();
             $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
-            $locations = location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
+            $locations = Location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
             $clients = $this->clientsForEmployeeSelect();
 
             return view('employee.dashboard', compact('employee', 'countries', 'companies', 'clients',
@@ -606,17 +606,17 @@ class EmployeeController extends Controller
         }
 
             $companies = CompanyScope::companiesForSelect();
-            $departments = department::select('id', 'department_name')
+            $departments = Department::select('id', 'department_name')
                 ->where('company_id', $employee->company_id)
                 ->get();
 
-            $designations = designation::select('id', 'designation_name')
+            $designations = Designation::select('id', 'designation_name')
                 ->where('department_id', $employee->department_id)
                 ->get();
 
             $office_shifts = $this->officeShiftsForEmployee($employee);
 
-            $statuses = status::select('id', 'status_title')->get();
+            $statuses = Status::select('id', 'status_title')->get();
             // $roles = Role::select('id', 'name')->get();
             $countries = DB::table('countries')->select('id', 'name')->get();
             $document_types = DocumentType::select('id', 'document_type')->get();
@@ -628,7 +628,7 @@ class EmployeeController extends Controller
             $loanTypes = LoanType::select('id','type_name')->get();
             $deductionTypes = DeductionType::select('id','type_name')->get();
             $roles = Role::where('id', '!=', 3)->where('is_active', 1)->select('id', 'name')->get();
-            $locations = location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
+            $locations = Location::with('companies:id,company_name')->select('id', 'location_name', 'max_radius')->get();
             $clients = $this->clientsForEmployeeSelect();
 
             $workFieldsReadonly = $this->employeeSelfProfileWorkReadonly($user, (int) $employee->id);
@@ -673,7 +673,7 @@ class EmployeeController extends Controller
                 return $row->ip_address ?? '---';
             })
             ->addColumn('created_at', function ($row) {
-                return Carbon::parse($row->created_at)->format(env('Date_Format') . ' H:i');
+                return Carbon::parse($row->created_at)->format(config('variable.date_format', 'd-m-Y') . ' H:i');
             })
             ->rawColumns([])
             ->make(true);
@@ -683,7 +683,7 @@ class EmployeeController extends Controller
     {
         $this->assertCanModifyEmployees();
 
-        if (! env('USER_VERIFIED')) {
+        if (! config('variable.user_verified')) {
             return response()->json(['error' => 'This feature is disabled for demo!']);
         }
         $logged_user = auth()->user();
@@ -700,7 +700,7 @@ class EmployeeController extends Controller
                     ]);
                 }
 
-                $locationHeadBlock = location::deletionBlockReasonForLocationHead((int) $id);
+                $locationHeadBlock = Location::deletionBlockReasonForLocationHead((int) $id);
                 if ($locationHeadBlock !== null) {
                     return response()->json(['error' => $locationHeadBlock]);
                 }
@@ -775,7 +775,7 @@ class EmployeeController extends Controller
     {
         $this->assertCanModifyEmployees();
 
-        if (! env('USER_VERIFIED')) {
+        if (! config('variable.user_verified')) {
             return response()->json(['error' => 'This feature is disabled for demo!']);
         }
         $logged_user = auth()->user();
@@ -784,7 +784,7 @@ class EmployeeController extends Controller
             $employee_id = $request['employeeIdArray'];
 
             foreach ((array) $employee_id as $selectedId) {
-                $locationHeadBlock = location::deletionBlockReasonForLocationHead((int) $selectedId);
+                $locationHeadBlock = Location::deletionBlockReasonForLocationHead((int) $selectedId);
                 if ($locationHeadBlock !== null) {
                     return response()->json(['error' => $locationHeadBlock]);
                 }
@@ -1357,7 +1357,7 @@ public function removeProfilePhoto($employee)
     public function importPost()
     {
 
-        if (! env('USER_VERIFIED')) {
+        if (! config('variable.user_verified')) {
             $this->setErrorMessage('This feature is disabled for demo!');
 
             return redirect()->back();
@@ -1402,7 +1402,7 @@ public function removeProfilePhoto($employee)
     try {
         $today = now()->toDateString();
 
-        $activeWfhEmployeeIds = \App\Models\leave::query()
+        $activeWfhEmployeeIds = \App\Models\Leave::query()
             ->join('leave_types', 'leave_types.id', '=', 'leaves.leave_type_id')
             ->where('leaves.status', 'approved')
             ->where('leaves.manager_approval_status', 'approved')
@@ -1479,7 +1479,7 @@ public function removeProfilePhoto($employee)
 
     private function officeShiftsForEmployee(Employee $employee)
     {
-        $query = office_shift::query()->select('id', 'shift_name');
+        $query = OfficeShift::query()->select('id', 'shift_name');
 
         if ($employee->client_id) {
             $query->where('client_id', $employee->client_id);
@@ -1492,7 +1492,7 @@ public function removeProfilePhoto($employee)
         $shifts = $query->orderBy('shift_name')->get();
 
         if ($employee->office_shift_id && ! $shifts->contains('id', $employee->office_shift_id)) {
-            $current = office_shift::query()
+            $current = OfficeShift::query()
                 ->select('id', 'shift_name')
                 ->find($employee->office_shift_id);
 

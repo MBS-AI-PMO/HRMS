@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Award;
 use App\Models\AwardType;
-use App\Models\company;
-use App\Models\department;
+use App\Models\Company;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Notifications\EmployeeAwardNotify;
 use App\Models\User;
@@ -24,7 +24,7 @@ class AwardController extends Controller {
 	{
 
 		$logged_user = auth()->user();
-		$companies = company::select('id', 'company_name')->get();
+		$companies = Company::select('id', 'company_name')->get();
 		$award_types = AwardType::select('id', 'award_name')->get();
 
 
@@ -180,7 +180,7 @@ class AwardController extends Controller {
 		{
 			$data = Award::findOrFail($id);
 
-			$departments = department::select('id', 'department_name')->where('company_id', $data->company_id)->get();
+			$departments = Department::select('id', 'department_name')->where('company_id', $data->company_id)->get();
 
 			$employees = Employee::select('id', 'first_name', 'last_name')->where('department_id', $data->department_id)
                             ->where('is_active',1)
@@ -276,7 +276,7 @@ class AwardController extends Controller {
 	 */
 	public function destroy($id)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -293,7 +293,7 @@ class AwardController extends Controller {
 
 	public function delete_by_selection(Request $request)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}

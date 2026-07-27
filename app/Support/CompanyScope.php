@@ -5,8 +5,8 @@ namespace App\Support;
 use App\Models\Client;
 use App\Models\Employee;
 use App\Models\Project;
-use App\Models\company;
-use App\Models\location;
+use App\Models\Company;
+use App\Models\Location;
 use App\Scopes\AuthCompanyScope;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Builder;
@@ -60,7 +60,7 @@ class CompanyScope
 
     public static function clientCompaniesForSelect()
     {
-        $query = company::select('id', 'company_name')
+        $query = Company::select('id', 'company_name')
             ->whereRaw('LOWER(company_name) NOT LIKE ?', ['%solochoice%'])
             ->orderBy('company_name');
 
@@ -79,7 +79,7 @@ class CompanyScope
 
     public static function solochoicezCompanyId(): ?int
     {
-        $id = company::withoutGlobalScopes()
+        $id = Company::withoutGlobalScopes()
             ->whereRaw('LOWER(company_name) LIKE ?', ['%solochoice%'])
             ->value('id');
 
@@ -115,7 +115,7 @@ class CompanyScope
 
     public static function companiesForSelect()
     {
-        $query = company::select('id', 'company_name')->orderBy('company_name');
+        $query = Company::select('id', 'company_name')->orderBy('company_name');
 
         if (static::applies()) {
             $companyId = static::companyId();
@@ -135,7 +135,7 @@ class CompanyScope
      */
     public static function companiesForLocationHead(int $userId)
     {
-        $locationIds = location::locationIdsHeadedByUser($userId);
+        $locationIds = Location::locationIdsHeadedByUser($userId);
 
         if ($locationIds === []) {
             return collect();
@@ -153,7 +153,7 @@ class CompanyScope
             return collect();
         }
 
-        return company::withoutGlobalScopes()
+        return Company::withoutGlobalScopes()
             ->select('id', 'company_name')
             ->whereIn('id', $companyIds)
             ->orderBy('company_name')
@@ -183,7 +183,7 @@ class CompanyScope
             return collect();
         }
 
-        return company::withoutGlobalScopes()
+        return Company::withoutGlobalScopes()
             ->select('id', 'company_name')
             ->whereIn('id', $companyIds)
             ->orderBy('company_name')
@@ -208,7 +208,7 @@ class CompanyScope
             return null;
         }
 
-        return company::select('id', 'company_name')->find($companyId);
+        return Company::select('id', 'company_name')->find($companyId);
     }
 
     public static function resolveCompanyIdForTeamInput($requested): int
@@ -276,7 +276,7 @@ class CompanyScope
         $organization = static::normalizeCompanyName((string) $client->company_name);
 
         if ($organization !== '') {
-            foreach (company::withoutGlobalScopes()->select('id', 'company_name')->get() as $company) {
+            foreach (Company::withoutGlobalScopes()->select('id', 'company_name')->get() as $company) {
                 $name = static::normalizeCompanyName((string) $company->company_name);
 
                 if ($name === '') {
@@ -357,7 +357,7 @@ class CompanyScope
      */
     public static function clientIdsForCompany(int $companyId): array
     {
-        $companyName = company::query()->whereKey($companyId)->value('company_name');
+        $companyName = Company::query()->whereKey($companyId)->value('company_name');
         $normalizedName = $companyName ? strtolower(trim((string) $companyName)) : '';
 
         $ids = collect();

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\leave;
+use App\Models\Leave;
 
 class EmployeeLeaveController extends Controller {
 
@@ -18,7 +18,7 @@ class EmployeeLeaveController extends Controller {
 			{
 				$isWfhView = request()->boolean('wfh');
 
-				$query = leave::with('department', 'LeaveType', 'approvedByUser:id,first_name,last_name', 'approvedByEmployee:id,first_name,last_name')
+				$query = Leave::with('department', 'LeaveType', 'approvedByUser:id,first_name,last_name', 'approvedByEmployee:id,first_name,last_name')
 					->where('employee_id', $employee)
 					->when($isWfhView, function ($query) {
 						$query->whereHas('LeaveType', function ($q) {
@@ -73,7 +73,7 @@ class EmployeeLeaveController extends Controller {
 	{
 		if (request()->ajax())
 		{
-			$data = leave::with('approvedByUser:id,first_name,last_name')->findOrFail($id);
+			$data = Leave::with('approvedByUser:id,first_name,last_name')->findOrFail($id);
 			$company_name = $data->company->company_name ?? '';
 			$department = $data->department->department_name ?? '';
 			$leave_type_name = $data->LeaveType->leave_type ?? '';

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Client;
-use App\Models\company;
+use App\Models\Company;
 use App\Models\Employee;
 use App\Notifications\ProjectCreatedNotifiaction;
 use App\Notifications\ProjectUpdatedNotification;
@@ -341,7 +341,7 @@ class ProjectController extends Controller {
 	 */
 	public function destroy($id)
 	{
-		if (!env('USER_VERIFIED'))
+		if (!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -432,7 +432,7 @@ class ProjectController extends Controller {
 			return null;
 		}
 
-		$id = company::query()
+		$id = Company::query()
 			->whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower($companyName)])
 			->value('id');
 

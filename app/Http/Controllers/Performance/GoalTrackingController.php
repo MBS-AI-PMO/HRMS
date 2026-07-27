@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Performance;
 
-use App\Models\company;
+use App\Models\Company;
 use App\Models\GoalTracking;
 use App\Models\GoalType;
 use App\Http\Controllers\Controller;
@@ -51,7 +51,7 @@ class GoalTrackingController extends Controller
         }
 
         
-        $companies = company::select('id','company_name')->get();
+        $companies = Company::select('id','company_name')->get();
         $goal_types = GoalType::select('id','goal_type')->get();
 
         return view('performance.goal-tracking.index',compact('companies','goal_types'));

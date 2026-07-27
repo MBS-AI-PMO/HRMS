@@ -20,7 +20,7 @@ class GoalTracking extends Model
     ];
 
     public function company(){
-        return $this->hasOne('App\Models\company','id','company_id');
+        return $this->hasOne('App\Models\Company','id','company_id');
     }
 
     public function goalType(){

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\company;
-use App\Models\department;
+use App\Models\Company;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Support\CompanyScope;
 use Illuminate\Http\Request;
@@ -18,7 +18,7 @@ class DepartmentController extends Controller {
 
 		if (request()->ajax())
 		{
-			return datatables()->of(department::with('company:id,company_name', 'DepartmentHead:id,first_name,last_name')->get())
+			return datatables()->of(Department::with('company:id,company_name', 'DepartmentHead:id,first_name,last_name')->get())
 				->setRowId(function ($department)
 				{
 					return $department->id;
@@ -89,7 +89,7 @@ class DepartmentController extends Controller {
 			}
 
 
-			department::create($data);
+			Department::create($data);
 
 			return response()->json(['success' => __('Data Added successfully.')]);
 		}
@@ -108,7 +108,7 @@ class DepartmentController extends Controller {
 	{
 		if (request()->ajax())
 		{
-			$data = department::findOrFail($id);
+			$data = Department::findOrFail($id);
 			$employees = Employee::select('id', 'first_name', 'last_name')->where('company_id', $data->company_id)->where('is_active',1)
             ->where('exit_date',NULL)->get();
 
@@ -160,7 +160,7 @@ class DepartmentController extends Controller {
 				$data ['department_head'] = NULL;
 			}
 
-			department::whereId($id)->update($data);
+			Department::whereId($id)->update($data);
 
 			return response()->json(['success' => __('Data is successfully updated')]);
 		} else
@@ -177,7 +177,7 @@ class DepartmentController extends Controller {
 	 */
 	public function destroy($id)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -185,7 +185,7 @@ class DepartmentController extends Controller {
 
 		if ($logged_user->can('delete-department'))
 		{
-			department::whereId($id)->delete();
+			Department::whereId($id)->delete();
 
 			return response()->json(['success' => __('Data is successfully deleted')]);
 
@@ -196,7 +196,7 @@ class DepartmentController extends Controller {
 
 	public function delete_by_selection(Request $request)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -206,7 +206,7 @@ class DepartmentController extends Controller {
 		{
 
 			$department_id = $request['departmentIdArray'];
-			$department = department::whereIntegerInRaw('id', $department_id);
+			$department = Department::whereIntegerInRaw('id', $department_id);
 			if ($department->delete())
 			{
 				return response()->json(['success' => __('Multi Delete', ['key' => trans('file.Department')])]);

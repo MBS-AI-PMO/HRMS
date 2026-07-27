@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Employee;
-use App\Models\leave;
+use App\Models\Leave;
 use Illuminate\Console\Command;
 
 class SyncWfhAttendanceType extends Command
@@ -31,7 +31,7 @@ class SyncWfhAttendanceType extends Command
     {
         $today = now()->toDateString();
 
-        $activeWfhEmployeeIds = leave::query()
+        $activeWfhEmployeeIds = Leave::query()
             ->join('leave_types', 'leave_types.id', '=', 'leaves.leave_type_id')
             ->where('leaves.status', 'approved')
             ->where('leaves.manager_approval_status', 'approved')

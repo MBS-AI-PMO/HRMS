@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\company;
-use App\Models\department;
+use App\Models\Company;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Notifications\EmployeeTransferNotify;
 use App\Models\Transfer;
@@ -22,7 +22,7 @@ class TransferController extends Controller {
 	public function index()
 	{
 		$logged_user = auth()->user();
-		$companies = company::select('id', 'company_name')->get();
+		$companies = Company::select('id', 'company_name')->get();
 
 		if ($logged_user->can('view-transfer'))
 		{
@@ -176,7 +176,7 @@ class TransferController extends Controller {
 		{
 			$data = Transfer::findOrFail($id);
 
-			$departments = department::select('id', 'department_name')
+			$departments = Department::select('id', 'department_name')
 				->where('company_id', $data->company_id)->get();
 
 			$employees = Employee::select('id', 'first_name', 'last_name')->where('company_id', $data->company_id)->where('is_active',1)->where('exit_date',NULL)->get();
@@ -253,7 +253,7 @@ class TransferController extends Controller {
 	 */
 	public function destroy($id)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -271,7 +271,7 @@ class TransferController extends Controller {
 
 	public function delete_by_selection(Request $request)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}

@@ -23,12 +23,12 @@ class Team extends Model
 
     public function company()
     {
-        return $this->belongsTo(company::class, 'company_id');
+        return $this->belongsTo(Company::class, 'company_id');
     }
 
     public function department()
     {
-        return $this->belongsTo(department::class, 'department_id');
+        return $this->belongsTo(Department::class, 'department_id');
     }
 
     public function departmentHeads()

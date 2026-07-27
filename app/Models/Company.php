@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
-class company extends Model
+class Company extends Model
 {
 	protected $fillable = [
 		'company_name', 'registration_slug', 'company_type_id','trading_name', 'registration_no','contact_no','email','website','tax_no','location_id','company_logo',
@@ -56,7 +56,7 @@ class company extends Model
 	}
 
 	public function Location(){
-		return $this->hasOne('App\Models\location','id','location_id');
+		return $this->hasOne('App\Models\Location','id','location_id');
 	}
 
 	public function companyType(){
@@ -65,7 +65,7 @@ class company extends Model
 
     public function locations()
     {
-        return $this->belongsToMany(location::class, 'company_location', 'company_id', 'location_id');
+        return $this->belongsToMany(Location::class, 'company_location', 'company_id', 'location_id');
     }
 
     public function projects()

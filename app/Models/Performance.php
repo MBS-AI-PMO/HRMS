@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class performance extends Model
+class Performance extends Model
 {
     //
 }

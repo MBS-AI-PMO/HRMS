@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 
 use App\Models\Client;
-use App\Models\company;
+use App\Models\Company;
 use App\Http\traits\CalendarableModelTrait;
 use App\Models\LeaveType;
 use App\Models\Project;
@@ -22,7 +22,7 @@ class CalendarableController extends Controller {
 		$logged_user = auth()->user();
 		if ($logged_user->can('view-calendar'))
 		{
-			$companies = company::select('id', 'company_name')->get();
+			$companies = Company::select('id', 'company_name')->get();
 			$leave_types = LeaveType::select('id', 'leave_type', 'allocated_day')->get();
 			$travel_types = TravelType::select('id', 'arrangement_type')->get();
 			$training_types = TrainingType::select('id', 'type')->get();

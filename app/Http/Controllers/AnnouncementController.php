@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Announcement;
-use App\Models\company;
+use App\Models\Company;
 use App\Support\CompanyScope;
-use App\Models\department;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Notifications\AnnouncementPublished;
 use App\Models\User;
@@ -273,7 +273,7 @@ $button .= '<a href="'.route('announcements.pdf', $data->id).'" class="btn btn-i
 	 */
 	public function destroy($id)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['success' => 'This feature is disabled for demo!']);
 		}
@@ -292,7 +292,7 @@ $button .= '<a href="'.route('announcements.pdf', $data->id).'" class="btn btn-i
 
 	public function delete_by_selection(Request $request)
 	{
-		if(!env('USER_VERIFIED')){
+		if(!config('variable.user_verified')){
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
 		$logged_user = auth()->user();

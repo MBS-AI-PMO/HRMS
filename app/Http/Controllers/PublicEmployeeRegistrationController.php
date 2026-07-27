@@ -4,13 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\traits\LeaveTypeDataManageTrait;
 use App\Http\traits\SendsEmployeeCredentialsTrait;
-use App\Models\company;
-use App\Models\department;
-use App\Models\designation;
+use App\Models\Company;
+use App\Models\Department;
+use App\Models\Designation;
 use App\Models\Employee;
 use App\Models\EmployeeActivityLog;
 use App\Models\EmployeeRegistrationSetting;
-use App\Models\office_shift;
+use App\Models\OfficeShift;
 use App\Models\User;
 use Carbon\Carbon;
 use DateTime;
@@ -51,10 +51,10 @@ class PublicEmployeeRegistrationController extends Controller
             $formFields = $registrationSetting
                 ? $registrationSetting->resolvedFormFields()
                 : EmployeeRegistrationSetting::defaultFormFields();
-            $departments = department::where('company_id', $selectedCompany->id)
+            $departments = Department::where('company_id', $selectedCompany->id)
                 ->orderBy('department_name')
                 ->get(['id', 'department_name']);
-            $officeShifts = office_shift::where('company_id', $selectedCompany->id)
+            $officeShifts = OfficeShift::where('company_id', $selectedCompany->id)
                 ->orderBy('shift_name')
                 ->get(['id', 'shift_name']);
         } else {
@@ -62,7 +62,7 @@ class PublicEmployeeRegistrationController extends Controller
             $formFields = EmployeeRegistrationSetting::defaultFormFields();
             $departments = collect();
             $officeShifts = collect();
-            $companies = company::query()
+            $companies = Company::query()
                 ->select('id', 'company_name', 'registration_slug')
                 ->orderBy('company_name')
                 ->get()
@@ -136,7 +136,7 @@ class PublicEmployeeRegistrationController extends Controller
             return response('', 403);
         }
 
-        $rows = department::where('company_id', $companyId)->select('id', 'department_name')->get();
+        $rows = Department::where('company_id', $companyId)->select('id', 'department_name')->get();
         $output = '<option value=""></option>';
         foreach ($rows as $row) {
             $output .= '<option value="'.$row->id.'">'.$row->department_name.'</option>';
@@ -148,12 +148,12 @@ class PublicEmployeeRegistrationController extends Controller
     public function designations(Request $request)
     {
         $departmentId = (int) $request->department_id;
-        $department = department::find($departmentId);
+        $department = Department::find($departmentId);
         if (! $department || ! $this->registrationEnabled((int) $department->company_id)) {
             return response('', 403);
         }
 
-        $rows = designation::where('department_id', $departmentId)->select('id', 'designation_name')->get();
+        $rows = Designation::where('department_id', $departmentId)->select('id', 'designation_name')->get();
         $output = '<option value=""></option>';
         foreach ($rows as $row) {
             $output .= '<option value="'.$row->id.'">'.$row->designation_name.'</option>';
@@ -169,7 +169,7 @@ class PublicEmployeeRegistrationController extends Controller
             return response('', 403);
         }
 
-        $rows = office_shift::where('company_id', $companyId)->select('id', 'shift_name')->get();
+        $rows = OfficeShift::where('company_id', $companyId)->select('id', 'shift_name')->get();
         $output = '<option value=""></option>';
         foreach ($rows as $row) {
             $output .= '<option value="'.$row->id.'">'.$row->shift_name.'</option>';
@@ -262,16 +262,16 @@ class PublicEmployeeRegistrationController extends Controller
             : (int) $setting->default_office_shift_id;
 
         if (! $officeShiftId) {
-            $officeShiftId = (int) office_shift::where('company_id', $companyId)->value('id');
+            $officeShiftId = (int) OfficeShift::where('company_id', $companyId)->value('id');
         }
 
         if (! $departmentId || ! $designationId || ! $officeShiftId) {
             return response()->json(['error' => __('Company registration defaults are not configured. Please contact administrator.')], 422);
         }
 
-        $department = department::where('id', $departmentId)->where('company_id', $companyId)->first();
-        $designation = designation::where('id', $designationId)->where('department_id', $departmentId)->first();
-        $shift = office_shift::where('id', $officeShiftId)->where('company_id', $companyId)->first();
+        $department = Department::where('id', $departmentId)->where('company_id', $companyId)->first();
+        $designation = Designation::where('id', $designationId)->where('department_id', $departmentId)->first();
+        $shift = OfficeShift::where('id', $officeShiftId)->where('company_id', $companyId)->first();
 
         if (! $department || ! $designation || ! $shift) {
             return response()->json(['error' => __('Invalid department, designation or shift for selected company.')], 422);
@@ -296,12 +296,12 @@ class PublicEmployeeRegistrationController extends Controller
         $isActive = 1;
         $joiningDate = ! empty($fields['joining_date']['enabled']) && $request->joining_date
             ? $request->joining_date
-            : now()->format(env('Date_Format', 'Y-m-d'));
+            : now()->format(config('variable.date_format', 'd-m-Y'));
 
         $data = [
             'first_name' => $request->first_name,
             'last_name' => $request->last_name,
-            'date_of_birth' => $request->date_of_birth ?? now()->subYears(18)->format(env('Date_Format', 'Y-m-d')),
+            'date_of_birth' => $request->date_of_birth ?? now()->subYears(18)->format(config('variable.date_format', 'd-m-Y')),
             'gender' => $request->gender,
             'department_id' => $departmentId,
             'company_id' => $companyId,
@@ -412,10 +412,10 @@ class PublicEmployeeRegistrationController extends Controller
     private function resolveCompanyFromKey(string $key): ?company
     {
         if (ctype_digit($key)) {
-            return company::select('id', 'company_name', 'registration_slug')->find((int) $key);
+            return Company::select('id', 'company_name', 'registration_slug')->find((int) $key);
         }
 
-        return company::findByRegistrationSlug($key);
+        return Company::findByRegistrationSlug($key);
     }
 
     private function normalizeCnic(?string $cnic): ?string

@@ -12,6 +12,7 @@
         "ext-json": "*",
         "barryvdh/laravel-dompdf": "^2.0.1",
         "doctrine/dbal": "^3.0",
+        "guzzlehttp/guzzle": "^7.8",
         "joedixon/laravel-translation": "^1.1",
         "laravel/framework": "^10.15",
         "laravel/sanctum": "^3.3",

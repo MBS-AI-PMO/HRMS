@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\department;
+use App\Models\Department;
 use App\Models\EmployeeImmigration;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Notification;
@@ -57,7 +57,7 @@ class EmployeeImmigrationExpiryReminder extends Command
 		{
 			foreach ($employee_immigrations as $key => $item)
 			{
-                $department = department::with('DepartmentHead:id')->where('id',$item->employee->department_id)->first();
+                $department = Department::with('DepartmentHead:id')->where('id',$item->employee->department_id)->first();
 
                 $data[$key]['document_number'] = $item->document_number;
                 $data[$key]['document_type']   = $item->DocumentType->document_type;

@@ -6,7 +6,7 @@ namespace App\Http\traits;
 
 use App\Models\Event;
 use App\Models\Holiday;
-use App\Models\leave;
+use App\Models\Leave;
 use App\Models\Meeting;
 use App\Models\Project;
 use App\Models\Task;
@@ -22,7 +22,7 @@ Trait CalendarableModelTrait {
 
 
 	protected function getLeaves(){
-		$leaves = leave::with('LeaveType:id,leave_type','employee:id,first_name,last_name')
+		$leaves = Leave::with('LeaveType:id,leave_type','employee:id,first_name,last_name')
 			->where('status','approved')->get();
 		return $leaves;
 	}

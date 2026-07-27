@@ -20,14 +20,14 @@ class Indicator extends Model
     ];
 
     public function designation(){
-		return $this->hasOne('App\Models\designation','id','designation_id');
+		return $this->hasOne('App\Models\Designation','id','designation_id');
     }
 
     public function company(){
-		return $this->hasOne('App\Models\company','id','company_id');
+		return $this->hasOne('App\Models\Company','id','company_id');
     }
     
     public function department(){
-		return $this->hasOne('App\Models\department','id','department_id');
+		return $this->hasOne('App\Models\Department','id','department_id');
 	}
 }

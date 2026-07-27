@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Models\Client;
-use App\Models\company;
-use App\Models\department;
+use App\Models\Company;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\ExpenseType;
 use App\Models\FinanceBankCash;
@@ -16,7 +16,7 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\Payslip;
 use App\Models\TrainingList;
-use App\Models\location;
+use App\Models\Location;
 use App\Support\ClientDisplay;
 use App\Support\CompanyScope;
 use App\Support\ManagedEmployeeScope;
@@ -37,7 +37,7 @@ class ReportController extends Controller {
 	public function payslip(Request $request)
 	{
 		$logged_user = auth()->user();
-		$companies = company::all();
+		$companies = Company::all();
 		$selected_date = empty($request->filter_month_year) ? now()->format('F-Y') : $request->filter_month_year ;
 
 		if ($logged_user->can('report-payslip'))
@@ -83,7 +83,7 @@ class ReportController extends Controller {
 					})
 					->addColumn('created_at', function ($row)
 					{
-						return Carbon::parse($row->created_at)->format(env('Date_Format'));
+						return Carbon::parse($row->created_at)->format(config('variable.date_format', 'd-m-Y'));
 					})
 					->make(true);
 			}
@@ -98,7 +98,7 @@ class ReportController extends Controller {
 	public function attendance(Request $request)
 	{
 		$logged_user = auth()->user();
-		$isLocationHead = location::userIsLocationHead((int) $logged_user->id);
+		$isLocationHead = Location::userIsLocationHead((int) $logged_user->id);
 		$useManagedScope = ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
 		$managedEmployeeIds = $useManagedScope
 			? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
@@ -165,7 +165,7 @@ class ReportController extends Controller {
 					$date_range = [];
 					foreach ($period as $dt)
 					{
-						$date_range[] = $dt->format(env('Date_Format'));
+						$date_range[] = $dt->format(config('variable.date_format', 'd-m-Y'));
 					}
 				} else
 				{
@@ -193,7 +193,7 @@ class ReportController extends Controller {
 					})
 					->addColumn('attendance_date', function ($row)
 					{
-						return Carbon::parse($row)->format(env('Date_Format'));
+						return Carbon::parse($row)->format(config('variable.date_format', 'd-m-Y'));
 					})
 					->addColumn('attendance_status', function ($row) use ($all_attendances_array, $leaves, $holidays, $shift)
 					{
@@ -288,7 +288,7 @@ class ReportController extends Controller {
 	{
 		$logged_user = auth()->user();
 
-		$companies = company::all('id', 'company_name');
+		$companies = Company::all('id', 'company_name');
 
 		$start_date = Carbon::parse($request->filter_start_date)->format('Y-m-d') ?? '';
 		$end_date = Carbon::parse($request->filter_end_date)->format('Y-m-d') ?? '';
@@ -495,7 +495,7 @@ class ReportController extends Controller {
 	{
 
 		$logged_user = auth()->user();
-		$companies = company::all('id', 'company_name');
+		$companies = Company::all('id', 'company_name');
 
 
 		if ($logged_user->can('report-employee'))
@@ -795,7 +795,7 @@ class ReportController extends Controller {
     public function pension(Request $request)
     {
         $logged_user = auth()->user();
-        $companies = company::all();
+        $companies = Company::all();
         $selected_date = empty($request->filter_month_year) ? now()->format('F-Y') : $request->filter_month_year ;
 
 
@@ -897,7 +897,7 @@ class ReportController extends Controller {
             ? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
             : [];
 
-        $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
+        $isLocationHead = Location::userIsLocationHead((int) $logged_user->id);
         $companies = $logged_user->can('report-employee')
             ? CompanyScope::companiesForSelect()
             : ($isLocationHead
@@ -988,7 +988,7 @@ class ReportController extends Controller {
                 })
                 ->addColumn('clock_in_at', function ($row) {
                     $date = $row->getRawOriginal('attendance_date')
-                        ? Carbon::parse($row->getRawOriginal('attendance_date'))->format(env('Date_Format'))
+                        ? Carbon::parse($row->getRawOriginal('attendance_date'))->format(config('variable.date_format', 'd-m-Y'))
                         : '---';
 
                     return trim($date.' '.($row->clock_in ?? ''));
@@ -1204,7 +1204,7 @@ class ReportController extends Controller {
 
         $pdf = PDF::loadView('report.summary_dashboard_pdf', [
             'data' => $data,
-            'generatedAt' => now()->format(env('Date_Format').' H:i'),
+            'generatedAt' => now()->format(config('variable.date_format', 'd-m-Y').' H:i'),
             'filterSummary' => $this->summaryDashboardFilterSummary($request, $data),
         ])->setPaper('a4', 'landscape');
 
@@ -1358,7 +1358,7 @@ class ReportController extends Controller {
 
         $projects = $projectsQuery->orderBy('title')->get();
 
-        $companiesQuery = company::query()
+        $companiesQuery = Company::query()
             ->select('id', 'company_name')
             ->orderBy('company_name');
 
@@ -1391,7 +1391,7 @@ class ReportController extends Controller {
         $clients = $clientsQuery->get();
         $clientIds = $clients->pluck('id');
 
-        $locationsQuery = location::query()
+        $locationsQuery = Location::query()
             ->select('id', 'location_name', 'client_id', 'city')
             ->orderBy('location_name');
 
@@ -1677,7 +1677,7 @@ class ReportController extends Controller {
                 'id' => $client->id,
                 'name' => ClientDisplay::label($client),
             ])->values(),
-            'departments' => department::query()
+            'departments' => Department::query()
                 ->select('id', 'department_name')
                 ->whereIn('id', $projects->pluck('department_id')->filter()->unique())
                 ->orderBy('department_name')

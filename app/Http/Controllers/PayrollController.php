@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\company;
+use App\Models\Company;
 use App\Models\Employee;
 use App\Models\FinanceBankCash;
 use App\Models\FinanceExpense;
@@ -26,7 +26,7 @@ class PayrollController extends Controller {
 	public function index(Request $request)
 	{
 		$logged_user = auth()->user();
-		$companies = company::all();
+		$companies = Company::all();
 
 		$selected_date = empty($request->filter_month_year) ? now()->format('F-Y') : $request->filter_month_year;
 		$first_date = date('Y-m-d', strtotime('first day of ' . $selected_date));
@@ -577,7 +577,7 @@ class PayrollController extends Controller {
 
 					$finance_data['account_id'] = config('variable.account_id');
 					$finance_data['amount'] = $request->net_salary;
-					$finance_data ['expense_date'] = now()->format(env('Date_Format'));
+					$finance_data ['expense_date'] = now()->format(config('variable.date_format', 'd-m-Y'));
 					$finance_data ['expense_reference'] = trans('file.Payroll');
 
 
@@ -876,7 +876,7 @@ class PayrollController extends Controller {
 
 						$finance_data['account_id'] = config('variable.account_id');
 						$finance_data['amount'] = $total_sum;
-						$finance_data ['expense_date'] = now()->format(env('Date_Format'));
+						$finance_data ['expense_date'] = now()->format(config('variable.date_format', 'd-m-Y'));
 						$finance_data ['expense_reference'] = trans('file.Payroll');
 
 

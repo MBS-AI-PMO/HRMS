@@ -7,10 +7,10 @@ use App\Models\Appraisal;
 use App\Models\Asset;
 use App\Models\AssetCategory;
 use App\Models\Award;
-use App\Models\company;
+use App\Models\Company;
 use App\Models\Complaint;
-use App\Models\department;
-use App\Models\designation;
+use App\Models\Department;
+use App\Models\Designation;
 use App\Models\Employee;
 use App\Models\Event;
 use App\Models\ExpenseType;
@@ -22,11 +22,11 @@ use App\Models\GoalTracking;
 use App\Models\Holiday;
 use App\Models\Indicator;
 use App\Models\JobPost;
-use App\Models\leave;
+use App\Models\Leave;
 use App\Models\LeaveType;
-use App\Models\location;
+use App\Models\Location;
 use App\Models\Meeting;
-use App\Models\office_shift;
+use App\Models\OfficeShift;
 use App\Models\OfficialDocument;
 use App\Models\PaymentMethod;
 use App\Models\Payslip;
@@ -102,9 +102,9 @@ class AppServiceProvider extends ServiceProvider
     {
         $companyScopedModels = [
             Employee::class,
-            department::class,
-            designation::class,
-            office_shift::class,
+            Department::class,
+            Designation::class,
+            OfficeShift::class,
             Announcement::class,
             Holiday::class,
             Promotion::class,
@@ -115,7 +115,7 @@ class AppServiceProvider extends ServiceProvider
             Complaint::class,
             Warning::class,
             Termination::class,
-            leave::class,
+            Leave::class,
             Payslip::class,
             Meeting::class,
             Event::class,
@@ -150,7 +150,7 @@ class AppServiceProvider extends ServiceProvider
             $model::addGlobalScope(new AuthCompanyScope);
         }
 
-        company::addGlobalScope(new AuthCompanySelfScope);
-        location::addGlobalScope(new AuthCompanyLocationScope);
+        Company::addGlobalScope(new AuthCompanySelfScope);
+        Location::addGlobalScope(new AuthCompanyLocationScope);
     }
 }

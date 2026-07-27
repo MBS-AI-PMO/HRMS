@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\company;
-use App\Models\department;
-use App\Models\designation;
+use App\Models\Company;
+use App\Models\Department;
+use App\Models\Designation;
 use App\Models\EmployeeRegistrationSetting;
-use App\Models\office_shift;
+use App\Models\OfficeShift;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
@@ -28,7 +28,7 @@ class EmployeeRegistrationSettingController extends Controller
         $rows = collect();
 
         if (! $migrationRequired) {
-            $companies = company::select('id', 'company_name')->orderBy('company_name')->get();
+            $companies = Company::select('id', 'company_name')->orderBy('company_name')->get();
             foreach ($companies as $company) {
                 EmployeeRegistrationSetting::forCompany((int) $company->id);
             }
@@ -39,7 +39,7 @@ class EmployeeRegistrationSettingController extends Controller
 
             $rows = $companies->map(function ($company) use ($settingsByCompany) {
                 $setting = $settingsByCompany->get($company->id);
-                $companyModel = company::find($company->id);
+                $companyModel = Company::find($company->id);
                 if ($companyModel) {
                     $companyModel->ensureRegistrationSlug();
                 }
@@ -76,7 +76,7 @@ class EmployeeRegistrationSettingController extends Controller
                 ->with('error', __('Please run database migration first: php artisan migrate'));
         }
 
-        $company = company::findOrFail($companyId);
+        $company = Company::findOrFail($companyId);
         EmployeeRegistrationSetting::forCompany($companyId);
         $roles = Role::where('is_active', 1)->select('id', 'name')->orderBy('name')->get();
 
@@ -93,15 +93,15 @@ class EmployeeRegistrationSettingController extends Controller
             return response()->json(['error' => __('Please run database migration first: php artisan migrate')], 500);
         }
 
-        company::findOrFail($companyId);
+        Company::findOrFail($companyId);
         $setting = EmployeeRegistrationSetting::forCompany($companyId);
 
         return response()->json([
             'setting' => $setting,
             'form_fields' => $setting->resolvedFormFields(),
-            'departments' => department::where('company_id', $companyId)->select('id', 'department_name')->get(),
-            'designations' => designation::where('company_id', $companyId)->select('id', 'designation_name', 'department_id')->get(),
-            'shifts' => office_shift::where('company_id', $companyId)->select('id', 'shift_name')->get(),
+            'departments' => Department::where('company_id', $companyId)->select('id', 'department_name')->get(),
+            'designations' => Designation::where('company_id', $companyId)->select('id', 'designation_name', 'department_id')->get(),
+            'shifts' => OfficeShift::where('company_id', $companyId)->select('id', 'shift_name')->get(),
         ]);
     }
 
@@ -115,7 +115,7 @@ class EmployeeRegistrationSettingController extends Controller
             return response()->json(['error' => __('Please run database migration first: php artisan migrate')], 500);
         }
 
-        company::findOrFail($companyId);
+        Company::findOrFail($companyId);
         $setting = EmployeeRegistrationSetting::forCompany($companyId);
 
         $validator = Validator::make($request->all(), [

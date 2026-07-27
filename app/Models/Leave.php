@@ -6,7 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 
-class leave extends Model
+class Leave extends Model
 {
 	protected $fillable = [
 		'leave_type_id','company_id','department_id','employee_id','start_date','end_date',
@@ -15,11 +15,11 @@ class leave extends Model
 	];
 
 	public function company(){
-		return $this->hasOne('App\Models\company','id','company_id');
+		return $this->hasOne('App\Models\Company','id','company_id');
 	}
 
 	public function department(){
-		return $this->hasOne('App\Models\department','id','department_id');
+		return $this->hasOne('App\Models\Department','id','department_id');
 	}
 
 	public function LeaveType(){
@@ -57,27 +57,27 @@ class leave extends Model
 
 	public function setStartDateAttribute($value)
 	{
-		$this->attributes['start_date'] = Carbon::createFromFormat(env('Date_Format'), $value)->format('Y-m-d');
+		$this->attributes['start_date'] = Carbon::createFromFormat(config('variable.date_format', 'd-m-Y'), $value)->format('Y-m-d');
 	}
 
 	public function getStartDateAttribute($value)
 	{
-		return Carbon::parse($value)->format(env('Date_Format'));
+		return Carbon::parse($value)->format(config('variable.date_format', 'd-m-Y'));
 	}
 
 	public function setEndDateAttribute($value)
 	{
-		$this->attributes['end_date'] = Carbon::createFromFormat(env('Date_Format'), $value)->format('Y-m-d');
+		$this->attributes['end_date'] = Carbon::createFromFormat(config('variable.date_format', 'd-m-Y'), $value)->format('Y-m-d');
 	}
 
 	public function getEndDateAttribute($value)
 	{
-		return Carbon::parse($value)->format(env('Date_Format'));
+		return Carbon::parse($value)->format(config('variable.date_format', 'd-m-Y'));
 	}
 
 	public function getCreatedAtAttribute($value)
 	{
-		return Carbon::parse($value)->format(env('Date_Format').' H:i');
+		return Carbon::parse($value)->format(config('variable.date_format', 'd-m-Y').' H:i');
 	}
 
 

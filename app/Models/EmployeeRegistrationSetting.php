@@ -35,7 +35,7 @@ class EmployeeRegistrationSetting extends Model
 
     public function company()
     {
-        return $this->belongsTo(company::class, 'company_id');
+        return $this->belongsTo(Company::class, 'company_id');
     }
 
     public static function defaultFormFields(): array
@@ -64,7 +64,7 @@ class EmployeeRegistrationSetting extends Model
 
     public static function registrationUrl(int $companyId): string
     {
-        $company = company::find($companyId);
+        $company = Company::find($companyId);
         $slug = $company ? $company->ensureRegistrationSlug() : (string) $companyId;
 
         return route('employee.register.company', $slug);

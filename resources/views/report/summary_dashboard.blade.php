@@ -11,7 +11,7 @@
                         <p class="ops-hero__subtitle mb-0">{{ __('Company → Client → Project → Deployed employee overview') }}</p>
                     </div>
                     <div class="ops-hero__actions text-right ops-no-print">
-                        <div class="ops-hero__date">{{ now()->format(env('Date_Format')) }}</div>
+                        <div class="ops-hero__date">{{ now()->format(config('variable.date_format', 'd-m-Y')) }}</div>
                         <div class="btn-group btn-group-sm mt-2" role="group">
                             <a href="#" class="btn btn-light" id="export_summary_pdf" title="{{ __('Download PDF report') }}">
                                 <i class="fa fa-file-pdf-o"></i> PDF

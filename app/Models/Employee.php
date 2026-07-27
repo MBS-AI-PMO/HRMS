@@ -83,22 +83,22 @@ class Employee extends Model
 
     public function department()
     {
-        return $this->hasOne('App\Models\department', 'id', 'department_id');
+        return $this->hasOne('App\Models\Department', 'id', 'department_id');
     }
 
     public function officeShift()
     {
-        return $this->hasOne('App\Models\office_shift', 'id', 'office_shift_id');
+        return $this->hasOne('App\Models\OfficeShift', 'id', 'office_shift_id');
     }
 
     public function location()
     {
-        return $this->hasOne('App\Models\location', 'id', 'location_id');
+        return $this->hasOne('App\Models\Location', 'id', 'location_id');
     }
 
     public function company()
     {
-        return $this->hasOne('App\Models\company', 'id', 'company_id');
+        return $this->hasOne('App\Models\Company', 'id', 'company_id');
     }
 
     public function client()
@@ -108,12 +108,12 @@ class Employee extends Model
 
     public function designation()
     {
-        return $this->hasOne('App\Models\designation', 'id', 'designation_id');
+        return $this->hasOne('App\Models\Designation', 'id', 'designation_id');
     }
 
     public function status()
     {
-        return $this->hasOne('App\Models\status', 'id', 'status_id');
+        return $this->hasOne('App\Models\Status', 'id', 'status_id');
     }
 
     public function user()
@@ -178,7 +178,7 @@ class Employee extends Model
 
     public function employeeLeave()
     {
-        return $this->hasMany(leave::class)
+        return $this->hasMany(Leave::class)
             ->select('id', 'start_date', 'end_date', 'status', 'employee_id', 'leave_type_id', 'total_days')
             ->whereStatus('approved');
     }
@@ -258,7 +258,7 @@ class Employee extends Model
             return;
         }
 
-        $this->attributes['date_of_birth'] = Carbon::createFromFormat(env('Date_Format'), trim($value))->format('Y-m-d');
+        $this->attributes['date_of_birth'] = Carbon::createFromFormat(config('variable.date_format', 'd-m-Y'), trim($value))->format('Y-m-d');
     }
 
     public function getDateOfBirthAttribute($value)
@@ -267,7 +267,7 @@ class Employee extends Model
             return '';
         }
 
-        return Carbon::parse($value)->format(env('Date_Format'));
+        return Carbon::parse($value)->format(config('variable.date_format', 'd-m-Y'));
     }
 
     public function setJoiningDateAttribute($value)
@@ -277,7 +277,7 @@ class Employee extends Model
             return;
         }
 
-        $this->attributes['joining_date'] = Carbon::createFromFormat(env('Date_Format'), trim($value))->format('Y-m-d');
+        $this->attributes['joining_date'] = Carbon::createFromFormat(config('variable.date_format', 'd-m-Y'), trim($value))->format('Y-m-d');
     }
 
     public function getJoiningDateAttribute($value)
@@ -286,7 +286,7 @@ class Employee extends Model
             return '';
         }
 
-        return Carbon::parse($value)->format(env('Date_Format'));
+        return Carbon::parse($value)->format(config('variable.date_format', 'd-m-Y'));
     }
 
     public function setExitDateAttribute($value)
@@ -296,7 +296,7 @@ class Employee extends Model
             return;
         }
 
-        $this->attributes['exit_date'] = Carbon::createFromFormat(env('Date_Format'), trim($value))->format('Y-m-d');
+        $this->attributes['exit_date'] = Carbon::createFromFormat(config('variable.date_format', 'd-m-Y'), trim($value))->format('Y-m-d');
     }
 
     public function getExitDateAttribute($value)
@@ -305,7 +305,7 @@ class Employee extends Model
             return '';
         }
 
-        return Carbon::parse($value)->format(env('Date_Format'));
+        return Carbon::parse($value)->format(config('variable.date_format', 'd-m-Y'));
     }
 
     /**

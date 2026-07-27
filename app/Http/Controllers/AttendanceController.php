@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attendance;
-use App\Models\company;
+use App\Models\Company;
 use App\Models\Employee;
 use App\Models\EmployeeActivityLog;
 use App\Models\GeneralSetting;
@@ -29,7 +29,7 @@ use App\Support\CompanyScope;
 use App\Support\ManagedEmployeeScope;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use App\Models\location;
+use App\Models\Location;
 
 class AttendanceController extends Controller {
 
@@ -107,7 +107,7 @@ class AttendanceController extends Controller {
         }
 
         $value = trim((string) $value);
-        $fmt = env('Date_Format', 'd-m-Y');
+        $fmt = config('variable.date_format', 'd-m-Y');
 
         try {
             return Carbon::createFromFormat($fmt, $value)->format('Y-m-d');
@@ -213,7 +213,7 @@ class AttendanceController extends Controller {
 
     protected function handleOffDayEmployeeAttendance(Request $request, $id, Employee $employee, ?Attendance $employee_attendance_last)
     {
-        $current_day = now()->format(env('Date_Format'));
+        $current_day = now()->format(config('variable.date_format', 'd-m-Y'));
         $current_time = new DateTime(now()->format('H:i'));
 
         if (! $employee_attendance_last || (int) $employee_attendance_last->clock_in_out === 0) {
@@ -494,12 +494,12 @@ class AttendanceController extends Controller {
 			? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
 			: [];
 
-        $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
+        $isLocationHead = Location::userIsLocationHead((int) $logged_user->id);
         $companies = $isLocationHead
             ? CompanyScope::companiesForLocationHead((int) $logged_user->id)
             : CompanyScope::companiesForSelect();
         if ($companies->isEmpty()) {
-            $companies = company::all('id', 'company_name');
+            $companies = Company::all('id', 'company_name');
         }
 
 			$selected_date = $this->resolveAttendanceListDate($request->filter_month_year);
@@ -567,7 +567,7 @@ class AttendanceController extends Controller {
 						//if there is no employee attendance
 						if ($employee->employeeAttendance->isEmpty())
 						{
-							return Carbon::parse($selected_date)->format(env('Date_Format'));
+							return Carbon::parse($selected_date)->format(config('variable.date_format', 'd-m-Y'));
 						} else
 						{
 							//if there are employee attendance,get the first record
@@ -761,7 +761,7 @@ class AttendanceController extends Controller {
             return redirect()->back()->withErrors([$locationError]);
         }
 
-		$current_day = now()->format(env('Date_Format'));
+		$current_day = now()->format(config('variable.date_format', 'd-m-Y'));
 
 		$employee_attendance_last = Attendance::where('attendance_date', now()->format('Y-m-d'))
 				->where('employee_id', $id)->orderBy('id', 'desc')->first() ?? null;
@@ -819,7 +819,7 @@ class AttendanceController extends Controller {
 					$data['clock_in'] = $current_time->format('H:i');
 					$data['time_late'] = $late_cutoff_time->diff(new DateTime($data['clock_in']))->format('%H:%I');
 				} else {
-					if (env('ENABLE_EARLY_CLOCKIN') != null) {
+					if (config('variable.enable_early_clockin') != null) {
 						$data['clock_in'] = $current_time->format('H:i');
 					} else {
 						$data['clock_in'] = $shift_in->format('H:i');
@@ -889,7 +889,7 @@ class AttendanceController extends Controller {
 				return redirect()->back();
 			}
 
-			if ($current_time > $shift_in || env('ENABLE_EARLY_CLOCKIN') != null) {
+			if ($current_time > $shift_in || config('variable.enable_early_clockin') != null) {
 				$employee_last_clock_in = new DateTime($employee_attendance_last->clock_in);
 				$data['clock_out'] = $current_time->format('H:i');
 
@@ -967,7 +967,7 @@ class AttendanceController extends Controller {
         $period   = new DatePeriod($begin, $interval, $end);
         $date_range = [];
         foreach ($period as $dt) {
-            $date_range[] = $dt->format(env('Date_Format'));
+            $date_range[] = $dt->format(config('variable.date_format', 'd-m-Y'));
         }
         $emp_attendance_date_range = [];
 
@@ -977,12 +977,12 @@ class AttendanceController extends Controller {
             $leaves = $emp->employeeLeave;
             $shift = $emp->officeShift->toArray();
             $holidays = $emp->company->companyHolidays;
-            $joining_date = Carbon::parse($emp->joining_date)->format(env('Date_Format'));
+            $joining_date = Carbon::parse($emp->joining_date)->format(config('variable.date_format', 'd-m-Y'));
             foreach ($date_range as $key2 => $dt_r) {
                 $emp_attendance_date_range[$key1*count($date_range)+$key2]['id'] = $emp->id;
                 $emp_attendance_date_range[$key1*count($date_range)+$key2]['employee_name'] = ($key2==0) ? '<strong>'.$emp->full_name.'</strong>' : $emp->full_name;
                 $emp_attendance_date_range[$key1*count($date_range)+$key2]['company'] = $emp->company->company_name;
-                $emp_attendance_date_range[$key1*count($date_range)+$key2]['attendance_date'] = Carbon::parse($dt_r)->format(env('Date_Format'));
+                $emp_attendance_date_range[$key1*count($date_range)+$key2]['attendance_date'] = Carbon::parse($dt_r)->format(config('variable.date_format', 'd-m-Y'));
 
                 //attendance status
                 $day = strtolower(Carbon::parse($dt_r)->format('l')) . '_in';
@@ -1205,7 +1205,7 @@ class AttendanceController extends Controller {
     //             $period   = new DatePeriod($begin, $interval, $end);
     //             $date_range = [];
     //             foreach ($period as $dt) {
-    //                 $date_range[] = $dt->format(env('Date_Format'));
+    //                 $date_range[] = $dt->format(config('variable.date_format', 'd-m-Y'));
     //             }
     //             $emp_attendance_date_range = [];
 
@@ -1214,12 +1214,12 @@ class AttendanceController extends Controller {
     //                 $leaves = $emp->employeeLeave;
     //                 $shift = $emp->officeShift->toArray();
     //                 $holidays = $emp->company->companyHolidays;
-    //                 $joining_date = Carbon::parse($emp->joining_date)->format(env('Date_Format'));
+    //                 $joining_date = Carbon::parse($emp->joining_date)->format(config('variable.date_format', 'd-m-Y'));
     //                 foreach ($date_range as $key2 => $dt_r) {
     //                     $emp_attendance_date_range[$key1*count($date_range)+$key2]['id'] = $emp->id;
     //                     $emp_attendance_date_range[$key1*count($date_range)+$key2]['employee_name'] = ($key2==0) ? '<strong>'.$emp->full_name.'</strong>' : $emp->full_name;
     //                     $emp_attendance_date_range[$key1*count($date_range)+$key2]['company'] = $emp->company->company_name;
-    //                     $emp_attendance_date_range[$key1*count($date_range)+$key2]['attendance_date'] = Carbon::parse($dt_r)->format(env('Date_Format'));
+    //                     $emp_attendance_date_range[$key1*count($date_range)+$key2]['attendance_date'] = Carbon::parse($dt_r)->format(config('variable.date_format', 'd-m-Y'));
 
     //                     //attendance status
     //                     $day = strtolower(Carbon::parse($dt_r)->format('l')) . '_in';
@@ -1435,7 +1435,7 @@ class AttendanceController extends Controller {
             return abort(403, __('You are not authorized'));
         }
 
-        $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
+        $isLocationHead = Location::userIsLocationHead((int) $logged_user->id);
         $canManageScopedAttendance = ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
         $canUseAttendanceFilters = $this->canUseAttendanceFilters($logged_user);
         $managedEmployeeIds = $canManageScopedAttendance
@@ -1446,7 +1446,7 @@ class AttendanceController extends Controller {
             ? CompanyScope::companiesForLocationHead((int) $logged_user->id)
             : CompanyScope::companiesForSelect();
         if ($companies->isEmpty()) {
-            $companies = company::all('id', 'company_name');
+            $companies = Company::all('id', 'company_name');
         }
 
         $start_date = null;
@@ -1504,7 +1504,7 @@ class AttendanceController extends Controller {
                 $period   = new DatePeriod($begin, $interval, $end);
                 $date_range = [];
                 foreach ($period as $dt) {
-                    $date_range[] = $dt->format(env('Date_Format'));
+                    $date_range[] = $dt->format(config('variable.date_format', 'd-m-Y'));
                 }
                 $emp_attendance_date_range = [];
 
@@ -1513,12 +1513,12 @@ class AttendanceController extends Controller {
                     $leaves = $emp->employeeLeave;
                     $shift = $emp->officeShift ? $emp->officeShift->toArray() : [];
                     $holidays = $emp->company?->companyHolidays ?? collect();
-                    $joining_date = Carbon::parse($emp->joining_date)->format(env('Date_Format'));
+                    $joining_date = Carbon::parse($emp->joining_date)->format(config('variable.date_format', 'd-m-Y'));
                     foreach ($date_range as $key2 => $dt_r) {
                         $emp_attendance_date_range[$key1*count($date_range)+$key2]['id'] = $emp->id;
                         $emp_attendance_date_range[$key1*count($date_range)+$key2]['employee_name'] = ($key2==0) ? '<strong>'.$emp->full_name.'</strong>' : $emp->full_name;
                         $emp_attendance_date_range[$key1*count($date_range)+$key2]['company'] = $this->employeeCompanyLabel($emp);
-                        $emp_attendance_date_range[$key1*count($date_range)+$key2]['attendance_date'] = Carbon::parse($dt_r)->format(env('Date_Format'));
+                        $emp_attendance_date_range[$key1*count($date_range)+$key2]['attendance_date'] = Carbon::parse($dt_r)->format(config('variable.date_format', 'd-m-Y'));
 
                         //attendance status
                         $day = strtolower(Carbon::parse($dt_r)->format('l')) . '_in';
@@ -1736,7 +1736,7 @@ class AttendanceController extends Controller {
             return abort(403, __('You are not authorized'));
         }
 
-        $isLocationHead = location::userIsLocationHead((int) $logged_user->id);
+        $isLocationHead = Location::userIsLocationHead((int) $logged_user->id);
         $canManageScopedAttendance = ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
         $canUseAttendanceFilters = $this->canUseAttendanceFilters($logged_user);
         $managedEmployeeIds = $canManageScopedAttendance
@@ -1747,7 +1747,7 @@ class AttendanceController extends Controller {
             ? CompanyScope::companiesForLocationHead((int) $logged_user->id)
             : CompanyScope::companiesForSelect();
         if ($companies->isEmpty()) {
-            $companies = company::all('id', 'company_name');
+            $companies = Company::all('id', 'company_name');
         }
 
 
@@ -1760,7 +1760,7 @@ class AttendanceController extends Controller {
 		$monthEnd = $monthStart->copy()->endOfMonth();
 		$first_date = $monthStart->format('Y-m-d');
 		$last_date = $monthEnd->format('Y-m-d');
-		$dateFormat = env('Date_Format', 'd-m-Y');
+		$dateFormat = config('variable.date_format', 'd-m-Y');
 
 		for ($current = $monthStart->copy(); $current->lte($monthEnd); $current->addDay()) {
 			$this->date_range[] = $current->format('d D');
@@ -2128,7 +2128,7 @@ class AttendanceController extends Controller {
 	public function updateAttendance(Request $request)
 	{
 		$logged_user = auth()->user();
-		$companies = company::select('id', 'company_name')->get();
+		$companies = Company::select('id', 'company_name')->get();
 		if ($logged_user->can('edit-attendance'))
 		{
 			if (request()->ajax())
@@ -2194,7 +2194,7 @@ class AttendanceController extends Controller {
     public function employeeActivityLogs(Request $request)
     {
         $logged_user = auth()->user();
-        $companies = company::select('id', 'company_name')->get();
+        $companies = Company::select('id', 'company_name')->get();
 
         if (!$logged_user->can('timesheet')) {
             return response()->json(['success' => __('You are not authorized')]);
@@ -2243,7 +2243,7 @@ class AttendanceController extends Controller {
                     return $row->ip_address ?? '---';
                 })
                 ->addColumn('created_at', function ($row) {
-                    return Carbon::parse($row->created_at)->format(env('Date_Format') . ' H:i');
+                    return Carbon::parse($row->created_at)->format(config('variable.date_format', 'd-m-Y') . ' H:i');
                 })
                 ->rawColumns([])
                 ->make(true);
@@ -2342,11 +2342,11 @@ class AttendanceController extends Controller {
             } // if employee is early or on time
             else
             {
-                if(env('ENABLE_EARLY_CLOCKIN') == NULL) {
+                if(config('variable.enable_early_clockin') == NULL) {
                     $clock_in = $shift_in;
                 }
             }
-            if ($clock_out > $shift_in || env('ENABLE_EARLY_CLOCKIN')!=NULL) {
+            if ($clock_out > $shift_in || config('variable.enable_early_clockin')!=NULL) {
                 // if employee is early leaving
                 if ($clock_out < $shift_out) {
                     $timeDifference = $shift_out->diff($clock_out)->format('%H:%I');
@@ -2490,11 +2490,11 @@ class AttendanceController extends Controller {
 				} // if employee is early or on time
 				else
 				{
-					if(env('ENABLE_EARLY_CLOCKIN') == NULL) {
+					if(config('variable.enable_early_clockin') == NULL) {
 						$clock_in = $shift_in;
 					}
 				}
-				if ($clock_out > $shift_in || env('ENABLE_EARLY_CLOCKIN')!=NULL) {
+				if ($clock_out > $shift_in || config('variable.enable_early_clockin')!=NULL) {
 					// if employee is early leaving
 					if ($clock_out < $shift_out) {
 						$timeDifference = $shift_out->diff($clock_out)->format('%H:%I');
@@ -2673,7 +2673,7 @@ class AttendanceController extends Controller {
 
     public function importDeviceCsv()
 	{
-        if (!env('USER_VERIFIED'))
+        if (!config('variable.user_verified'))
 		{
             $this->setErrorMessage('This feature is disabled for demo!');
             return redirect()->back();
@@ -2701,7 +2701,7 @@ class AttendanceController extends Controller {
 
 	public function importPost()
 	{
-        if (!env('USER_VERIFIED'))
+        if (!config('variable.user_verified'))
 		{
             $this->setErrorMessage('This feature is disabled for demo!');
             return redirect()->back();

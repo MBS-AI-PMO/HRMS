@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\company;
-use App\Models\department;
+use App\Models\Company;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Event;
 use App\Notifications\EventNotify;
@@ -23,7 +23,7 @@ class EventController extends Controller {
 	public function index()
 	{
 		$logged_user = auth()->user();
-		$companies = company::select('id', 'company_name')->get();
+		$companies = Company::select('id', 'company_name')->get();
 
 		if ($logged_user->can('view-event'))
 		{
@@ -178,7 +178,7 @@ class EventController extends Controller {
 			$data = Event::findOrFail($id);
 
 
-			$departments = department::select('id', 'department_name')
+			$departments = Department::select('id', 'department_name')
 				->where('company_id', $data->company_id)->get();
 
 			return response()->json(['data' => $data, 'departments' => $departments
@@ -280,7 +280,7 @@ class EventController extends Controller {
 	 */
 	public function destroy($id)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -298,7 +298,7 @@ class EventController extends Controller {
 
 	public function delete_by_selection(Request $request)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}

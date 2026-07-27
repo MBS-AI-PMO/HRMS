@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\company;
+use App\Models\Company;
 use App\Models\JobCategory;
 use App\Models\JobExperience;
 use App\Models\JobPost;
@@ -19,7 +19,7 @@ class JobPostController extends Controller {
 	{
 		$logged_user = auth()->user();
 
-		$companies = company::all('id','company_name');
+		$companies = Company::all('id','company_name');
 
 		$job_categories = JobCategory::select('id', 'job_category')->get();
 
@@ -228,7 +228,7 @@ class JobPostController extends Controller {
 	 */
 	public function destroy($id)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -247,7 +247,7 @@ class JobPostController extends Controller {
 
 	public function delete_by_selection(Request $request)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}

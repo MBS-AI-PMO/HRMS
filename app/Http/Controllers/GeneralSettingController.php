@@ -72,7 +72,7 @@ class GeneralSettingController extends Controller
 
 		if (auth()->user()->can('store-general-setting'))
 		{
-			if(!env('USER_VERIFIED'))
+			if(!config('variable.user_verified'))
 			{
                 $this->setErrorMessage('This feature is disabled for demo!');
                 return redirect()->back();
@@ -173,7 +173,7 @@ class GeneralSettingController extends Controller
 	public function mailSettingStore(Request $request)
 	{
 
-		if(!env('USER_VERIFIED')) {
+		if(!config('variable.user_verified')) {
 			return redirect()->back()->with('msg', 'This feature is disable for demo!');
 		}
 
@@ -324,7 +324,7 @@ class GeneralSettingController extends Controller
 
 	public function emptyDatabase()
 	{
-		if(!env('USER_VERIFIED')) {
+		if(!config('variable.user_verified')) {
 			return redirect()->back()->with('msg', 'This feature is disabled for demo!');
 		}
 		DB::statement("SET foreign_key_checks=0");
@@ -349,7 +349,7 @@ class GeneralSettingController extends Controller
 
 	public function exportDatabase()
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return redirect()->back()->with('msg', 'This feature is disabled for demo!');
 		}

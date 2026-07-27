@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\company;
+use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Trainer;
 use App\Models\TrainingList;
@@ -16,7 +16,7 @@ class TrainingListController extends Controller {
 	public function index()
 	{
 		$logged_user = auth()->user();
-		$companies = company::select('id', 'company_name')->get();
+		$companies = Company::select('id', 'company_name')->get();
 		$training_types = TrainingType::select('id', 'type')->get();
 		$trainers = Trainer::select('id', 'first_name', 'last_name')->get();
 
@@ -273,7 +273,7 @@ class TrainingListController extends Controller {
 	 */
 	public function destroy($id)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}
@@ -291,7 +291,7 @@ class TrainingListController extends Controller {
 
 	public function delete_by_selection(Request $request)
 	{
-		if(!env('USER_VERIFIED'))
+		if(!config('variable.user_verified'))
 		{
 			return response()->json(['error' => 'This feature is disabled for demo!']);
 		}

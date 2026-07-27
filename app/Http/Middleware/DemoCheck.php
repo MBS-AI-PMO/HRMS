@@ -11,7 +11,7 @@ class DemoCheck
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->method() === 'POST') {
-            if (env('USER_VERIFIED')!=1) {
+            if (config('variable.user_verified')!=1) {
                 if($request->ajax()){
                     return response()->json(['errorMsg' => 'Disabled for demo !'], 422);
                 }else {

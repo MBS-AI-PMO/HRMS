@@ -12,7 +12,7 @@ class Promotion extends Model
 	];
 
 	public function company(){
-		return $this->hasOne('App\Models\company','id','company_id');
+		return $this->hasOne('App\Models\Company','id','company_id');
 	}
 
 	public function employee(){
@@ -21,11 +21,11 @@ class Promotion extends Model
 
 	public function setPromotionDateAttribute($value)
 	{
-		$this->attributes['promotion_date'] = Carbon::createFromFormat(env('Date_Format'), $value)->format('Y-m-d');
+		$this->attributes['promotion_date'] = Carbon::createFromFormat(config('variable.date_format', 'd-m-Y'), $value)->format('Y-m-d');
 	}
 
 	public function getPromotionDateAttribute($value)
 	{
-		return Carbon::parse($value)->format(env('Date_Format'));
+		return Carbon::parse($value)->format(config('variable.date_format', 'd-m-Y'));
 	}
 }

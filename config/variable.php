@@ -13,4 +13,8 @@ return [
 	// Used by bootstrap-datepicker.
 	'date_format_js' => env('Date_Format_JS', 'dd-mm-yyyy'),
 
+	// Production-safe flags (use config(), not env(), outside config files).
+	'user_verified' => filter_var(env('USER_VERIFIED', true), FILTER_VALIDATE_BOOLEAN),
+	'enable_early_clockin' => env('ENABLE_EARLY_CLOCKIN'),
+
 ];

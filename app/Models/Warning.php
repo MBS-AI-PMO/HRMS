@@ -13,7 +13,7 @@ class Warning extends Model
 	];
 
 	public function company(){
-		return $this->hasOne('App\Models\company','id','company_id');
+		return $this->hasOne('App\Models\Company','id','company_id');
 	}
 
 	public function WarningTo(){
@@ -26,11 +26,11 @@ class Warning extends Model
 
 	public function setWarningDateAttribute($value)
 	{
-		$this->attributes['warning_date'] = Carbon::createFromFormat(env('Date_Format'), $value)->format('Y-m-d');
+		$this->attributes['warning_date'] = Carbon::createFromFormat(config('variable.date_format', 'd-m-Y'), $value)->format('Y-m-d');
 	}
 
 	public function getWarningDateAttribute($value)
 	{
-		return Carbon::parse($value)->format(env('Date_Format'));
+		return Carbon::parse($value)->format(config('variable.date_format', 'd-m-Y'));
 	}
 }

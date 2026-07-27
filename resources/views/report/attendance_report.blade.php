@@ -125,7 +125,7 @@
 
             let date = $('.date');
             date.datepicker({
-                format: '{{ env('Date_Format_JS')}}',
+                format: '{{ config('variable.date_format_js', 'dd-mm-yyyy')}}',
                 autoclose: true,
                 todayHighlight: true,
                 endDate: new Date()

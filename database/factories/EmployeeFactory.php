@@ -3,9 +3,9 @@
 /** @var \Illuminate\Database\Eloquent\Factory $factory */
 namespace Database\Factories;
 
-use App\Models\company;
-use App\Models\department;
-use App\Models\designation;
+use App\Models\Company;
+use App\Models\Department;
+use App\Models\Designation;
 use App\Models\Employee;
 use App\Model;
 use App\Models\User;
@@ -21,9 +21,9 @@ $factory->define(Employee::class, function (Faker $faker) {
 		'date_of_birth' => $faker->dateTimeBetween('1990-01-01', '2002-12-31')
 			->format('d/m/Y'),
 		'gender' => $faker->randomElement(['Male', 'Female']),
-		'company_id' => company::all()->random()->id,
-		'department_id' => department::all()->random()->id,
-		'designation_id' => designation::all()->random()->id
+		'company_id' => Company::all()->random()->id,
+		'department_id' => Department::all()->random()->id,
+		'designation_id' => Designation::all()->random()->id
 
     ];
 });
