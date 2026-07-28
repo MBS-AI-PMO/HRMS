@@ -17,7 +17,7 @@ class OfficeShiftController extends Controller {
 		return ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 	}
 
-	protected function buildShiftFormState(?office_shift $shift = null): array
+	protected function buildShiftFormState(?OfficeShift $shift = null): array
 	{
 		$workingDays = [];
 		$dayTimes = [];
@@ -146,7 +146,7 @@ class OfficeShiftController extends Controller {
 		}
 	}
 
-	protected function shiftOwnerLabel(office_shift $shift): string
+	protected function shiftOwnerLabel(OfficeShift $shift): string
 	{
 		if ($shift->client_id) {
 			return $shift->client ? ClientDisplay::label($shift->client) : '—';

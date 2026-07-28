@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 class EntityDashboardService
 {
-    public function buildCompanyDashboard(company $company): array
+    public function buildCompanyDashboard(Company $company): array
     {
         $companyId = (int) $company->id;
         $companyName = trim((string) $company->company_name);

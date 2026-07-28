@@ -188,7 +188,7 @@ class NotificationRecipientResolver
      * Prefer users.email (login account). Fall back to employees.email when the user row is empty
      * and optionally sync that address back to users so login and mail stay aligned.
      */
-    public static function resolveUserEmailAddress(int $userId, ?leave $leave = null, bool $syncToUser = true): ?string
+    public static function resolveUserEmailAddress(int $userId, ?Leave $leave = null, bool $syncToUser = true): ?string
     {
         $user = User::query()->find($userId);
 
@@ -260,7 +260,7 @@ class NotificationRecipientResolver
      *     resolved_email: ?string
      * }
      */
-    public static function describeUserEmailSources(int $userId, ?leave $leave = null): array
+    public static function describeUserEmailSources(int $userId, ?Leave $leave = null): array
     {
         $user = User::query()->find($userId);
         $userEmail = strtolower(trim((string) ($user->email ?? '')));

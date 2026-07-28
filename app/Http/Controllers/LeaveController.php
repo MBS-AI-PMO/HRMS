@@ -77,7 +77,7 @@ class LeaveController extends Controller
         return ManagedEmployeeScope::canManageScopedLeave((int) auth()->id());
     }
 
-    protected function canViewLeaveRecord(leave $leave): bool
+    protected function canViewLeaveRecord(Leave $leave): bool
     {
         if (auth()->user()->can('view-leave')) {
             return true;
@@ -100,7 +100,7 @@ class LeaveController extends Controller
         return false;
     }
 
-    protected function canManageLeaveRecord(leave $leave): bool
+    protected function canManageLeaveRecord(Leave $leave): bool
     {
         if (auth()->user()->can('edit-leave')) {
             return true;
@@ -617,7 +617,7 @@ class LeaveController extends Controller
         return strpos($name, 'wfh') !== false || strpos($name, 'work from home') !== false;
     }
 
-  private function applyWfhApprovalStatus(leave $leave, array &$data, Request $request): void
+  private function applyWfhApprovalStatus(Leave $leave, array &$data, Request $request): void
 {
     $requestStatus = strtolower((string) $request->status);
 

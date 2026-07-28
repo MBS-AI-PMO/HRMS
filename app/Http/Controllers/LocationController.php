@@ -907,7 +907,7 @@ class LocationController extends Controller
         }
     }
 
-    private function myLocationActionButtons(location $row, int $userId): string
+    private function myLocationActionButtons(Location $row, int $userId): string
     {
         $canManage = Location::userCanManageLocationForMyPage($userId, (int) $row->id);
         $canEdit = $this->userHasPermission('edit-location') || $canManage;
@@ -1027,7 +1027,7 @@ class LocationController extends Controller
         ];
     }
 
-    private function resolveLocationOwner(location $location): array
+    private function resolveLocationOwner(Location $location): array
     {
         if ($location->client_id) {
             $companyId = $location->companies()->value('companies.id')
@@ -1049,7 +1049,7 @@ class LocationController extends Controller
         ];
     }
 
-    private function applyLocationOwner(location $location, string $ownerType, ?int $companyId, ?int $clientId): void
+    private function applyLocationOwner(Location $location, string $ownerType, ?int $companyId, ?int $clientId): void
     {
         if ($ownerType === 'client') {
             if (! $clientId) {
@@ -1091,7 +1091,7 @@ class LocationController extends Controller
         return ClientDisplay::label($client);
     }
 
-    private function locationClientLabel(location $location): string
+    private function locationClientLabel(Location $location): string
     {
         if ($location->client_id && $location->client) {
             return __('Client').': '.ClientDisplay::label($location->client);
@@ -1106,7 +1106,7 @@ class LocationController extends Controller
         return '---';
     }
 
-    private function resolveClientIdFromLocation(location $location): ?int
+    private function resolveClientIdFromLocation(Location $location): ?int
     {
         if ($location->client_id) {
             return (int) $location->client_id;
@@ -1125,7 +1125,7 @@ class LocationController extends Controller
         return $clientId ? (int) $clientId : null;
     }
 
-    private function syncCompaniesFromClient(location $location, int $clientId): void
+    private function syncCompaniesFromClient(Location $location, int $clientId): void
     {
         $client = Client::query()->findOrFail($clientId);
         $companyIds = Company::query()

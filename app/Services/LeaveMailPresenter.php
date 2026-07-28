@@ -7,7 +7,7 @@ use App\Models\Leave;
 
 class LeaveMailPresenter
 {
-    public static function build(leave $leave, string $event, string $actionUrl, bool $isWfh = false, bool $forEmployee = false): array
+    public static function build(Leave $leave, string $event, string $actionUrl, bool $isWfh = false, bool $forEmployee = false): array
     {
         $leave->loadMissing('employee', 'LeaveType', 'company', 'department', 'approvedByUser');
 

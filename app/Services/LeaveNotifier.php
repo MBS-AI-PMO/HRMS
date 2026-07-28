@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Mail;
 
 class LeaveNotifier
 {
-    public static function notify(leave $leave, string $event): void
+    public static function notify(Leave $leave, string $event): void
     {
         $leave->loadMissing('employee', 'LeaveType', 'approvedByUser');
 
@@ -67,7 +67,7 @@ class LeaveNotifier
         static::sendApplicantEmail($leave, $employeeId, $event, 'leave', false);
     }
 
-    public static function notifyWfh(leave $leave, string $event): void
+    public static function notifyWfh(Leave $leave, string $event): void
     {
         $leave->loadMissing('employee', 'approvedByUser');
 
@@ -121,7 +121,7 @@ class LeaveNotifier
         static::sendApplicantEmail($leave, $employeeId, $event, 'wfh', true);
     }
 
-    protected static function sendApplicantEmail(leave $leave, int $employeeId, string $event, string $type, bool $isWfh): void
+    protected static function sendApplicantEmail(Leave $leave, int $employeeId, string $event, string $type, bool $isWfh): void
     {
         if (! in_array($event, ['requested', 'approved', 'rejected'], true)) {
             return;
@@ -298,7 +298,7 @@ class LeaveNotifier
         return NotificationRecipientResolver::resolveUserEmailAddress((int) $recipient->id);
     }
 
-    protected static function decisionSuffix(leave $leave, string $event): string
+    protected static function decisionSuffix(Leave $leave, string $event): string
     {
         $deciderName = $leave->approvedByName();
 
