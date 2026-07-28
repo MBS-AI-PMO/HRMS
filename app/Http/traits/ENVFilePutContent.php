@@ -1,22 +1,30 @@
 <?php
 namespace App\Http\traits;
 
-trait ENVFilePutContent{
-
-    public function dataWriteInENVFile($key,$value)
+trait ENVFilePutContent
+{
+    public function dataWriteInENVFile($key, $value)
     {
-        $path = app()->environmentFilePath();
+        $path = base_path('.env');
 
-        if($key==="MAIL_FROM_NAME") {
-            $searchArray = array($key.'="'.env($key).'"');
-            $replaceArray= array($key.'="'.$value.'"');
-        }
-        else {
-            $searchArray = array($key.'='.env($key));
-            $replaceArray= array($key.'='.$value);
+        // Check if .env exists; if not, create an empty one
+        if (!file_exists($path)) {
+            file_put_contents($path, '');
         }
 
-        file_put_contents($path, str_replace($searchArray, $replaceArray, file_get_contents($path)));
+        // Read content safely
+        $content = file_get_contents($path);
+
+        // Replace key if exists, or append
+        if (str_contains($content, "{$key}=")) {
+            $content = preg_replace("/^{$key}=.*/m", "{$key}={$value}", $content);
+        } else {
+            $content .= PHP_EOL . "{$key}={$value}";
+        }
+
+        // Save updated content
+        file_put_contents($path, $content);
+
+        return true;
     }
-
 }
