@@ -84,26 +84,22 @@ class GeneralSettingController extends Controller
 
 			$data = $request->all();
 
-			//writting timezone info in .env file
-            $this->dataWriteInENVFile('APP_TIMEZONE',$request->timezone);
-            $this->dataWriteInENVFile('Date_Format',$request->date_format);
-			$js_format = config('date_format_conversion.' . $request->date_format);
-            $this->dataWriteInENVFile('Date_Format_JS',$js_format);
-            $this->dataWriteInENVFile('RTL_LAYOUT',$request->input('rtl_layout', NULL));
-            $this->dataWriteInENVFile('ENABLE_CLOCKIN_CLOCKOUT',$request->input('enable_clockin_clockout', NULL));
-            $this->dataWriteInENVFile('ENABLE_EARLY_CLOCKIN',$request->input('enable_early_clockin', NULL));
-            $this->dataWriteInENVFile('ATTENDANCE_DEVICE_DATE_FORMAT',$request->Attendance_Device_date_format ? $request->Attendance_Device_date_format : 'm/d/Y');
+			$envWriteFailed = false;
 
-			$path = base_path('config/variable.php');
-
-			$searchArray = array(
-				config('variable.currency'),
-				config('variable.currency_format'), config('variable.account_id'));
-
-			$replaceArray = array($request->currency, $request->currency_format, $request->account_id);
-
-			file_put_contents($path, str_replace($searchArray, $replaceArray, file_get_contents($path)));
-
+			// Optional .env sync for local/dev; production uses DB + RuntimeConfig instead.
+			foreach ([
+				['APP_TIMEZONE', $request->timezone],
+				['Date_Format', $request->date_format],
+				['Date_Format_JS', config('date_format_conversion.'.$request->date_format)],
+				['RTL_LAYOUT', $request->input('rtl_layout', null)],
+				['ENABLE_CLOCKIN_CLOCKOUT', $request->input('enable_clockin_clockout', null)],
+				['ENABLE_EARLY_CLOCKIN', $request->input('enable_early_clockin', null)],
+				['ATTENDANCE_DEVICE_DATE_FORMAT', $request->Attendance_Device_date_format ?: 'm/d/Y'],
+			] as [$envKey, $envValue]) {
+				if (! $this->dataWriteInENVFile($envKey, $envValue)) {
+					$envWriteFailed = true;
+				}
+			}
 
 			$general_setting = GeneralSetting::first();
 			$general_setting->id = 1;
@@ -153,7 +149,13 @@ class GeneralSettingController extends Controller
 			}
 			$general_setting->save();
 
-            $this->setSuccessMessage('Data updated successfully');
+			\App\Support\RuntimeConfig::applyGeneralSettings();
+
+            if ($envWriteFailed) {
+                $this->setSuccessMessage(__('Data updated successfully. Some server environment values could not be written to .env on this host; settings were saved in the database.'));
+            } else {
+                $this->setSuccessMessage('Data updated successfully');
+            }
             return redirect()->back();
 		}
 
