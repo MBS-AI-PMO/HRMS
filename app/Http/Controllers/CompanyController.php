@@ -212,26 +212,18 @@ class CompanyController extends Controller {
 
 		if ($logged_user->can('delete-company'))
 		{
-			$companyEmployees = \App\Models\Employee::query()
-				->where('company_id', $id)
-				->whereNull('client_id')
-				->count();
+			$company = Company::findOrFail($id);
 
-			if ($companyEmployees > 0) {
-				return response()->json([
-					'error' => __('This company has :count direct employee(s). Reassign or deactivate them before deleting the company.', [
-						'count' => $companyEmployees,
-					]),
-				], 422);
+			if ($blockReason = $company->deletionBlockReason()) {
+				return response()->json(['error' => $blockReason]);
 			}
 
-            Company::whereId($id)->delete();
-			return response()->json(['success' => __('Data is successfully deleted')]);
+			$company->delete();
 
+			return response()->json(['success' => __('Data is successfully deleted')]);
 		}
 
 		return response()->json(['success' => __('You are not authorized')]);
-
 	}
 
 
@@ -245,18 +237,39 @@ class CompanyController extends Controller {
 
 		if ($logged_user->can('delete-company'))
 		{
+			$companyIds = array_values(array_filter(array_map('intval', (array) ($request['companyIdArray'] ?? []))));
 
-			$company_id = $request['companyIdArray'];
-			$company = Company::whereIntegerInRaw('id', $company_id);
-
-			if ($company->delete())
-			{
-				return response()->json(['success' => __('Multi Delete',['key'=>trans('file.Company')])]);
-			} else
-			{
-				return response()->json(['error' => 'Error,selected users can not be deleted']);
+			if ($companyIds === []) {
+				return response()->json(['error' => __('No company selected.')]);
 			}
+
+			$blocked = [];
+			$deleted = 0;
+
+			foreach (Company::whereIntegerInRaw('id', $companyIds)->get() as $company) {
+				if ($blockReason = $company->deletionBlockReason()) {
+					$blocked[] = $company->company_name.': '.$blockReason;
+					continue;
+				}
+
+				$company->delete();
+				$deleted++;
+			}
+
+			if ($blocked !== [] && $deleted === 0) {
+				return response()->json(['error' => implode(' ', $blocked)]);
+			}
+
+			if ($blocked !== []) {
+				return response()->json([
+					'error' => __('Some companies were not deleted because they have dependencies.')
+						.' '.implode(' ', $blocked),
+				]);
+			}
+
+			return response()->json(['success' => __('Multi Delete', ['key' => trans('file.Company')])]);
 		}
+
 		return response()->json(['success' => __('You are not authorized')]);
 	}
 

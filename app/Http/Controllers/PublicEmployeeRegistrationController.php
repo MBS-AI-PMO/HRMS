@@ -66,7 +66,7 @@ class PublicEmployeeRegistrationController extends Controller
                 ->select('id', 'company_name', 'registration_slug')
                 ->orderBy('company_name')
                 ->get()
-                ->each(fn (company $c) => $c->ensureRegistrationSlug());
+                ->each(fn (Company $c) => $c->ensureRegistrationSlug());
         }
 
         $orgSettings = [

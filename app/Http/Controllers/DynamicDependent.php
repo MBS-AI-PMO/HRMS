@@ -54,9 +54,8 @@ class DynamicDependent extends Controller {
 		$data = Department::withoutGlobalScope(AuthCompanyScope::class)
 			->where('company_id', $value)
 			->orderBy('department_name')
-			->get()
-			->unique('department_name')
-			->values();
+			->orderBy('id')
+			->get();
 
 		$output = '';
 		foreach ($data as $row) {

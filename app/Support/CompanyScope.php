@@ -193,7 +193,7 @@ class CompanyScope
     /**
      * Logged-in user's own company (from employees.company_id), for locking team forms.
      */
-    public static function teamFormCompany(): ?company
+    public static function teamFormCompany(): ?Company
     {
         $user = Auth::user();
 

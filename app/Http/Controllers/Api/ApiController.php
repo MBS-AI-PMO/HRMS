@@ -1444,7 +1444,7 @@ class ApiController extends Controller
         }
     }
 
-    private function isWfhLeaveRecord(leave $leave): bool
+    private function isWfhLeaveRecord(Leave $leave): bool
     {
         if ($leave->hr_approval_status !== null || $leave->manager_approval_status !== null) {
             return true;
@@ -1453,7 +1453,7 @@ class ApiController extends Controller
         return $this->isWfhLeaveTypeId((int) ($leave->leave_type_id ?? 0));
     }
 
-    private function normalizeLeaveApiStatus(leave $leave): string
+    private function normalizeLeaveApiStatus(Leave $leave): string
     {
         $status = strtolower(trim((string) ($leave->status ?? 'pending')));
         if ($status === 'approve') {
@@ -1485,7 +1485,7 @@ class ApiController extends Controller
         return $status !== '' ? $status : 'pending';
     }
 
-    private function formatLeaveForApi(leave $leave, bool $detailed = false): array
+    private function formatLeaveForApi(Leave $leave, bool $detailed = false): array
     {
         $attrs = $leave->getAttributes();
         $payload = [

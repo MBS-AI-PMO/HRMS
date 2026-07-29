@@ -51,4 +51,44 @@ class Client extends Model
 	{
 		return $this->hasMany(Employee::class, 'client_id');
 	}
+
+	/**
+	 * Human-readable reason if this client cannot be deleted, otherwise null.
+	 */
+	public function deletionBlockReason(): ?string
+	{
+		$dependencies = $this->dependencySummary();
+
+		if ($dependencies === []) {
+			return null;
+		}
+
+		return __('Client have dependencies.')
+			.' '
+			.__('Related records: :items.', ['items' => implode(', ', $dependencies)]);
+	}
+
+	/**
+	 * @return array<int, string>
+	 */
+	public function dependencySummary(): array
+	{
+		$checks = [
+			[Employee::class, 'client_id', __('Employees')],
+			[Project::class, 'client_id', __('Projects')],
+			[Invoice::class, 'client_id', __('Invoices')],
+			[Location::class, 'client_id', __('Locations')],
+			[OfficeShift::class, 'client_id', __('Office Shifts')],
+		];
+
+		$found = [];
+
+		foreach ($checks as [$model, $column, $label]) {
+			if ($model::query()->withoutGlobalScopes()->where($column, $this->id)->exists()) {
+				$found[] = $label;
+			}
+		}
+
+		return $found;
+	}
 }
