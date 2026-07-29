@@ -273,9 +273,59 @@
             $('.modal-title').text("Add New designation");
             $('#action_button').val('{{trans("file.Add")}}');
             $('#action').val('{{trans("file.Add")}}');
+            $('#sample_form')[0].reset();
+            $('#company_id').selectpicker('val', '');
+            resetDepartmentSelect();
             $('#formModal').modal('show');
+        });
 
+        function resetDepartmentSelect(optionsHtml) {
+            var $dept = $('#department_id');
+            if ($dept.data('selectpicker')) {
+                $dept.selectpicker('destroy');
+            }
+            $dept.html(optionsHtml || '');
+            $dept.selectpicker({
+                liveSearch: true,
+                liveSearchStyle: 'contains',
+                title: "{{ __('Selecting',['key'=>trans('file.Department')]) }}..."
+            });
+        }
 
+        function loadDepartmentsByCompany(companyId, selectedDepartmentId) {
+            if (!companyId) {
+                resetDepartmentSelect();
+                return;
+            }
+
+            $.ajax({
+                url: "{{ route('dynamic_department') }}",
+                method: "POST",
+                data: {
+                    value: companyId,
+                    _token: $('input[name="_token"]').val(),
+                    dependent: 'department_name'
+                },
+                success: function (result) {
+                    resetDepartmentSelect(result || '');
+                    if (selectedDepartmentId) {
+                        $('#department_id').selectpicker('val', String(selectedDepartmentId));
+                        $('#department_id').selectpicker('refresh');
+                    }
+                },
+                error: function () {
+                    resetDepartmentSelect();
+                }
+            });
+        }
+
+        var suppressCompanyChange = false;
+
+        $('#company_id').on('changed.bs.select change', function () {
+            if (suppressCompanyChange) {
+                return;
+            }
+            loadDepartmentsByCompany($(this).val());
         });
 
         $('#sample_form').on('submit', function (event) {
@@ -361,16 +411,12 @@
 
                     $('#designation_name').val(html.data.designation_name);
 
-                    $('#company_id').selectpicker('val', html.data.company_id);
+                    suppressCompanyChange = true;
+                    $('#company_id').selectpicker('val', String(html.data.company_id));
+                    $('#company_id').selectpicker('refresh');
+                    suppressCompanyChange = false;
 
-                    let all_departments = '';
-                    $.each(html.departments, function (index, value) {
-                        all_departments += '<option value=' + value['id'] + '>' + value['department_name'] + '</option>';
-                    });
-                    $('#department_id').empty().append(all_departments);
-                    $('#department_id').selectpicker('refresh');
-                    $('#department_id').selectpicker('val', html.data.department_id);
-                    $('#department_id').selectpicker('refresh');
+                    loadDepartmentsByCompany(html.data.company_id, html.data.department_id);
 
                     $('#hidden_id').val(html.data.id);
                     $('.modal-title').text('{{trans('file.Edit')}}');
@@ -459,26 +505,6 @@
                     }, 2000);
                 }
             })
-        });
-
-        $('.dynamic').change(function () {
-            if ($(this).val() !== '') {
-                let value = $(this).val();
-                let dependent = $(this).data('dependent');
-                let _token = $('input[name="_token"]').val();
-                $.ajax({
-                    url: "{{ route('dynamic_department') }}",
-                    method: "POST",
-                    data: {value: value, _token: _token, dependent: dependent},
-                    success: function (result) {
-
-                        $('select').selectpicker("destroy");
-                        $('#department_id').html(result);
-                        $('select').selectpicker();
-
-                    }
-                });
-            }
         });
 
     })(jQuery);

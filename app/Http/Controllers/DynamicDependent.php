@@ -51,7 +51,7 @@ class DynamicDependent extends Controller {
 			return '';
 		}
 
-		$data = Department::withoutGlobalScope(AuthCompanyScope::class)
+		$data = Department::withoutGlobalScopes()
 			->where('company_id', $value)
 			->orderBy('department_name')
 			->orderBy('id')
