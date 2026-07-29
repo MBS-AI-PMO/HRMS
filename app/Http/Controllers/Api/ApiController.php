@@ -618,7 +618,7 @@ class ApiController extends Controller
     public function clockIn(Request $request)
     {
         try {
-            if (env('ENABLE_CLOCKIN_CLOCKOUT') === null) {
+            if (! config('variable.enable_clockin_clockout')) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Clock in/out is disabled.',
@@ -774,7 +774,7 @@ class ApiController extends Controller
     public function clockOut(Request $request)
     {
         try {
-            if (env('ENABLE_CLOCKIN_CLOCKOUT') === null) {
+            if (! config('variable.enable_clockin_clockout')) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Clock in/out is disabled.',

@@ -16,5 +16,11 @@ return [
 	// Production-safe flags (use config(), not env(), outside config files).
 	'user_verified' => filter_var(env('USER_VERIFIED', true), FILTER_VALIDATE_BOOLEAN),
 	'enable_early_clockin' => env('ENABLE_EARLY_CLOCKIN'),
+	// Default enabled so Coolify/config:cache does not hide Clock IN when .env is not writable.
+	'enable_clockin_clockout' => ! in_array(
+		strtolower((string) env('ENABLE_CLOCKIN_CLOCKOUT', '1')),
+		['', '0', 'false', 'null', 'off', 'no'],
+		true
+	),
 
 ];

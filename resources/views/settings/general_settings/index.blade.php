@@ -211,7 +211,7 @@
                                         <div class="mt-4 form-check">
                                             <input type="checkbox" name="enable_clockin_clockout"
                                                 class="form-check-input" value="1"
-                                                {{ env('ENABLE_CLOCKIN_CLOCKOUT') != null ? 'checked' : '' }} />
+                                                {{ config('variable.enable_clockin_clockout') ? 'checked' : '' }} />
                                             <label class="mr-4 form-check-label"><strong>{{ trans('file.Enable Clock In and Clock Out') }}
                                                 </strong></label>
                                         </div>

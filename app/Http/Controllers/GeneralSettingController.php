@@ -86,14 +86,20 @@ class GeneralSettingController extends Controller
 
 			$envWriteFailed = false;
 
-			// Optional .env sync for local/dev; production uses DB + RuntimeConfig instead.
+			$enableClockIn = $request->boolean('enable_clockin_clockout');
+			$enableEarlyClockIn = $request->boolean('enable_early_clockin') ? '1' : null;
+
+			\App\Support\RuntimeConfig::setClockInEnabled($enableClockIn);
+			\App\Support\RuntimeConfig::setEarlyClockIn($enableEarlyClockIn);
+
+			// Optional .env sync for local/dev; production uses DB/cache + RuntimeConfig instead.
 			foreach ([
 				['APP_TIMEZONE', $request->timezone],
 				['Date_Format', $request->date_format],
 				['Date_Format_JS', config('date_format_conversion.'.$request->date_format)],
 				['RTL_LAYOUT', $request->input('rtl_layout', null)],
-				['ENABLE_CLOCKIN_CLOCKOUT', $request->input('enable_clockin_clockout', null)],
-				['ENABLE_EARLY_CLOCKIN', $request->input('enable_early_clockin', null)],
+				['ENABLE_CLOCKIN_CLOCKOUT', $enableClockIn ? '1' : null],
+				['ENABLE_EARLY_CLOCKIN', $enableEarlyClockIn],
 				['ATTENDANCE_DEVICE_DATE_FORMAT', $request->Attendance_Device_date_format ?: 'm/d/Y'],
 			] as [$envKey, $envValue]) {
 				if (! $this->dataWriteInENVFile($envKey, $envValue)) {

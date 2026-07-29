@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\GeneralSetting;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Schema;
 
@@ -15,6 +16,14 @@ class RuntimeConfig
     public static function applyGeneralSettings(): void
     {
         try {
+            if (Cache::has('app.enable_clockin_clockout')) {
+                Config::set('variable.enable_clockin_clockout', (bool) Cache::get('app.enable_clockin_clockout'));
+            }
+
+            if (Cache::has('app.enable_early_clockin')) {
+                Config::set('variable.enable_early_clockin', Cache::get('app.enable_early_clockin'));
+            }
+
             if (! Schema::hasTable('general_settings')) {
                 return;
             }
@@ -49,5 +58,17 @@ class RuntimeConfig
         } catch (\Throwable $e) {
             // Database may be unavailable during deploy/migrate; keep env/file defaults.
         }
+    }
+
+    public static function setClockInEnabled(bool $enabled): void
+    {
+        Cache::forever('app.enable_clockin_clockout', $enabled);
+        Config::set('variable.enable_clockin_clockout', $enabled);
+    }
+
+    public static function setEarlyClockIn(?string $value): void
+    {
+        Cache::forever('app.enable_early_clockin', $value);
+        Config::set('variable.enable_early_clockin', $value);
     }
 }
