@@ -71,7 +71,7 @@
                                 <a class="btn btn-light btn-sm emp-hero__btn" id="my_profile" href="{{ route('profile') }}">
                                     <i class="dripicons-user"></i> {{ trans('file.Profile') }}
                                 </a>
-                                @if (env('ENABLE_CLOCKIN_CLOCKOUT') != null)
+                                @if (config('variable.enable_clockin_clockout'))
                                     <form action="{{ route('employee_attendance.post', $employee->id) }}" method="POST"
                                         id="set_clocking" autocomplete="off" class="emp-hero__clock-form"
                                         data-attendance-type="{{ $employee->attendance_type ?? 'general' }}"
@@ -117,7 +117,7 @@
                                     </form>
                                 @endif
                             </div>
-                            @if (env('ENABLE_CLOCKIN_CLOCKOUT') != null && $employee->attendance_type == 'ip_based' && $ipCheck != true)
+                            @if (config('variable.enable_clockin_clockout') && $employee->attendance_type == 'ip_based' && $ipCheck != true)
                                 <div class="emp-hero__clock-note mt-2 text-lg-right">
                                     <small class="text-white-50"><i>[Please login with your office's internet to clock in or clock out]</i></small>
                                 </div>
