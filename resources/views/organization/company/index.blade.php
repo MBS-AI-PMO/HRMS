@@ -596,11 +596,17 @@
                         if (data.error) {
                             html = '<div class="alert alert-danger">' + data.error + '</div>';
                         }
+                        $('#ok_button').text('{{trans('file.OK')}}');
                         setTimeout(function () {
                             $('#general_result').html(html).slideDown(300).delay(5000).slideUp(300);
                             $('#confirmModal').modal('hide');
                             $('#company-table').DataTable().ajax.reload();
-                        }, 2000);
+                        }, data.error ? 0 : 2000);
+                    },
+                    error: function () {
+                        $('#ok_button').text('{{trans('file.OK')}}');
+                        $('#general_result').html('<div class="alert alert-danger">{{ __('Unable to delete company.') }}</div>').slideDown(300).delay(5000).slideUp(300);
+                        $('#confirmModal').modal('hide');
                     }
                 })
             });

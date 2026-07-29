@@ -311,6 +311,11 @@ class ClientController extends Controller {
 		if ($logged_user->can('delete-client'))
 		{
 			$client = Client::findOrFail($id);
+
+			if ($blockReason = $client->deletionBlockReason()) {
+				return response()->json(['error' => $blockReason]);
+			}
+
 			$file_path = $client->profile;
 
 			if ($file_path)
@@ -342,11 +347,25 @@ class ClientController extends Controller {
 
 		if ($logged_user->can('delete-client'))
 		{
-			$client_id = $request['clientIdArray'];
-			$clients = Client::whereIntegerInRaw('id', $client_id)->get();
+			$clientIds = array_values(array_filter(array_map('intval', (array) ($request['clientIdArray'] ?? []))));
+
+			if ($clientIds === []) {
+				return response()->json(['error' => __('No client selected.')]);
+			}
+
+			$blocked = [];
+			$deleted = 0;
+
+			$clients = Client::whereIntegerInRaw('id', $clientIds)->get();
 
 			foreach ($clients as $client)
 			{
+				if ($blockReason = $client->deletionBlockReason()) {
+					$label = trim(($client->first_name ?? '').' '.($client->last_name ?? '')) ?: ($client->company_name ?? ('#'.$client->id));
+					$blocked[] = $label.': '.$blockReason;
+					continue;
+				}
+
 				$file_path = $client->profile;
 
 				if ($file_path)
@@ -359,6 +378,18 @@ class ClientController extends Controller {
 				}
 				$client->delete();
 				User::whereId($client->id)->delete();
+				$deleted++;
+			}
+
+			if ($blocked !== [] && $deleted === 0) {
+				return response()->json(['error' => implode(' ', $blocked)]);
+			}
+
+			if ($blocked !== []) {
+				return response()->json([
+					'error' => __('Some clients were not deleted because they have dependencies.')
+						.' '.implode(' ', $blocked),
+				]);
 			}
 
 			return response()->json(['success' => __('Multi Delete', ['key' => trans('file.Client')])]);

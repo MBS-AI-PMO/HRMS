@@ -72,4 +72,52 @@ class Company extends Model
     {
         return $this->hasMany(Project::class, 'company_id');
     }
+
+    /**
+     * Human-readable reason if this company cannot be deleted, otherwise null.
+     */
+    public function deletionBlockReason(): ?string
+    {
+        $dependencies = $this->dependencySummary();
+
+        if ($dependencies === []) {
+            return null;
+        }
+
+        return __('Company have dependencies.')
+            .' '
+            .__('Related records: :items.', ['items' => implode(', ', $dependencies)]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function dependencySummary(): array
+    {
+        $checks = [
+            [Employee::class, 'company_id', __('Employees')],
+            [Department::class, 'company_id', __('Departments')],
+            [Designation::class, 'company_id', __('Designations')],
+            [Project::class, 'company_id', __('Projects')],
+            [OfficeShift::class, 'company_id', __('Office Shifts')],
+            [Team::class, 'company_id', __('Teams')],
+            [Task::class, 'company_id', __('Tasks')],
+            [Leave::class, 'company_id', __('Leaves')],
+            [Client::class, 'parent_company_id', __('Clients')],
+        ];
+
+        $found = [];
+
+        foreach ($checks as [$model, $column, $label]) {
+            if ($model::query()->withoutGlobalScopes()->where($column, $this->id)->exists()) {
+                $found[] = $label;
+            }
+        }
+
+        if (\Illuminate\Support\Facades\DB::table('company_location')->where('company_id', $this->id)->exists()) {
+            $found[] = __('Locations');
+        }
+
+        return $found;
+    }
 }
