@@ -3,6 +3,7 @@
 
     <section>
         <div class="container-fluid mb-3">
+            <span id="general_result"></span>
             @can('store-company')
                 <button type="button" class="btn btn-info" name="create_record" id="create_record"><i class="fa fa-plus"></i> {{__('Add Company')}}</button>
             @endcan
@@ -229,7 +230,8 @@
                     <h2 class="modal-title">{{trans('file.Confirmation')}}</h2>
                 </div>
                 <div class="modal-body">
-                    <h4 align="center">{{__('Are you sure you want to remove this data?')}}</h4>
+                    <h4 align="center" id="confirm_message">{{__('Are you sure you want to remove this data?')}}</h4>
+                    <div id="confirm_error" class="alert alert-danger d-none mb-0"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" name="ok_button" id="ok_button" class="btn btn-danger">{{trans('file.OK')}}'
@@ -527,10 +529,11 @@
 
             $(document).on('click', '.delete', function () {
                 lid = $(this).attr('id');
+                $('#confirm_message').removeClass('d-none').text('{{__('Are you sure you want to remove this data?')}}');
+                $('#confirm_error').addClass('d-none').text('');
                 $('#confirmModal').modal('show');
                 $('.modal-title').text('{{__('DELETE Record')}}');
-                $('#ok_button').text('{{trans('file.OK')}}');
-
+                $('#ok_button').text('{{trans('file.OK')}}').prop('disabled', false);
             });
 
 
@@ -543,6 +546,7 @@
                         $.ajax({
                             url: '{{route('mass_delete_companies')}}',
                             method: 'POST',
+                            dataType: 'json',
                             data: {
                                 companyIdArray: id
                             },
@@ -553,21 +557,24 @@
                                 }
                                 if (data.error) {
                                     html = '<div class="alert alert-danger">' + data.error + '</div>';
+                                    alert(data.error);
                                 }
                                 table.ajax.reload();
                                 table.rows('.selected').deselect();
-                                if (data.errors) {
-                                    html = '<div class="alert alert-danger">' + data.error + '</div>';
-                                }
-                                $('#general_result').html(html).slideDown(300).delay(5000).slideUp(300);
+                                $('#general_result').html(html).stop(true, true).show().slideDown(300).delay(8000).slideUp(300);
+                            },
+                            error: function (xhr) {
+                                let message = (xhr.responseJSON && xhr.responseJSON.error)
+                                    ? xhr.responseJSON.error
+                                    : '{{ __('Unable to delete company.') }}';
+                                alert(message);
+                                $('#general_result').html('<div class="alert alert-danger">' + message + '</div>').stop(true, true).show();
                             }
-
                         });
                     }
                 } else {
-
+                    alert('{{__('Please select atleast one checkbox')}}');
                 }
-
             });
 
 
@@ -583,30 +590,37 @@
                 var target = "{{ url('/organization/companies/delete')}}/" + lid;
                 $.ajax({
                     url: target,
+                    dataType: 'json',
                     beforeSend: function () {
-                        $('#ok_button').text('{{trans('file.Deleting...')}}');
+                        $('#ok_button').text('{{trans('file.Deleting...')}}').prop('disabled', true);
+                        $('#confirm_error').addClass('d-none').text('');
                     },
                     success: function (data) {
-                        console.log(data);
+                        if (data.error) {
+                            $('#confirm_message').addClass('d-none');
+                            $('#confirm_error').removeClass('d-none').text(data.error);
+                            $('#ok_button').text('{{trans('file.OK')}}').prop('disabled', false);
+                            $('#general_result').html('<div class="alert alert-danger">' + data.error + '</div>').stop(true, true).show();
+                            return;
+                        }
 
                         let html = '';
                         if (data.success) {
                             html = '<div class="alert alert-success">' + data.success + '</div>';
                         }
-                        if (data.error) {
-                            html = '<div class="alert alert-danger">' + data.error + '</div>';
-                        }
-                        $('#ok_button').text('{{trans('file.OK')}}');
-                        setTimeout(function () {
-                            $('#general_result').html(html).slideDown(300).delay(5000).slideUp(300);
-                            $('#confirmModal').modal('hide');
-                            $('#company-table').DataTable().ajax.reload();
-                        }, data.error ? 0 : 2000);
-                    },
-                    error: function () {
-                        $('#ok_button').text('{{trans('file.OK')}}');
-                        $('#general_result').html('<div class="alert alert-danger">{{ __('Unable to delete company.') }}</div>').slideDown(300).delay(5000).slideUp(300);
+                        $('#ok_button').text('{{trans('file.OK')}}').prop('disabled', false);
                         $('#confirmModal').modal('hide');
+                        $('#general_result').html(html).stop(true, true).show().slideDown(300).delay(5000).slideUp(300);
+                        $('#company-table').DataTable().ajax.reload();
+                    },
+                    error: function (xhr) {
+                        let message = (xhr.responseJSON && xhr.responseJSON.error)
+                            ? xhr.responseJSON.error
+                            : '{{ __('Unable to delete company.') }}';
+                        $('#confirm_message').addClass('d-none');
+                        $('#confirm_error').removeClass('d-none').text(message);
+                        $('#ok_button').text('{{trans('file.OK')}}').prop('disabled', false);
+                        $('#general_result').html('<div class="alert alert-danger">' + message + '</div>').stop(true, true).show();
                     }
                 })
             });
