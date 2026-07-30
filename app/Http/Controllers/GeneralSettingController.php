@@ -38,7 +38,7 @@ class GeneralSettingController extends Controller
 			$accounts = FinanceBankCash::all('id', 'account_name');
 			$zones_array = array();
 			$timestamp = time();
-
+			$appTimezone = config('app.timezone') ?: date_default_timezone_get();
 
 			foreach (timezone_identifiers_list() as $key => $zone)
 			{
@@ -46,6 +46,9 @@ class GeneralSettingController extends Controller
 				$zones_array[$key]['zone'] = $zone;
 				$zones_array[$key]['diff_from_GMT'] = 'UTC/GMT ' . date('P', $timestamp);
 			}
+
+			// Restore app timezone — looping timezone_identifiers_list() mutates PHP's default zone.
+			date_default_timezone_set($appTimezone);
 
 			return view('settings.general_settings.index', compact('general_settings_data', 'zones_array', 'accounts'));
 		}
@@ -156,6 +159,12 @@ class GeneralSettingController extends Controller
 			$general_setting->save();
 
 			\App\Support\RuntimeConfig::applyGeneralSettings();
+
+			// Ensure this request also uses the newly selected timezone immediately.
+			if (! empty($data['timezone']) && in_array($data['timezone'], timezone_identifiers_list(), true)) {
+				config(['app.timezone' => $data['timezone']]);
+				date_default_timezone_set($data['timezone']);
+			}
 
             if ($envWriteFailed) {
                 $this->setSuccessMessage(__('Data updated successfully. Some server environment values could not be written to .env on this host; settings were saved in the database.'));

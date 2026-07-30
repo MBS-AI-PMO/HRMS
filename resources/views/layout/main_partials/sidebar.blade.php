@@ -121,6 +121,9 @@
                                 <li id="employee_registration_settings"><a
                                         href="{{ route('employee_registration_settings.index') }}">{{ __('Employee Registration') }}</a>
                                 </li>
+                                <li id="client_registration_settings"><a
+                                        href="{{ route('client_registration_settings.index') }}">{{ __('Client Registration') }}</a>
+                                </li>
                             @endcan
 
                             @can('view-mail-setting')
