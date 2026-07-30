@@ -68,9 +68,9 @@
                                 <p class="emp-hero__attendance mb-0 mt-2">
                                     <i class="dripicons-time-reverse"></i>
                                     {{ __('Today') }}:
-                                    <strong>{{ __('In') }} {{ $today_first_clock_in ?: '—' }}</strong>
+                                    <strong>{{ __('In') }} {{ \App\Models\Attendance::formatClockDisplay($today_first_clock_in) }}</strong>
                                     <span class="mx-1">·</span>
-                                    <strong>{{ __('Out') }} {{ $today_last_clock_out ?: '—' }}</strong>
+                                    <strong>{{ __('Out') }} {{ \App\Models\Attendance::formatClockDisplay($today_last_clock_out) }}</strong>
                                     @if (!empty($today_total_work) && $today_total_work !== '00:00')
                                         <span class="mx-1">·</span>
                                         {{ __('Worked') }} <strong>{{ $today_total_work }}</strong>

@@ -26,4 +26,25 @@ class Attendance extends Model
 	{
 		return Carbon::parse($value)->format(config('variable.date_format', 'd-m-Y'));
 	}
+
+	/**
+	 * Display clock times in 12-hour format (e.g. 03:49 PM). DB still stores 24h H:i.
+	 */
+	public static function formatClockDisplay(?string $time): string
+	{
+		$time = trim((string) $time);
+		if ($time === '' || $time === '---') {
+			return '—';
+		}
+
+		foreach (['H:i:s', 'H:i', 'h:i A', 'h:iA'] as $format) {
+			try {
+				return Carbon::createFromFormat($format, $time)->format('h:i A');
+			} catch (\Throwable $e) {
+				continue;
+			}
+		}
+
+		return $time;
+	}
 }
