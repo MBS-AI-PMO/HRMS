@@ -48,7 +48,7 @@ class FirebaseNotificationService
             );
 
             if ($status >= 200 && $status < 300) {
-                Log::info('FCM HTTP send OK', [
+                Log::warning('FCM HTTP send OK', [
                     'status' => $status,
                     'token_prefix' => substr($token, 0, 20).'...',
                     'title' => $title,
@@ -324,7 +324,7 @@ class FirebaseNotificationService
             $resolved = storage_path($path);
         }
 
-        Log::info('FCM credentials lookup', [
+        Log::warning('FCM credentials lookup', [
             'configured' => $path,
             'resolved' => $resolved,
             'exists' => is_file($resolved),
