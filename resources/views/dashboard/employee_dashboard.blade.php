@@ -47,7 +47,7 @@
                                             if (! empty($user->last_login_date)) {
                                                 $lastLoginDisplay = \Illuminate\Support\Carbon::parse($user->last_login_date)
                                                     ->timezone(config('app.timezone'))
-                                                    ->format(config('variable.date_format', 'd-m-Y').' H:i');
+                                                    ->format(config('variable.date_format', 'd-m-Y').' h:i A');
                                             }
                                         } catch (\Throwable $e) {
                                             $lastLoginDisplay = $user->last_login_date;

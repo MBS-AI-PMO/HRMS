@@ -28,13 +28,13 @@ class Attendance extends Model
 	}
 
 	/**
-	 * Display clock times in 12-hour format (e.g. 03:49 PM). DB still stores 24h H:i.
+	 * Display clock times in 12-hour format (e.g. 03:50 PM). DB still stores 24h H:i.
 	 */
 	public static function formatClockDisplay(?string $time): string
 	{
 		$time = trim((string) $time);
-		if ($time === '' || $time === '---') {
-			return '—';
+		if ($time === '' || $time === '---' || $time === '—') {
+			return '---';
 		}
 
 		foreach (['H:i:s', 'H:i', 'h:i A', 'h:iA'] as $format) {
