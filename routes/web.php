@@ -26,7 +26,9 @@ use App\Http\Controllers\EmployeeComplaintController;
 use App\Http\Controllers\EmployeeContactController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeMailTestController;
+use App\Http\Controllers\ClientRegistrationSettingController;
 use App\Http\Controllers\EmployeeRegistrationSettingController;
+use App\Http\Controllers\PublicClientRegistrationController;
 use App\Http\Controllers\PublicEmployeeRegistrationController;
 use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\EmployeeImmigrationController;
@@ -188,6 +190,13 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
     Route::post('register/employee/departments', [PublicEmployeeRegistrationController::class, 'departments'])->name('employee.register.departments');
     Route::post('register/employee/designations', [PublicEmployeeRegistrationController::class, 'designations'])->name('employee.register.designations');
     Route::post('register/employee/shifts', [PublicEmployeeRegistrationController::class, 'shifts'])->name('employee.register.shifts');
+
+    Route::get('register/client/{registrationSlug}', [PublicClientRegistrationController::class, 'create'])->where('registrationSlug', '[a-zA-Z0-9\-]+')->name('client.register.link');
+    Route::post('register/client', [PublicClientRegistrationController::class, 'store'])->name('client.register.store');
+    Route::get('register/client/config/{registrationKey}', [PublicClientRegistrationController::class, 'config'])->where('registrationKey', '[a-zA-Z0-9\-]+')->name('client.register.config');
+    Route::post('register/client/departments', [PublicClientRegistrationController::class, 'departments'])->name('client.register.departments');
+    Route::post('register/client/designations', [PublicClientRegistrationController::class, 'designations'])->name('client.register.designations');
+    Route::post('register/client/shifts', [PublicClientRegistrationController::class, 'shifts'])->name('client.register.shifts');
 
     Route::get('/jobs', [JobController::class, 'index'])->name('jobs');
     Route::get('/jobs/details/{job_post}', [JobController::class, 'details'])->name('jobs.details');
@@ -837,6 +846,15 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
         Route::get('employee-registration/{companyId}/edit', [EmployeeRegistrationSettingController::class, 'edit'])->where('companyId', '[0-9]+')->name('employee_registration_settings.edit');
         Route::get('employee-registration/{companyId}/data', [EmployeeRegistrationSettingController::class, 'companyData'])->where('companyId', '[0-9]+')->name('employee_registration_settings.data');
         Route::post('employee-registration/{companyId}', [EmployeeRegistrationSettingController::class, 'update'])->where('companyId', '[0-9]+')->name('employee_registration_settings.update');
+
+        Route::get('client-registration', [ClientRegistrationSettingController::class, 'index'])->name('client_registration_settings.index');
+        Route::get('client-registration/create', [ClientRegistrationSettingController::class, 'create'])->name('client_registration_settings.create');
+        Route::post('client-registration', [ClientRegistrationSettingController::class, 'store'])->name('client_registration_settings.store');
+        Route::get('client-registration/{id}/edit', [ClientRegistrationSettingController::class, 'edit'])->where('id', '[0-9]+')->name('client_registration_settings.edit');
+        Route::get('client-registration/{id}/data', [ClientRegistrationSettingController::class, 'data'])->where('id', '[0-9]+')->name('client_registration_settings.data');
+        Route::post('client-registration/{id}', [ClientRegistrationSettingController::class, 'update'])->where('id', '[0-9]+')->name('client_registration_settings.update');
+        Route::delete('client-registration/{id}', [ClientRegistrationSettingController::class, 'destroy'])->where('id', '[0-9]+')->name('client_registration_settings.destroy');
+        Route::get('client-registration/client/{clientId}/data', [ClientRegistrationSettingController::class, 'clientData'])->where('clientId', '[0-9]+')->name('client_registration_settings.client_data');
 
         Route::get('mail_setting', [GeneralSettingController::class, 'mailSetting'])->name('setting.mail');
         Route::post('setting/mail_setting_store', [GeneralSettingController::class, 'mailSettingStore'])->name('setting.mailStore');

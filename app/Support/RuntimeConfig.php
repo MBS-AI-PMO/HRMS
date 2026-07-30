@@ -55,6 +55,14 @@ class RuntimeConfig
                     Config::set('variable.date_format_js', $jsFormat);
                 }
             }
+
+            // Critical for clock-in/out: production/Docker often defaults to UTC while
+            // office shifts are local wall-clock times. Apply DB timezone every request.
+            $timezone = trim((string) ($settings->time_zone ?? ''));
+            if ($timezone !== '' && in_array($timezone, timezone_identifiers_list(), true)) {
+                Config::set('app.timezone', $timezone);
+                date_default_timezone_set($timezone);
+            }
         } catch (\Throwable $e) {
             // Database may be unavailable during deploy/migrate; keep env/file defaults.
         }
