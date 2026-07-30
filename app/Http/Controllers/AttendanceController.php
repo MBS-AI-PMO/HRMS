@@ -619,7 +619,7 @@ class AttendanceController extends Controller {
 						{
 							$attendance_row = $employee->employeeAttendance->first();
 
-							return $attendance_row->clock_in;
+							return Attendance::formatClockDisplay($attendance_row->clock_in);
 						}
 					})
 					->addColumn('clock_out', function ($employee)
@@ -631,7 +631,7 @@ class AttendanceController extends Controller {
 						{
 							$attendance_row = $employee->employeeAttendance->last();
 
-							return $attendance_row->clock_out;
+							return Attendance::formatClockDisplay($attendance_row->clock_out);
 						}
 					})
 					->addColumn('time_late', function ($employee)
@@ -1710,11 +1710,11 @@ class AttendanceController extends Controller {
                 })
                 ->addColumn('clock_in', function ($row)
                 {
-                    return $row['clock_in'];
+                    return Attendance::formatClockDisplay($row['clock_in'] ?? null);
                 })
                 ->addColumn('clock_out', function ($row)
                 {
-                    return $row['clock_out'];
+                    return Attendance::formatClockDisplay($row['clock_out'] ?? null);
                 })
                 ->addColumn('time_late', function ($row)
                 {
@@ -2179,11 +2179,11 @@ class AttendanceController extends Controller {
 					})
 					->addColumn('clock_in', function ($row)
 					{
-						return $row->clock_in;
+						return Attendance::formatClockDisplay($row->clock_in);
 					})
 					->addColumn('clock_out', function ($row)
 					{
-						return $row->clock_out;
+						return Attendance::formatClockDisplay($row->clock_out);
 					})
 					->addColumn('action', function ($row)
 					{

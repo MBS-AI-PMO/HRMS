@@ -234,7 +234,7 @@ class ReportController extends Controller {
 
 							$first = current($all_attendances_array[$row])['clock_in'];
 
-							return $first;
+							return Attendance::formatClockDisplay($first);
 						} else
 						{
 							return '---';
@@ -247,7 +247,7 @@ class ReportController extends Controller {
 
 							$last = end($all_attendances_array[$row])['clock_out'];
 
-							return $last;
+							return Attendance::formatClockDisplay($last);
 						} else
 						{
 							return '---';
@@ -991,7 +991,7 @@ class ReportController extends Controller {
                         ? Carbon::parse($row->getRawOriginal('attendance_date'))->format(config('variable.date_format', 'd-m-Y'))
                         : '---';
 
-                    return trim($date.' '.($row->clock_in ?? ''));
+                    return trim($date.' '.Attendance::formatClockDisplay($row->clock_in ?? null));
                 })
                 ->addColumn('ip_address', function ($row) {
                     return $row->clock_in_ip ?? '---';
