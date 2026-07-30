@@ -734,8 +734,6 @@ class ApiController extends Controller
 
                 if ($currentTime > $shiftIn) {
                     $data['time_late'] = $shiftIn->diff(new \DateTime($data['clock_in']))->format('%H:%I');
-                } elseif (config('variable.enable_early_clockin') === null) {
-                    $data['clock_in'] = $shiftIn->format('H:i');
                 }
 
                 if ($last && (int) $last->clock_in_out === 0 && ! empty($last->clock_out)) {
@@ -842,17 +840,9 @@ class ApiController extends Controller
             $shiftIn = new \DateTime($shiftInValue);
             $shiftOut = new \DateTime($shiftOutValue);
 
-            if ($currentTime <= $shiftIn && config('variable.enable_early_clockin') === null) {
-                Attendance::whereKey($attendance->id)->delete();
-                return response()->json([
-                    'status' => true,
-                    'message' => 'Clock-out rejected before shift start; attendance reset.',
-                ]);
-            }
-
             $clockOut = $currentTime->format('H:i');
             $clockIn = new \DateTime($attendance->clock_in);
-            $prevWork = new \DateTime($attendance->total_work);
+            $prevWork = new \DateTime($attendance->total_work ?: '00:00');
             $totalWork = $prevWork->add($clockIn->diff(new \DateTime($clockOut)));
             $dutyTime = new \DateTime($shiftIn->diff($shiftOut)->format('%H:%I'));
 
@@ -863,7 +853,7 @@ class ApiController extends Controller
                 'total_work' => $totalWork->format('H:i'),
             ];
 
-            if ($currentTime < $shiftOut) {
+            if ($currentTime < $shiftOut && $currentTime > $shiftIn) {
                 $updateData['early_leaving'] = $shiftOut->diff(new \DateTime($clockOut))->format('%H:%I');
             }
 

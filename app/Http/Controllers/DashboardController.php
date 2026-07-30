@@ -1024,6 +1024,16 @@ class DashboardController extends Controller {
 		$employee_attendance = Attendance::where('attendance_date', now()->format('Y-m-d'))
 				->where('employee_id', $employee->id)->orderBy('id', 'desc')->first() ?? null;
 
+		$today_attendances = Attendance::where('attendance_date', now()->format('Y-m-d'))
+			->where('employee_id', $employee->id)
+			->orderBy('id')
+			->get(['id', 'clock_in', 'clock_out', 'clock_in_out', 'total_work']);
+		$today_first_clock_in = optional($today_attendances->first())->clock_in;
+		$today_last_clock_out = optional(
+			$today_attendances->filter(fn ($row) => ! empty($row->clock_out))->last()
+		)->clock_out;
+		$today_total_work = optional($today_attendances->last())->total_work;
+
 		$shift_ended = $shift_out ? AttendanceOvertimeService::isShiftEnded($shift_out) : false;
 		$is_off_day = AttendanceOvertimeService::isOffDay($shift_in, $shift_out);
 		$can_overtime_clock_in = $is_off_day
@@ -1078,6 +1088,7 @@ class DashboardController extends Controller {
 			'assigned_projects', 'assigned_projects_count',
 			'assigned_tasks', 'assigned_tasks_count', 'assigned_tickets', 'assigned_tickets_count', 'ipCheck', 'general_setting',
 			'shift_ended', 'is_off_day', 'can_overtime_clock_in', 'is_on_overtime_session', 'today_overtime_total', 'is_past_shift_while_clocked_in',
+			'today_first_clock_in', 'today_last_clock_out', 'today_total_work',
 			'is_location_head', 'location_head_employee_count', 'can_manage_location_scope'));
 	}
 

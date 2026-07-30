@@ -815,15 +815,14 @@ class AttendanceController extends Controller {
 			if (! $employee_attendance_last) {
 				$late_cutoff_time = $this->getLateCutoffTime($shift_in);
 
+				// Always store the real punch time. Late/early is tracked via time_late /
+				// enable_early_clockin policy — overwriting to shift_in hid UTC bugs.
+				$data['clock_in'] = $current_time->format('H:i');
+
 				if ($current_time > $late_cutoff_time) {
-					$data['clock_in'] = $current_time->format('H:i');
 					$data['time_late'] = $late_cutoff_time->diff(new DateTime($data['clock_in']))->format('%H:%I');
 				} else {
-					if (config('variable.enable_early_clockin') != null) {
-						$data['clock_in'] = $current_time->format('H:i');
-					} else {
-						$data['clock_in'] = $shift_in->format('H:i');
-					}
+					$data['time_late'] = '00:00';
 				}
 
 				$data['attendance_status'] = 'present';
@@ -920,7 +919,25 @@ class AttendanceController extends Controller {
 					'overtime' => $data['overtime'] ?? null,
 				], AttendanceLocationCapture::metaFromRequest($request)));
 			} else {
-				Attendance::whereId($employee_attendance_last->id)->delete();
+				// Still before shift start: record the real clock-out instead of deleting the
+				// session (deletion caused "success" with no row when timezone was wrong).
+				$employee_last_clock_in = new DateTime($employee_attendance_last->clock_in);
+				$data['clock_out'] = $current_time->format('H:i');
+				$prev_work = new DateTime($employee_attendance_last->total_work ?: '00:00');
+				$total_work = $prev_work->add($employee_last_clock_in->diff(new DateTime($data['clock_out'])));
+				$data['total_work'] = $total_work->format('H:i');
+				$data['clock_out_ip'] = $request->ip();
+				$data['clock_in_out'] = 0;
+				$this->mergeClockOutLocation($data, $request);
+
+				$attendance = Attendance::findOrFail($employee_attendance_last->id);
+				$attendance->update($data);
+				$this->logEmployeeActivity($id, 'attendance.clock_out', 'Employee clocked out before shift start.', array_merge([
+					'attendance_id' => $attendance->id,
+					'attendance_date' => $attendance->attendance_date,
+					'clock_out' => $data['clock_out'] ?? null,
+					'total_work' => $data['total_work'] ?? null,
+				], AttendanceLocationCapture::metaFromRequest($request)));
 			}
 
 			$this->setSuccessMessage(__('Clocked Out Successfully'));
