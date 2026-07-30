@@ -40,7 +40,21 @@
                                 <span class="text-white-50">({{ $user->username }})</span>
                             </p>
                             <div class="emp-hero__meta">
-                                <span><i class="dripicons-clock"></i> {{ __('Last Login') }}: {{ $user->last_login_date }}</span>
+                                <span><i class="dripicons-clock"></i> {{ __('Last Login') }}:
+                                    @php
+                                        $lastLoginDisplay = $user->last_login_date;
+                                        try {
+                                            if (! empty($user->last_login_date)) {
+                                                $lastLoginDisplay = \Illuminate\Support\Carbon::parse($user->last_login_date)
+                                                    ->timezone(config('app.timezone'))
+                                                    ->format(config('variable.date_format', 'd-m-Y').' H:i');
+                                            }
+                                        } catch (\Throwable $e) {
+                                            $lastLoginDisplay = $user->last_login_date;
+                                        }
+                                    @endphp
+                                    {{ $lastLoginDisplay }}
+                                </span>
                                 <span class="mx-2">|</span>
                                 <span><i class="dripicons-calendar"></i>
                                     @if (!$shift_in)
@@ -50,6 +64,19 @@
                                     @endif
                                 </span>
                             </div>
+                            @if (!empty($today_first_clock_in) || !empty($today_last_clock_out))
+                                <p class="emp-hero__attendance mb-0 mt-2">
+                                    <i class="dripicons-time-reverse"></i>
+                                    {{ __('Today') }}:
+                                    <strong>{{ __('In') }} {{ $today_first_clock_in ?: '—' }}</strong>
+                                    <span class="mx-1">·</span>
+                                    <strong>{{ __('Out') }} {{ $today_last_clock_out ?: '—' }}</strong>
+                                    @if (!empty($today_total_work) && $today_total_work !== '00:00')
+                                        <span class="mx-1">·</span>
+                                        {{ __('Worked') }} <strong>{{ $today_total_work }}</strong>
+                                    @endif
+                                </p>
+                            @endif
                             @if (($today_overtime_total ?? '00:00') !== '00:00')
                                 <p class="emp-hero__overtime mb-0 mt-2">
                                     <i class="dripicons-hourglass"></i> {{ __('Today Overtime') }}:
@@ -681,6 +708,7 @@
     .emp-dashboard .emp-hero__title { font-size: 1.5rem; font-weight: 700; margin-bottom: 0; }
     .emp-dashboard .emp-hero__subtitle { opacity: 0.92; font-size: 0.92rem; }
     .emp-dashboard .emp-hero__meta { font-size: 0.85rem; opacity: 0.88; }
+    .emp-dashboard .emp-hero__attendance { font-size: 0.9rem; opacity: 0.95; }
     .emp-dashboard .emp-hero__overtime { font-size: 0.88rem; opacity: 0.95; }
 
     .emp-dashboard .emp-hero__actions {
