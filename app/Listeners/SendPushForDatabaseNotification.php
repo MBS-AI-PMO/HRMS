@@ -39,7 +39,7 @@ class SendPushForDatabaseNotification
 
         $token = $this->resolveToken($notifiable);
         if ($token === '') {
-            Log::info('FCM push skipped: user has no fcm_token', [
+            Log::warning('FCM push skipped: user has no fcm_token', [
                 'notification' => $type,
                 'user_id' => $userId,
                 'username' => $username,
@@ -78,7 +78,7 @@ class SendPushForDatabaseNotification
                 $data['notification_id'] = $databaseId;
             }
 
-            Log::info('FCM push sending', [
+            Log::warning('FCM push sending', [
                 'notification' => $type,
                 'user_id' => $userId,
                 'username' => $username,
@@ -89,12 +89,19 @@ class SendPushForDatabaseNotification
 
             $ok = $this->fcm->sendToToken($token, $title, $body, $data);
 
-            Log::info($ok ? 'FCM push accepted' : 'FCM push rejected', [
-                'notification' => $type,
-                'user_id' => $userId,
-                'username' => $username,
-                'accepted' => $ok,
-            ]);
+            if ($ok) {
+                Log::warning('FCM push accepted', [
+                    'notification' => $type,
+                    'user_id' => $userId,
+                    'username' => $username,
+                ]);
+            } else {
+                Log::error('FCM push rejected', [
+                    'notification' => $type,
+                    'user_id' => $userId,
+                    'username' => $username,
+                ]);
+            }
         } catch (Throwable $e) {
             // Never let a push failure break the underlying notification flow.
             Log::warning('Push mirror for database notification failed: '.$e->getMessage(), [
