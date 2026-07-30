@@ -48,6 +48,12 @@ class FirebaseNotificationService
             );
 
             if ($status >= 200 && $status < 300) {
+                Log::info('FCM HTTP send OK', [
+                    'status' => $status,
+                    'token_prefix' => substr($token, 0, 20).'...',
+                    'title' => $title,
+                ]);
+
                 return true;
             }
 
@@ -57,16 +63,24 @@ class FirebaseNotificationService
             if (in_array($status, [400, 404], true)
                 && $this->isUnregistered(is_array($json) ? $json : null)) {
                 User::where('fcm_token', $token)->update(['fcm_token' => null]);
+                Log::warning('FCM token cleared (unregistered/invalid)', [
+                    'token_prefix' => substr($token, 0, 20).'...',
+                ]);
             }
 
             Log::warning('FCM send failed', [
                 'status' => $status,
                 'body' => $rawBody,
+                'title' => $title,
+                'token_prefix' => substr($token, 0, 20).'...',
             ]);
 
             return false;
         } catch (Throwable $e) {
-            Log::error('FCM send error: '.$e->getMessage());
+            Log::error('FCM send error: '.$e->getMessage(), [
+                'title' => $title,
+                'token_prefix' => substr($token, 0, 20).'...',
+            ]);
 
             return false;
         }
@@ -304,18 +318,25 @@ class FirebaseNotificationService
             throw new RuntimeException('FIREBASE_CREDENTIALS is not set.');
         }
 
+        $resolved = $path;
         // Allow a path relative to storage_path() for convenience.
-        if (! is_file($path)) {
-            $path = storage_path($path);
+        if (! is_file($resolved)) {
+            $resolved = storage_path($path);
         }
 
-        if (! is_file($path)) {
-            throw new RuntimeException('Firebase service-account JSON not found at: '.$path);
+        Log::info('FCM credentials lookup', [
+            'configured' => $path,
+            'resolved' => $resolved,
+            'exists' => is_file($resolved),
+        ]);
+
+        if (! is_file($resolved)) {
+            throw new RuntimeException('Firebase service-account JSON not found at: '.$resolved);
         }
 
-        $json = json_decode((string) file_get_contents($path), true);
+        $json = json_decode((string) file_get_contents($resolved), true);
         if (! is_array($json)) {
-            throw new RuntimeException('Firebase service-account JSON is invalid.');
+            throw new RuntimeException('Firebase service-account JSON is invalid at: '.$resolved);
         }
 
         return $decoded = $json;
