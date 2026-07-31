@@ -52,6 +52,20 @@
             @enderror
         </div>
 
+        <div class="auth-field auth-privacy-agree">
+            <label class="auth-checkbox">
+                <input type="checkbox" name="privacy_policy" id="privacy_policy" value="1"
+                       {{ old('privacy_policy') ? 'checked' : '' }} required>
+                <span>
+                    {{ __('I agree to the') }}
+                    <a href="{{ route('privacy.policy') }}" target="_blank" rel="noopener">{{ __('Privacy Policy') }}</a>
+                </span>
+            </label>
+            @error('privacy_policy')
+                <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
+            @enderror
+        </div>
+
         <button type="submit" class="auth-btn">{{ __('Login') }}</button>
 
         <div class="auth-links auth-links--split">
@@ -60,8 +74,42 @@
             @endif
             <a href="{{ route('employee.register') }}">{{ __('New employee? Register') }}</a>
         </div>
+        <div class="auth-links text-center" style="border-top:none;padding-top:0;margin-top:12px;">
+            <a href="{{ route('privacy.policy') }}" target="_blank" rel="noopener">{{ __('Privacy Policy') }}</a>
+        </div>
     </form>
 @endsection
+
+@push('styles')
+<style>
+    .auth-privacy-agree { margin-bottom: 14px; }
+    .auth-checkbox {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: #475569;
+        cursor: pointer;
+        margin: 0;
+        line-height: 1.45;
+    }
+    .auth-checkbox input {
+        margin-top: 3px;
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        accent-color: #4a3580;
+        cursor: pointer;
+    }
+    .auth-checkbox a {
+        color: #4a3580;
+        font-weight: 700;
+        text-decoration: none;
+    }
+    .auth-checkbox a:hover { text-decoration: underline; }
+</style>
+@endpush
 
 @push('scripts')
 <script>

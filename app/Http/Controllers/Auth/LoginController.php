@@ -87,9 +87,11 @@ class LoginController extends Controller
         $request->validate([
             $this->username() => 'required|string',
             'password' => 'required|string',
+            'privacy_policy' => 'accepted',
         ], [
             'username.required' => __('Username is required.'),
             'password.required' => __('Password is required.'),
+            'privacy_policy.accepted' => __('You must agree to the Privacy Policy to continue.'),
         ]);
     }
 
