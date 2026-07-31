@@ -482,6 +482,8 @@
                     value: companyId || '',
                     client_id: clientId || '',
                     location_id: locationId || '',
+                    start_date: $('#start_date').val() || '',
+                    end_date: $('#end_date').val() || '',
                     first_name: 'first_name',
                     last_name: 'last_name',
                     _token: '{{ csrf_token() }}'
@@ -541,6 +543,14 @@
                 loadEmployees(filterCompanyVal(), filterClientVal(), $(this).val());
             });
 
+            $('#start_date, #end_date').on('change', function() {
+                var companyId = filterCompanyVal();
+                var clientId = filterClientVal();
+                if (companyId || clientId) {
+                    loadEmployees(companyId, clientId, $('#location_id').val() || '');
+                }
+            });
+
             $('.department_wise_employees').on('changed.bs.select', function () {
                 if ($(this).val() !== '') {
                     let value = $(this).val();
@@ -548,6 +558,8 @@
                     let last_name = $(this).data('last_name');
                     $.post("{{ route('dynamic_employee_department') }}", {
                         value: value,
+                        start_date: $('#start_date').val() || '',
+                        end_date: $('#end_date').val() || '',
                         _token: '{{ csrf_token() }}',
                         first_name: first_name,
                         last_name: last_name

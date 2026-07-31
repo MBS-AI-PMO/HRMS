@@ -176,13 +176,9 @@ class EmployeeController extends Controller
             $crossCompany = true;
         }
 
+        // Show all active employees, including those with a leaving date.
         $query = $this->scopedEmployeeListQuery($crossCompany, $locationIds)
-            ->where('is_active', 1)
-            ->where(function ($q) use ($currentDate) {
-                $q->whereNull('exit_date')
-                    ->orWhere('exit_date', '>=', $currentDate)
-                    ->orWhere('exit_date', '0000-00-00');
-            });
+            ->where('is_active', 1);
 
         if ($request->filled('client_id')) {
             $query->where('client_id', (int) $request->client_id);

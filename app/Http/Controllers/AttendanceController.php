@@ -26,6 +26,7 @@ use App\Services\AttendanceOvertimeService;
 use App\Scopes\AuthCompanyScope;
 use App\Support\AttendanceLocationCapture;
 use App\Support\CompanyScope;
+use App\Support\EmploymentPeriod;
 use App\Support\ManagedEmployeeScope;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -274,38 +275,10 @@ class AttendanceController extends Controller {
     /**
      * Include anyone employed for at least one day in [periodStart, periodEnd].
      * Leaving month/day is included; months after exit_date are excluded.
-     * Inactive employees still appear in their last overlapping period (HR often deactivates on leave day).
      */
     protected function applyEmployedDuringPeriod($query, string $periodStartDate, ?string $periodEndDate = null): void
     {
-        $periodEndDate = $periodEndDate ?: $periodStartDate;
-
-        // Active, or inactive but exit falls on/after this period (still relevant to the report).
-        $query->where(function ($q) use ($periodStartDate) {
-            $q->where('is_active', 1)
-                ->orWhere(function ($left) use ($periodStartDate) {
-                    $left->whereNotNull('exit_date')
-                        ->where('exit_date', '!=', '')
-                        ->where('exit_date', '!=', '0000-00-00')
-                        ->where('exit_date', '>=', $periodStartDate);
-                });
-        });
-
-        // Joined on or before the period ends.
-        $query->where(function ($q) use ($periodEndDate) {
-            $q->whereNull('joining_date')
-                ->orWhere('joining_date', '')
-                ->orWhere('joining_date', '0000-00-00')
-                ->orWhere('joining_date', '<=', $periodEndDate);
-        });
-
-        // Had not left before the period starts (exit day itself still counts).
-        $query->where(function ($q) use ($periodStartDate) {
-            $q->whereNull('exit_date')
-                ->orWhere('exit_date', '')
-                ->orWhere('exit_date', '0000-00-00')
-                ->orWhere('exit_date', '>=', $periodStartDate);
-        });
+        EmploymentPeriod::applyToQuery($query, $periodStartDate, $periodEndDate);
     }
 
     protected function employeeExitDateIso($employee): ?string

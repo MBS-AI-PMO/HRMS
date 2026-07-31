@@ -362,6 +362,7 @@
                     value: companyId || '',
                     client_id: clientId || '',
                     location_id: locationId || '',
+                    month_year: $('#day_month_year').val() || '',
                     first_name: 'first_name',
                     last_name: 'last_name',
                     _token: '{{ csrf_token() }}'
@@ -399,6 +400,14 @@
 
             $('#location_id').on('changed.bs.select', function() {
                 loadEmployees(filterCompanyVal(), filterClientVal(), $(this).val());
+            });
+
+            $('#day_month_year').on('change', function() {
+                var companyId = filterCompanyVal();
+                var clientId = filterClientVal();
+                if (companyId || clientId) {
+                    loadEmployees(companyId, clientId, $('#location_id').val() || '');
+                }
             });
 
             $('#filter_form').on('submit', function (e) {
