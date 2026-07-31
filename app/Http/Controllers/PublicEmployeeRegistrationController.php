@@ -293,7 +293,8 @@ class PublicEmployeeRegistrationController extends Controller
             return response()->json(['error' => $e->getMessage()], 422);
         }
 
-        $isActive = 1;
+        // Controlled by Settings → Auto approve (account active immediately).
+        $isActive = $setting->auto_approve ? 1 : 0;
         $joiningDate = ! empty($fields['joining_date']['enabled']) && $request->joining_date
             ? $request->joining_date
             : now()->format(config('variable.date_format', 'd-m-Y'));

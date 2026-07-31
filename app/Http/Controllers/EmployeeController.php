@@ -544,7 +544,7 @@ class EmployeeController extends Controller
 
     public function show(Employee $employee)
     {
-            $employee->loadMissing(['user', 'company', 'client', 'department', 'designation', 'officeShift', 'projects:id,title']);
+            $employee->loadMissing(['user', 'company', 'client', 'department', 'designation', 'officeShift', 'location', 'projects:id,title']);
 
         if (! $employee->user) {
             return redirect()
@@ -553,7 +553,11 @@ class EmployeeController extends Controller
         }
 
         if ($this->canViewEmployeeRecord($employee)) {
-            $employeeViewOnly = $this->employeeListRestrictedToTeamMembers();
+            $teamRestricted = $this->employeeListRestrictedToTeamMembers();
+            $canModifyEmployee = ! $teamRestricted && auth()->user()->can('modify-details-employee');
+            $editMode = $canModifyEmployee && request()->boolean('edit');
+            // List name/eye open in read-only view; ?edit=1 enables the form.
+            $employeeViewOnly = ! $editMode;
             $companies = CompanyScope::companiesForSelect();
             $departments = Department::select('id', 'department_name')
                 ->where('company_id', $employee->company_id)
@@ -582,7 +586,7 @@ class EmployeeController extends Controller
 
             return view('employee.dashboard', compact('employee', 'countries', 'companies', 'clients',
                 'departments', 'designations', 'statuses', 'office_shifts', 'document_types',
-                'education_levels', 'language_skills', 'general_skills', 'roles','relationTypes','loanTypes','deductionTypes', 'locations', 'employeeViewOnly'));
+                'education_levels', 'language_skills', 'general_skills', 'roles','relationTypes','loanTypes','deductionTypes', 'locations', 'employeeViewOnly', 'canModifyEmployee', 'editMode'));
         }
 
         return abort(403, __('You are not authorized'));

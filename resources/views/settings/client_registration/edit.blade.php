@@ -92,12 +92,13 @@
                                 <input type="text" name="success_message" id="success_message" class="form-control">
                             </div>
 
-                            <div class="col-md-4 form-group">
-                                <label>
-                                    <input type="checkbox" name="auto_approve" id="auto_approve" value="1">
-                                    {{ __('Auto approve (account active immediately)') }}
-                                </label>
-                            </div>
+                        <div class="col-md-4 form-group">
+                            <label>
+                                <input type="checkbox" name="auto_approve" id="auto_approve" value="1"
+                                    {{ !empty($isNew) || !empty($setting->auto_approve) ? 'checked' : '' }}>
+                                {{ __('Auto approve (account active immediately)') }}
+                            </label>
+                        </div>
                             <div class="col-md-4 form-group">
                                 <label>{{ __('Default Attendance Type') }}</label>
                                 <select name="default_attendance_type" id="default_attendance_type" class="form-control">

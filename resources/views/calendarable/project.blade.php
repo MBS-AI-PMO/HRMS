@@ -24,11 +24,25 @@
                             <div class="form-group">
                                 <label for="project_client_id">{{trans('file.Client')}}*</label>
                                 <select name="client_id" id="project_client_id"
-                                        class="form-control selectpicker dynamic"
+                                        class="form-control selectpicker"
                                         data-live-search="true" data-live-search-style="contains"
-                                        title='{{__('Selecting',['key'=>trans('file.Client')])}}...'>
+                                        title='{{__('Selecting',['key'=>trans('file.Client')])}}...' required>
                                     @foreach($clients as $client)
                                         <option value="{{$client->id}}">{{$client->first_name.' '.$client->last_name}}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="project_category_id">{{__('Project Category')}} *</label>
+                                <select name="project_category_id" id="project_category_id"
+                                        class="form-control selectpicker"
+                                        data-live-search="true" data-live-search-style="contains"
+                                        title='{{__('Selecting',['key'=>__('Project Category')])}}...' required>
+                                    @foreach(($project_categories ?? []) as $category)
+                                        <option value="{{ $category->id }}">{{ $category->category_name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -70,8 +84,8 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="project_company_id">{{trans('file.Company')}}</label>
-                                <select name="company_id" id="project_company_id" class="form-control selectpicker get_employee"
-                                        data-live-search="true" data-live-search-style="contains"  data-first_name="first_name" data-last_name="last_name"
+                                <select name="company_id" id="project_company_id" class="form-control selectpicker"
+                                        data-live-search="true" data-live-search-style="contains"
                                         title='{{__('Selecting',['key'=>trans('file.Company')])}}...'>
                                     @foreach($companies as $company)
                                         <option value="{{$company->id}}">{{$company->company_name}}</option>
@@ -83,10 +97,10 @@
 
 
 
-                        <div class="col-md-4 form-group">
+                        <div class="col-md-6 form-group">
                             <label for="project_employee_id">{{__('Project Users')}} *</label>
                             <select name="employee_id[]" id="project_employee_id" class="js-example-responsive employee w-100"
-                                    multiple="multiple">
+                                    multiple="multiple" required>
 
                             </select>
                         </div>

@@ -339,4 +339,35 @@ class TaskController extends Controller {
 
 		return response()->json(['success' => __('Data is successfully updated')]);
 	}
+
+	public function calendarableDetails($id)
+	{
+		if (! request()->ajax()) {
+			return abort(404);
+		}
+
+		$task = Task::with([
+			'company:id,company_name',
+			'project:id,title',
+		])->findOrFail($id);
+
+		$assignees = DB::table('employee_task')
+			->join('employees', 'employees.id', '=', 'employee_task.employee_id')
+			->where('employee_task.task_id', $task->id)
+			->select(DB::raw("CONCAT(employees.first_name,' ',employees.last_name) as full_name"))
+			->pluck('full_name')
+			->filter()
+			->implode(', ');
+
+		$new = [];
+		$new['Task'] = $task->task_name;
+		$new['Project'] = $task->project->title ?? '---';
+		$new['Company'] = $task->company->company_name ?? '---';
+		$new['Start Date'] = $task->start_date;
+		$new['End Date'] = $task->end_date ?: '---';
+		$new['Status'] = $task->task_status ?: '---';
+		$new['Assigned To'] = $assignees !== '' ? $assignees : '---';
+
+		return response()->json(['data' => $new]);
+	}
 }

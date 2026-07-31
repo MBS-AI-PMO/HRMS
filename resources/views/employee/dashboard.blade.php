@@ -20,8 +20,25 @@
             <div class="container-fluid">
                 <div class="card">
                     <div class="card-body">
-                        <div class="text-center">
-                            <h2>{{ $employee->user?->username ?? __('N/A') }}</h2>
+                        <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
+                            <div class="text-center flex-grow-1">
+                                <h2 class="mb-0">{{ $employee->user?->username ?? __('N/A') }}</h2>
+                                <small class="text-muted">{{ $employee->full_name }}</small>
+                            </div>
+                            <div class="mt-2 mt-md-0">
+                                <a href="{{ route('employees.index') }}" class="btn btn-sm btn-secondary">
+                                    <i class="dripicons-arrow-thin-left"></i> {{ __('Back') }}
+                                </a>
+                                @if (!empty($canModifyEmployee) && empty($editMode))
+                                    <a href="{{ route('employees.show', $employee) }}?edit=1" class="btn btn-sm btn-primary">
+                                        <i class="dripicons-pencil"></i> {{ __('Edit Details') }}
+                                    </a>
+                                @elseif (!empty($canModifyEmployee) && !empty($editMode))
+                                    <a href="{{ route('employees.show', $employee) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="dripicons-preview"></i> {{ __('View Details') }}
+                                    </a>
+                                @endif
+                            </div>
                         </div>
                         <ul class="nav nav-tabs d-flex justify-content-between" id="myTab" role="tablist">
                             <li class="nav-item">
@@ -562,11 +579,15 @@
 
                                                                 <div class="mt-3 form-group row">
                                                                     <div class="form-group row mb-0">
-                                                                        <div class="col-md-6 offset-md-4">
+                                                                        <div class="col-md-8 offset-md-4">
                                                                             <button type="submit"
                                                                                 class="btn btn-primary">
                                                                                 {{ trans('file.Save') }}
                                                                             </button>
+                                                                            <a href="{{ route('employees.show', $employee) }}"
+                                                                                class="btn btn-secondary">
+                                                                                {{ __('Cancel') }}
+                                                                            </a>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -574,45 +595,114 @@
                                                             </div>
                                                         </form>
                                                     @else
+                                                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                                                            <div>
+                                                                <strong>{{ __('Employee Details') }}</strong>
+                                                                <span class="badge badge-secondary ml-1">{{ __('Read only') }}</span>
+                                                            </div>
+                                                            @if (!empty($canModifyEmployee))
+                                                                <a href="{{ route('employees.show', $employee) }}?edit=1" class="btn btn-primary btn-sm">
+                                                                    <i class="dripicons-pencil"></i> {{ __('Edit Details') }}
+                                                                </a>
+                                                            @endif
+                                                        </div>
                                                         <div class="table-responsive">
                                                             <table class="table table-bordered">
                                                                 <tr>
-                                                                    <th>{{ __('Name') }}</th>
+                                                                    <th style="width:30%">{{ __('Name') }}</th>
                                                                     <td>{{ $employee->full_name }}</td>
                                                                 </tr>
                                                                 <tr>
+                                                                    <th>{{ __('Staff Id') }}</th>
+                                                                    <td>{{ $employee->staff_id ?: '—' }}</td>
+                                                                </tr>
+                                                                <tr>
                                                                     <th>{{ trans('file.Username') }}</th>
-                                                                    <td>{{ $employee->user->username ?? '' }}</td>
+                                                                    <td>{{ $employee->user->username ?? '—' }}</td>
                                                                 </tr>
                                                                 <tr>
                                                                     <th>{{ trans('file.Email') }}</th>
-                                                                    <td>{{ $employee->email }}</td>
+                                                                    <td>{{ $employee->email ?: '—' }}</td>
                                                                 </tr>
                                                                 <tr>
                                                                     <th>{{ trans('file.Phone') }}</th>
-                                                                    <td>{{ $employee->contact_no }}</td>
+                                                                    <td>{{ $employee->contact_no ?: '—' }}</td>
                                                                 </tr>
                                                                 <tr>
                                                                     <th>{{ __('CNIC') }}</th>
                                                                     <td>{{ $employee->cnic ?: '—' }}</td>
                                                                 </tr>
                                                                 <tr>
-                                                                    <th>{{ __('Department') }}</th>
-                                                                    <td>{{ $employee->department?->department_name ?? '' }}
+                                                                    <th>{{ trans('file.Gender') }}</th>
+                                                                    <td>{{ $employee->gender ? __('file.'.$employee->gender) : '—' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <th>{{ __('Date Of Birth') }}</th>
+                                                                    <td>{{ $employee->date_of_birth ?: '—' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <th>{{ __('Date Of Joining') }}</th>
+                                                                    <td>{{ $employee->joining_date ?: '—' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <th>{{ $employee->client_id ? __('Client') : __('Company') }}</th>
+                                                                    <td>
+                                                                        @if ($employee->client_id && $employee->client)
+                                                                            {{ \App\Support\ClientDisplay::label($employee->client) }}
+                                                                        @else
+                                                                            {{ $employee->company->company_name ?? '—' }}
+                                                                        @endif
                                                                     </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <th>{{ __('Department') }}</th>
+                                                                    <td>{{ $employee->department?->department_name ?? '—' }}</td>
                                                                 </tr>
                                                                 <tr>
                                                                     <th>{{ __('Designation') }}</th>
-                                                                    <td>{{ $employee->designation?->designation_name ?? '' }}
-                                                                    </td>
+                                                                    <td>{{ $employee->designation?->designation_name ?? '—' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <th>{{ trans('file.Office_Shift') }}</th>
+                                                                    <td>{{ $employee->officeShift?->shift_name ?? '—' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <th>{{ __('Work Location') }}</th>
+                                                                    <td>{{ $employee->location?->location_name ?? '—' }}</td>
                                                                 </tr>
                                                                 <tr>
                                                                     <th>{{ __('Attendance Type') }}</th>
-                                                                    <td>{{ ucfirst(str_replace('_', ' ', $employee->attendance_type)) }}
-                                                                    </td>
+                                                                    <td>{{ $employee->attendance_type ? ucfirst(str_replace('_', ' ', $employee->attendance_type)) : '—' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <th>{{ trans('file.Address') }}</th>
+                                                                    <td>{{ $employee->address ?: '—' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <th>{{ trans('file.City') }}</th>
+                                                                    <td>{{ $employee->city ?: '—' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <th>{{ trans('file.State/Province') }}</th>
+                                                                    <td>{{ $employee->state ?: '—' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <th>{{ trans('file.ZIP') }}</th>
+                                                                    <td>{{ $employee->zip_code ?: '—' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <th>{{ __('Status') }}</th>
+                                                                    <td>{{ $employee->is_active ? __('Active') : __('Inactive') }}</td>
                                                                 </tr>
                                                             </table>
                                                         </div>
+                                                        @if (!empty($canModifyEmployee))
+                                                            <div class="text-right mt-3">
+                                                                <a href="{{ route('employees.show', $employee) }}?edit=1" class="btn btn-primary">
+                                                                    <i class="dripicons-pencil"></i> {{ __('Edit Details') }}
+                                                                </a>
+                                                            </div>
+                                                        @endif
                                                     @endif
                                                 </div>
 
