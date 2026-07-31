@@ -74,9 +74,7 @@
             @endif
             <a href="{{ route('employee.register') }}">{{ __('New employee? Register') }}</a>
         </div>
-        <div class="auth-links text-center" style="border-top:none;padding-top:0;margin-top:12px;">
-            <a href="{{ route('privacy.policy') }}" target="_blank" rel="noopener">{{ __('Privacy Policy') }}</a>
-        </div>
+       
     </form>
 @endsection
 
