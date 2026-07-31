@@ -490,7 +490,11 @@
                 <li><i class="fa fa-line-chart"></i> {{ __('Reports & analytics') }}</li>
             </ul>
         </div>
-        <div class="auth-brand__footer">&copy; {{ date('Y') }} {{ $siteTitle }}</div>
+        <div class="auth-brand__footer">
+            &copy; {{ date('Y') }} {{ $siteTitle }}
+            &nbsp;·&nbsp;
+            <a href="{{ route('privacy.policy') }}" style="color:rgba(255,255,255,.7);text-decoration:none;" target="_blank" rel="noopener">{{ __('Privacy Policy') }}</a>
+        </div>
     </aside>
 
     <main class="auth-main">
@@ -511,12 +515,14 @@
         </div>
     </main>
 
-    @if ($footerText)
-        <div class="auth-copyright">
+    <div class="auth-copyright">
+        @if ($footerText)
             {{ __('Developed by') }}
             <a href="{{ $footerLink }}" class="external" target="_blank" rel="noopener">{{ $footerText }}</a>
-        </div>
-    @endif
+            &nbsp;·&nbsp;
+        @endif
+        <a href="{{ route('privacy.policy') }}" target="_blank" rel="noopener">{{ __('Privacy Policy') }}</a>
+    </div>
 </div>
 
 <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>

@@ -179,6 +179,10 @@ Route::group(['middleware' => ['XSS','checkDataTable']], function () {
 
     Route::get('/', [RouteClosureHandlerController::class, 'redirectToLogin'])->name('redirectToLogin');
 
+    Route::get('/privacy-policy', function () {
+        return view('privacy.policy');
+    })->name('privacy.policy');
+
     Route::get('/home', [HomeController::class, 'index'])->name('home.front');
     Route::get('/about', [AboutController::class, 'index'])->name('about.front');
     Route::get('/contact', [ContactController::class, 'index'])->name('contact.front');
