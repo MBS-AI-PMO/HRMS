@@ -298,30 +298,7 @@ class Employee extends Model
      */
     private function normalizeDateAttribute($value): ?string
     {
-        if ($value === null || $value === '' || $value === '0000-00-00') {
-            return null;
-        }
-
-        $value = trim((string) $value);
-        $preferred = config('variable.date_format', 'd-m-Y');
-        $formats = array_values(array_unique([$preferred, 'Y-m-d', 'd/m/Y', 'm/d/Y', 'Y/m/d']));
-
-        foreach ($formats as $format) {
-            try {
-                $parsed = Carbon::createFromFormat('!'.$format, $value);
-                if ($parsed !== false) {
-                    return $parsed->format('Y-m-d');
-                }
-            } catch (\Throwable $e) {
-                // try next format
-            }
-        }
-
-        try {
-            return Carbon::parse($value)->format('Y-m-d');
-        } catch (\Throwable $e) {
-            throw new \InvalidArgumentException(__('Invalid date: :value', ['value' => $value]));
-        }
+        return \App\Support\AppDate::toYmd($value);
     }
 
     /**
