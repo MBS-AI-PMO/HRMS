@@ -8,6 +8,7 @@ use App\Notifications\EmployeeTravelStatus;
 use App\Models\Travel;
 use App\Models\TravelType;
 use App\Models\User;
+use App\Support\CompanyScope;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
@@ -91,6 +92,10 @@ class TravelController extends Controller {
 	{
 		if (auth()->user()->can('store-travel') || auth()->user())
 		{
+			$request->merge([
+				'company_id' => $this->resolveTravelCompanyId($request),
+			]);
+
 			$validator = Validator::make($request->only('description', 'travel_type_id', 'status', 'company_id', 'travel_mode', 'employee_id', 'start_date', 'end_date', 'purpose_of_visit',
 				'place_of_visit', 'expected_budget', 'actual_budget'),
 				[
@@ -215,6 +220,10 @@ class TravelController extends Controller {
 		if ($logged_user->can('edit-travel'))
 		{
 			$id = $request->hidden_id;
+
+			$request->merge([
+				'company_id' => $this->resolveTravelCompanyId($request),
+			]);
 
 			$validator = Validator::make($request->only('description', 'travel_type_id', 'status', 'company_id', 'travel_mode', 'employee_id', 'start_date', 'end_date', 'purpose_of_visit',
 				'place_of_visit', 'expected_budget', 'actual_budget'),
@@ -358,5 +367,39 @@ class TravelController extends Controller {
 
 			return response()->json(['data' => $new]);
 		}
+	}
+
+	/**
+	 * Resolve company for travel: request value, else employee.company_id,
+	 * else parent company of the employee's client.
+	 */
+	private function resolveTravelCompanyId(Request $request): ?int
+	{
+		if ($request->filled('company_id')) {
+			return (int) $request->company_id;
+		}
+
+		$employeeId = (int) $request->input('employee_id');
+		if ($employeeId < 1) {
+			return null;
+		}
+
+		$employee = Employee::withoutGlobalScopes()
+			->select('id', 'company_id', 'client_id')
+			->find($employeeId);
+
+		if (! $employee) {
+			return null;
+		}
+
+		if (! empty($employee->company_id)) {
+			return (int) $employee->company_id;
+		}
+
+		if (! empty($employee->client_id)) {
+			return CompanyScope::resolveCompanyIdForClient((int) $employee->client_id);
+		}
+
+		return null;
 	}
 }
