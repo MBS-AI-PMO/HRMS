@@ -12,6 +12,8 @@ use App\Models\Project;
 use App\Models\ProjectCategory;
 use App\Support\ClientDisplay;
 use App\Support\CompanyScope;
+use App\Support\EmploymentPeriod;
+use App\Support\AppDate;
 use App\Scopes\AuthCompanyScope;
 use App\Models\FinanceBankCash;
 use App\Models\JobCandidate;
@@ -103,13 +105,8 @@ class DynamicDependent extends Controller {
 		$first_name = $request->get('first_name');
 		$last_name = $request->get('last_name');
 
-		$dataQuery = Employee::withoutGlobalScope(\App\Scopes\AuthCompanyScope::class)
-			->where('is_active', 1)
-			->where(function ($query) {
-				$query->whereNull('exit_date')
-					->orWhere('exit_date', '>=', date('Y-m-d'))
-					->orWhere('exit_date', '0000-00-00');
-			});
+		$dataQuery = Employee::withoutGlobalScope(\App\Scopes\AuthCompanyScope::class);
+		$this->applyEmploymentPeriodFromRequest($dataQuery, $request);
 
 		if ($request->filled('client_id')) {
 			$dataQuery->where('client_id', (int) $request->client_id);
@@ -182,13 +179,9 @@ class DynamicDependent extends Controller {
 		$useManagedScope = $loggedUser
 			&& ManagedEmployeeScope::canAccessScopedEmployeeList((int) $loggedUser->id, (int) $loggedUser->role_users_id);
 
-		$dataQuery = Employee::withoutGlobalScope(AuthCompanyScope::class)
-			->where('is_active', 1)
-			->where(function ($query) {
-				$query->whereNull('exit_date')
-					->orWhere('exit_date', '>=', date('Y-m-d'))
-					->orWhere('exit_date', '0000-00-00');
-			})
+		$dataQuery = Employee::withoutGlobalScope(AuthCompanyScope::class);
+		$this->applyEmploymentPeriodFromRequest($dataQuery, $request);
+		$dataQuery
 			->where(function ($query) use ($clientId, $companyId) {
 				$query->where('client_id', $clientId);
 
@@ -271,13 +264,8 @@ class DynamicDependent extends Controller {
 		$useManagedScope = $loggedUser
 			&& ManagedEmployeeScope::canAccessScopedEmployeeList((int) $loggedUser->id, (int) $loggedUser->role_users_id);
 
-		$data = Employee::wheredepartment_id($value)
-                    ->where('is_active',1)
-                    ->where(function ($query) {
-						$query->whereNull('exit_date')
-							->orWhere('exit_date', '>=', date('Y-m-d'))
-							->orWhere('exit_date', '0000-00-00');
-					});
+		$data = Employee::wheredepartment_id($value);
+		$this->applyEmploymentPeriodFromRequest($data, $request);
 		if ($useManagedScope) {
 			$data->whereIn('id', ManagedEmployeeScope::managedEmployeeIds((int) $loggedUser->id));
 		}
@@ -455,6 +443,37 @@ class DynamicDependent extends Controller {
 		}
 
 		return $output;
+	}
+
+	/**
+	 * Month-based employment window for employee dropdowns.
+	 * Prefer explicit period_start / month_year / start_date from attendance filters.
+	 */
+	protected function applyEmploymentPeriodFromRequest($query, Request $request): void
+	{
+		$raw = $request->input('period_start')
+			?: $request->input('month_year')
+			?: $request->input('filter_month_year')
+			?: $request->input('start_date')
+			?: $request->input('filter_date')
+			?: $request->input('date');
+
+		$periodStart = EmploymentPeriod::monthStartFromInput(is_string($raw) ? $raw : null);
+
+		$periodEnd = null;
+		if ($request->filled('end_date')) {
+			$endYmd = AppDate::toYmd($request->input('end_date'))
+				?: EmploymentPeriod::monthStartFromInput($request->input('end_date'));
+			if ($endYmd) {
+				$periodEnd = \Carbon\Carbon::parse($endYmd)->format('Y-m-d');
+			}
+		}
+
+		if (! $periodEnd) {
+			$periodEnd = EmploymentPeriod::monthEndFromStart($periodStart);
+		}
+
+		EmploymentPeriod::applyToQuery($query, $periodStart, $periodEnd);
 	}
 
 }
