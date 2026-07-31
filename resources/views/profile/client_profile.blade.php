@@ -121,7 +121,7 @@
                                                 <div class="form-group">
                                                     <label>{{ __('New Password') }} *</label>
                                                     <input type="password" name="password" required class="form-control"
-                                                        placeholder="{{ __('min:4 characters') }}">
+                                                        placeholder="{{ \App\Support\PasswordRules::hint() }}">
                                                 </div>
 
                                                 <div class="form-group">

@@ -260,8 +260,9 @@
                                                                     <label>{{ trans('file.Password') }}</label>
                                                                     <input type="password" name="password" id="password"
                                                                         class="form-control"
-                                                                        placeholder="{{ __('Leave blank to keep current password') }}"
+                                                                        placeholder="{{ \App\Support\PasswordRules::hint() }}"
                                                                         autocomplete="new-password">
+                                                                    <small class="text-muted">{{ __('Leave blank to keep current password') }}</small>
                                                                 </div>
 
                                                                 <div class="col-md-4 form-group">

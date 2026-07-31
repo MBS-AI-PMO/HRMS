@@ -94,7 +94,7 @@
                                     <label>{{trans('file.Password')}} <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <input type="password" name="password" id="password"
-                                               placeholder="{{__('min:4 characters')}}"
+                                               placeholder="{{ \App\Support\PasswordRules::hint() }}"
                                                required class="form-control">
                                     </div>
                                 </div>
@@ -106,6 +106,7 @@
                                                name="password_confirmation" placeholder="{{__('Re-type Password')}}"
                                                required autocomplete="new-password">
                                     </div>
+                                    <small class="text-muted">{{ \App\Support\PasswordRules::hint() }}</small>
                                 </div>
                                 <div class="col-md-6 form-group">
                                     <label for="profile_photo">{{ __('Image') }}</label>
@@ -197,7 +198,7 @@
                                     <label>{{trans('file.Password')}} <span class="text-danger">*</span></label>
                                     <div class="input-group">
                                         <input type="password" class="form-control" name="password" id="password_edit"
-                                               placeholder="{{__('min:4 characters')}}">
+                                               placeholder="{{ \App\Support\PasswordRules::hint() }}">
                                     </div>
                                 </div>
 

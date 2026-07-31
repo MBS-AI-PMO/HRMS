@@ -16,6 +16,7 @@ use App\Services\ProjectTimelineService;
 use App\Support\ClientDisplay;
 use App\Support\CompanyScope;
 use App\Support\ManagedEmployeeScope;
+use App\Support\PasswordRules;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\DocumentType;
@@ -883,7 +884,7 @@ class DashboardController extends Controller {
 
 		$validator = Validator::make($request->all(),
 			[
-				'password' => 'required|min:4|confirmed',
+				'password' => PasswordRules::required(),
 			]
 		);
 

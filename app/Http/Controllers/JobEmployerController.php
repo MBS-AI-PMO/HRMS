@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\JobEmployer;
 use App\Models\User;
+use App\Support\PasswordRules;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -83,7 +84,7 @@ class JobEmployerController extends Controller {
 					'email' => 'required|email|unique:users',
 					'company_name' => 'required',
 					'contact_no' => 'nullable|numeric',
-					'password' => 'required|min:4',
+					'password' => PasswordRules::requiredUnconfirmed(),
 					'logo' => 'nullable|image|max:2048|mimes:jpeg,png,jpg,gif'
 				]
 			);

@@ -23,7 +23,7 @@
                                 <div class="form-group">
                                     <label>{{__('New Password')}} *</label>
                                     <input type="password" name="password" required class="form-control"
-                                           placeholder="{{__('min:4 characters')}}">
+                                           placeholder="{{ \App\Support\PasswordRules::hint() }}">
                                 </div>
 
                                 <div class="form-group">
@@ -35,6 +35,7 @@
                             </div>
                         </div>
                         <div class="form-group">
+                            <small class="text-muted d-block mb-2">{{ \App\Support\PasswordRules::hint() }}</small>
                             <input type="submit" value="{{trans('file.submit')}}" class="btn btn-primary">
                         </div>
                     </form>

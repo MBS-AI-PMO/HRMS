@@ -338,7 +338,7 @@
                             <div class="col-md-3 form-group">
                                 <label class="text-bold">{{trans('file.Password')}} <span class="text-danger">*</span></label>
                                 <input type="password" name="password" id="password"
-                                       placeholder="{{trans('file.Password')}}"
+                                       placeholder="{{ \App\Support\PasswordRules::hint() }}"
                                        required class="form-control form-control-sm">
                             </div>
                             <div class="col-md-3 form-group">
@@ -347,6 +347,7 @@
                                        name="password_confirmation" placeholder="{{__('Confirm')}}"
                                        required autocomplete="new-password">
                                 <small id="divCheckPasswordMatch" class="registrationFormAlert text-muted"></small>
+                                <small class="text-muted d-block">{{ \App\Support\PasswordRules::hint() }}</small>
                             </div>
 
                             <div class="col-md-4 form-group">

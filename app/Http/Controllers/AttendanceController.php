@@ -30,6 +30,7 @@ use App\Support\ManagedEmployeeScope;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use App\Models\Location;
+use Throwable;
 
 class AttendanceController extends Controller {
 
@@ -270,6 +271,37 @@ class AttendanceController extends Controller {
         return Employee::withoutGlobalScope(AuthCompanyScope::class);
     }
 
+    /**
+     * Keep employees who had not left before the report period starts.
+     * Anyone with exit_date in a previous month/day is excluded from current/future reports.
+     */
+    protected function applyEmployedDuringPeriod($query, string $periodStartDate): void
+    {
+        $query->where(function ($q) use ($periodStartDate) {
+            $q->whereNull('exit_date')
+                ->orWhere('exit_date', '0000-00-00')
+                ->orWhere('exit_date', '')
+                ->orWhereDate('exit_date', '>=', $periodStartDate);
+        });
+    }
+
+    protected function employeeExitDateIso($employee): ?string
+    {
+        $raw = method_exists($employee, 'getRawOriginal')
+            ? $employee->getRawOriginal('exit_date')
+            : ($employee->getAttributes()['exit_date'] ?? null);
+
+        if ($raw === null || $raw === '' || $raw === '0000-00-00') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($raw)->format('Y-m-d');
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
     protected function parseAttendanceFilterMonthYear(?string $monthYear): string
     {
         if (! $monthYear) {
@@ -330,6 +362,44 @@ class AttendanceController extends Controller {
             || ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    protected function attendanceLeadFilterLock($logged_user): array
+    {
+        if ((int) $logged_user->role_users_id === 1) {
+            return [
+                'locked' => false,
+                'lock_company' => false,
+                'lock_client' => false,
+                'company_id' => null,
+                'client_id' => null,
+                'companies' => collect(),
+                'clients' => collect(),
+            ];
+        }
+
+        return ManagedEmployeeScope::projectLeadAttendanceFilterLock((int) $logged_user->id);
+    }
+
+    protected function applyLeadAttendanceFilterLock(Request $request, array $leadFilterLock, string $prefix = ''): void
+    {
+        if (empty($leadFilterLock['locked'])) {
+            return;
+        }
+
+        $companyKey = $prefix ? $prefix.'company' : 'company_id';
+        $clientKey = $prefix ? $prefix.'client' : 'client_id';
+
+        if (! empty($leadFilterLock['lock_company']) && ! empty($leadFilterLock['company_id'])) {
+            $request->merge([$companyKey => (int) $leadFilterLock['company_id']]);
+        }
+
+        if (! empty($leadFilterLock['lock_client']) && ! empty($leadFilterLock['client_id'])) {
+            $request->merge([$clientKey => (int) $leadFilterLock['client_id']]);
+        }
+    }
+
     protected function employeeCompanyLabel(Employee $employee): string
     {
         if ($employee->company?->company_name) {
@@ -378,7 +448,7 @@ class AttendanceController extends Controller {
     {
         $columns = [
             'id', 'company_id', 'client_id', 'first_name', 'last_name',
-            'department_id', 'designation_id', 'office_shift_id',
+            'department_id', 'designation_id', 'office_shift_id', 'joining_date', 'exit_date',
         ];
 
         if ($this->employeesHaveCnicColumn()) {
@@ -490,6 +560,7 @@ class AttendanceController extends Controller {
 
 		$canManageScopedAttendance = ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
 		$canUseAttendanceFilters = $this->canUseAttendanceFilters($logged_user);
+		$leadFilterLock = $this->attendanceLeadFilterLock($logged_user);
 		$managedEmployeeIds = $canManageScopedAttendance
 			? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
 			: [];
@@ -501,6 +572,9 @@ class AttendanceController extends Controller {
         if ($companies->isEmpty()) {
             $companies = Company::all('id', 'company_name');
         }
+        if (! empty($leadFilterLock['locked']) && $leadFilterLock['companies']->isNotEmpty()) {
+            $companies = $leadFilterLock['companies'];
+        }
 
 			$selected_date = $this->resolveAttendanceListDate($request->filter_month_year);
 
@@ -509,6 +583,8 @@ class AttendanceController extends Controller {
 
 			if (request()->ajax())
 			{
+                $this->applyLeadAttendanceFilterLock($request, $leadFilterLock);
+
                 if (! $canUseAttendanceFilters) {
                     $request->merge(['employee_id' => (int) $logged_user->id]);
                 }
@@ -517,12 +593,8 @@ class AttendanceController extends Controller {
                     ->with($this->employeeAttendanceRelations($selected_date))
 					->select('id', 'company_id', 'client_id', 'first_name', 'last_name', 'office_shift_id')
 					->where('joining_date', '<=', $selected_date)
-                    ->where('is_active', 1)
-                    ->where(function ($query) use ($selected_date) {
-						$query->whereNull('exit_date')
-							->orWhere('exit_date', '>=', $selected_date)
-							->orWhere('exit_date', '0000-00-00');
-					});
+                    ->where('is_active', 1);
+                $this->applyEmployedDuringPeriod($employeeQuery, $selected_date);
 
 				if ((int) $logged_user->role_users_id === 1) {
                     if ($request->filled('company_id') || $request->filled('client_id')
@@ -730,7 +802,7 @@ class AttendanceController extends Controller {
 					->make(true);
 			}
 
-			return view('timesheet.attendance.attendance', compact('companies', 'canUseAttendanceFilters'));
+			return view('timesheet.attendance.attendance', compact('companies', 'canUseAttendanceFilters', 'leadFilterLock'));
 		// }
 
 		return response()->json(['success' => __('You are not authorized')]);
@@ -1455,6 +1527,7 @@ class AttendanceController extends Controller {
         $isLocationHead = Location::userIsLocationHead((int) $logged_user->id);
         $canManageScopedAttendance = ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
         $canUseAttendanceFilters = $this->canUseAttendanceFilters($logged_user);
+        $leadFilterLock = $this->attendanceLeadFilterLock($logged_user);
         $managedEmployeeIds = $canManageScopedAttendance
             ? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
             : [];
@@ -1464,6 +1537,9 @@ class AttendanceController extends Controller {
             : CompanyScope::companiesForSelect();
         if ($companies->isEmpty()) {
             $companies = Company::all('id', 'company_name');
+        }
+        if (! empty($leadFilterLock['locked']) && $leadFilterLock['companies']->isNotEmpty()) {
+            $companies = $leadFilterLock['companies'];
         }
 
         $start_date = null;
@@ -1475,6 +1551,8 @@ class AttendanceController extends Controller {
 
         if (request()->ajax())
         {
+            $this->applyLeadAttendanceFilterLock($request, $leadFilterLock);
+
             if (! $start_date || ! $end_date) {
                 return datatables()->of([])->make(true);
             }
@@ -1500,8 +1578,9 @@ class AttendanceController extends Controller {
                     'client:id,company_name',
                     'company.companyHolidays'
                 ])
-                ->select('id', 'company_id', 'client_id', 'first_name', 'last_name', 'office_shift_id', 'joining_date')
+                ->select('id', 'company_id', 'client_id', 'first_name', 'last_name', 'office_shift_id', 'joining_date', 'exit_date')
                 ->where('is_active', '=', 1);
+                $this->applyEmployedDuringPeriod($employee, $start_date);
 
                 if ((int) $logged_user->role_users_id === 1) {
                     $this->applyAttendanceEmployeeFilters($employee, $request);
@@ -1531,6 +1610,7 @@ class AttendanceController extends Controller {
                     $shift = $emp->officeShift ? $emp->officeShift->toArray() : [];
                     $holidays = $emp->company?->companyHolidays ?? collect();
                     $joining_date = Carbon::parse($emp->joining_date)->format(config('variable.date_format', 'd-m-Y'));
+                    $exitDateIso = $this->employeeExitDateIso($emp);
                     foreach ($date_range as $key2 => $dt_r) {
                         $emp_attendance_date_range[$key1*count($date_range)+$key2]['id'] = $emp->id;
                         $emp_attendance_date_range[$key1*count($date_range)+$key2]['employee_name'] = ($key2==0) ? '<strong>'.$emp->full_name.'</strong>' : $emp->full_name;
@@ -1539,9 +1619,14 @@ class AttendanceController extends Controller {
 
                         //attendance status
                         $day = strtolower(Carbon::parse($dt_r)->format('l')) . '_in';
+                        $dayIso = Carbon::parse($dt_r)->format('Y-m-d');
                         if (strtotime($dt_r) < strtotime($joining_date))
                         {
                             $emp_attendance_date_range[$key1*count($date_range)+$key2]['attendance_status'] = __('Not Join');
+                        }
+                        elseif ($exitDateIso && $dayIso > $exitDateIso)
+                        {
+                            $emp_attendance_date_range[$key1*count($date_range)+$key2]['attendance_status'] = __('Left');
                         }
                         elseif (empty($shift[$day]))
                         {
@@ -1740,7 +1825,7 @@ class AttendanceController extends Controller {
                 ->make(true);
         }
 
-        return view('timesheet.dateWiseAttendance.index', compact('companies', 'canManageScopedAttendance', 'canUseAttendanceFilters'));
+        return view('timesheet.dateWiseAttendance.index', compact('companies', 'canManageScopedAttendance', 'canUseAttendanceFilters', 'leadFilterLock'));
 
 	}
 
@@ -1756,6 +1841,7 @@ class AttendanceController extends Controller {
         $isLocationHead = Location::userIsLocationHead((int) $logged_user->id);
         $canManageScopedAttendance = ManagedEmployeeScope::canAccessScopedEmployeeList((int) $logged_user->id, (int) $logged_user->role_users_id);
         $canUseAttendanceFilters = $this->canUseAttendanceFilters($logged_user);
+        $leadFilterLock = $this->attendanceLeadFilterLock($logged_user);
         $managedEmployeeIds = $canManageScopedAttendance
             ? ManagedEmployeeScope::managedEmployeeIds((int) $logged_user->id)
             : [];
@@ -1765,6 +1851,9 @@ class AttendanceController extends Controller {
             : CompanyScope::companiesForSelect();
         if ($companies->isEmpty()) {
             $companies = Company::all('id', 'company_name');
+        }
+        if (! empty($leadFilterLock['locked']) && $leadFilterLock['companies']->isNotEmpty()) {
+            $companies = $leadFilterLock['companies'];
         }
 
 
@@ -1791,6 +1880,8 @@ class AttendanceController extends Controller {
 			if ($request->ajax())
 			{
 				try {
+                $this->applyLeadAttendanceFilterLock($request, $leadFilterLock, 'filter_');
+
 				$this->employeeHolidaysCache = [];
 
 				$employeeQuery = $this->attendanceEmployeeBaseQuery()
@@ -1804,12 +1895,8 @@ class AttendanceController extends Controller {
 						'client:id,company_name',
 					])
 					->select($this->monthlyEmployeeSelectColumns())
-                    ->where('is_active', 1)
-                    ->where(function ($query) use ($last_date) {
-						$query->whereNull('exit_date')
-							->orWhere('exit_date', '>=', $last_date)
-							->orWhere('exit_date', '0000-00-00');
-					});
+                    ->where('is_active', 1);
+                $this->applyEmployedDuringPeriod($employeeQuery, $first_date);
 
 				if ((int) $logged_user->role_users_id === 1) {
 					if (! $request->filter_company && ! $request->filter_employee
@@ -2070,7 +2157,7 @@ class AttendanceController extends Controller {
 				}
 			}
 
-			return view('timesheet.monthlyAttendance.index', compact('companies', 'canManageScopedAttendance', 'canUseAttendanceFilters'));
+			return view('timesheet.monthlyAttendance.index', compact('companies', 'canManageScopedAttendance', 'canUseAttendanceFilters', 'leadFilterLock'));
 		// }
 		// return response()->json(['success' => __('You are not authorized')]);
 	}
@@ -2110,6 +2197,25 @@ class AttendanceController extends Controller {
 
 		$day = strtolower(Carbon::parse($isoDate)->format('l')) . '_in';
 		$isOffDay = ! $emp->officeShift || ! $emp->officeShift->$day;
+
+		$exitDateIso = $this->employeeExitDateIso($emp);
+		if ($exitDateIso && $isoDate > $exitDateIso) {
+			return '';
+		}
+
+		$joiningRaw = method_exists($emp, 'getRawOriginal')
+			? $emp->getRawOriginal('joining_date')
+			: ($emp->getAttributes()['joining_date'] ?? null);
+		if ($joiningRaw && $joiningRaw !== '0000-00-00') {
+			try {
+				$joiningIso = Carbon::parse($joiningRaw)->format('Y-m-d');
+				if ($isoDate < $joiningIso) {
+					return '';
+				}
+			} catch (Throwable $e) {
+				// ignore invalid joining date
+			}
+		}
 
 		if ($present->isNotEmpty()) {
 			$firstAttendance = $present->sortBy('clock_in')->first();

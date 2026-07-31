@@ -31,12 +31,13 @@
                 <input id="password" type="password"
                        class="form-control @error('password') is-invalid @enderror"
                        name="password" required autocomplete="new-password"
-                       placeholder="{{ __('New password') }}">
+                       placeholder="{{ \App\Support\PasswordRules::hint() }}">
                 <button type="button" class="auth-password-toggle" data-target="#password"
                         aria-label="{{ __('Show password') }}">
                     <i class="fa fa-eye"></i>
                 </button>
             </div>
+            <small class="text-muted">{{ \App\Support\PasswordRules::hint() }}</small>
             @error('password')
                 <span class="invalid-feedback d-block" role="alert"><strong>{{ $message }}</strong></span>
             @enderror

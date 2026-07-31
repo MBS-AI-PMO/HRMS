@@ -94,7 +94,7 @@
                             <div class="col-md-6 form-group hide-edit">
                                 <label>{{trans('file.Password')}} *</label>
                                 <div class="input-group">
-                                    <input type="password" name="password" id="password" placeholder="password"
+                                    <input type="password" name="password" id="password" placeholder="{{ \App\Support\PasswordRules::hint() }}"
                                            class="form-control">
                                 </div>
                             </div>

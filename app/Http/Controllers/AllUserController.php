@@ -6,6 +6,7 @@ use App\Http\traits\SendsEmployeeCredentialsTrait;
 use App\Models\Employee;
 use App\Models\Client;
 use App\Support\CompanyScope;
+use App\Support\PasswordRules;
 use App\Models\Role_User;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -209,7 +210,7 @@ else
 					'username'   => 'required|unique:users',
                     'email'      => 'nullable|email|unique:users',
 					'contact_no' => 'required|unique:users',
-					'password'   => 'required|min:4|confirmed',
+					'password'   => PasswordRules::required(),
 					'profile_photo' => 'nullable|image|max:10240|mimes:jpeg,png,jpg,gif',
 				]
 			);
@@ -294,7 +295,7 @@ else
 					'username' => 'required|unique:users,username,' . $id,
                     'email'      => 'nullable|email|unique:users,email,' . $id,
 					'contact_no' => 'required|unique:users,contact_no,' . $id,
-					'password' => 'nullable|min:4|confirmed',
+					'password' => PasswordRules::optional(),
 					'profile_photo' => 'nullable|image|max:10240|mimes:jpeg,png,jpg,gif',
 				]
 			);
