@@ -448,7 +448,7 @@
 
                                 <div class="container">
                                     <div class="form-group" align="center">
-                                        <input type="hidden" name="company_id" value="{{ $employee->company_id }}" />
+                                        <input type="hidden" name="company_id" value="{{ $request_company_id ?? $employee->company_id }}" />
                                         <input type="hidden" name="department_id"
                                             value="{{ $employee->department_id }}" />
                                         <input type="hidden" name="employee_id" value="{{ $employee->id }}" />
@@ -542,7 +542,6 @@
                                     <select name="travel_mode" class="form-control selectpicker " data-live-search="true"
                                         data-live-search-style="contains" title='{{ __('Travel Mode') }}'>
                                         <option value="By Bus">{{ __('By Bus') }}</option>
-                                        >
                                         <option value="By Train">{{ __('By Train') }}</option>
                                         <option value="By Plane">{{ __('By Plane') }}</option>
                                         <option value="By Taxi">{{ __('By Taxi') }}</option>
@@ -555,7 +554,7 @@
                                 <div class="container">
                                     <div class="form-group" align="center">
 
-                                        <input type="hidden" name="company_id" value="{{ $employee->company_id }}" />
+                                        <input type="hidden" name="company_id" value="{{ $request_company_id ?? $employee->company_id }}" />
                                         <input type="hidden" name="department_id"
                                             value="{{ $employee->department_id }}" />
                                         <input type="hidden" name="employee_id" value="{{ $employee->id }}" />
@@ -635,7 +634,7 @@
 
                                 <div class="container">
                                     <div class="form-group" align="center">
-                                        <input type="hidden" name="company_id" value="{{ $employee->company_id }}" />
+                                        <input type="hidden" name="company_id" value="{{ $request_company_id ?? $employee->company_id }}" />
                                         <input type="hidden" name="department_id"
                                             value="{{ $employee->department_id }}" />
                                         <input type="hidden" name="employee_id" value="{{ $employee->id }}" />

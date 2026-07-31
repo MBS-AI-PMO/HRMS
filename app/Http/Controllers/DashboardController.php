@@ -975,6 +975,9 @@ class DashboardController extends Controller {
 		$leave_types = LeaveType::select('id', 'leave_type', 'allocated_day')->get();
 		$travel_types = TravelType::select('id', 'arrangement_type')->get();
 
+		$request_company_id = $employee->company_id
+			?: ($employee->client_id ? CompanyScope::resolveCompanyIdForClient((int) $employee->client_id) : null);
+
 
 		$assigned_projects = EmployeeProject::with(['assignedProjects' => function ($query) use ($employee)
 		{
@@ -1087,6 +1090,7 @@ class DashboardController extends Controller {
 			'employee_award_count', 'holidays', 'leave_types', 'travel_types',
 			'assigned_projects', 'assigned_projects_count',
 			'assigned_tasks', 'assigned_tasks_count', 'assigned_tickets', 'assigned_tickets_count', 'ipCheck', 'general_setting',
+			'request_company_id',
 			'shift_ended', 'is_off_day', 'can_overtime_clock_in', 'is_on_overtime_session', 'today_overtime_total', 'is_past_shift_while_clocked_in',
 			'today_first_clock_in', 'today_last_clock_out', 'today_total_work',
 			'is_location_head', 'location_head_employee_count', 'can_manage_location_scope'));
