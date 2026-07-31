@@ -22,14 +22,26 @@
                             </div>
 
                             @if (!empty($canUseAttendanceFilters) && $canUseAttendanceFilters)
+                                @php
+                                    $leadFilterLock = $leadFilterLock ?? ['locked' => false, 'lock_company' => false, 'lock_client' => false, 'company_id' => null, 'client_id' => null, 'clients' => collect()];
+                                    $lockCompany = !empty($leadFilterLock['locked']) && !empty($leadFilterLock['lock_company']) && !empty($leadFilterLock['company_id']);
+                                    $lockClient = !empty($leadFilterLock['locked']) && !empty($leadFilterLock['lock_client']) && !empty($leadFilterLock['client_id']);
+                                @endphp
+                                @if ($lockCompany)
+                                    <input type="hidden" id="company_id_locked" value="{{ $leadFilterLock['company_id'] }}">
+                                @endif
+                                @if ($lockClient)
+                                    <input type="hidden" id="client_id_locked" value="{{ $leadFilterLock['client_id'] }}">
+                                @endif
                                 <div class="col-md-2">
                                     <div class="form-group">
                                         <label>{{ trans('file.Company') }}</label>
                                         <select name="company_id" id="company_id" class="form-control selectpicker"
                                                 data-live-search="true" data-live-search-style="contains"
-                                                title="{{ __('Selecting', ['key' => trans('file.Company')]) }}...">
+                                                title="{{ __('Selecting', ['key' => trans('file.Company')]) }}..."
+                                                @if ($lockCompany) disabled @endif>
                                             @foreach ($companies as $company)
-                                                <option value="{{ $company->id }}">{{ $company->company_name }}</option>
+                                                <option value="{{ $company->id }}" @if ($lockCompany && (int)$leadFilterLock['company_id'] === (int)$company->id) selected @endif>{{ $company->company_name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -40,7 +52,16 @@
                                         <label>{{ trans('file.Client') }}</label>
                                         <select name="client_id" id="client_id" class="selectpicker form-control"
                                                 data-live-search="true" data-live-search-style="contains"
-                                                title="{{ __('Selecting', ['key' => trans('file.Client')]) }}...">
+                                                title="{{ __('Selecting', ['key' => trans('file.Client')]) }}..."
+                                                @if ($lockClient) disabled @endif>
+                                            @if (!empty($leadFilterLock['locked']) && isset($leadFilterLock['clients']))
+                                                <option value="">{{ __('All') }}</option>
+                                                @foreach ($leadFilterLock['clients'] as $client)
+                                                    <option value="{{ $client->id }}" @if ($lockClient && (int)$leadFilterLock['client_id'] === (int)$client->id) selected @endif>
+                                                        {{ $client->display_name ?? $client->company_name }}
+                                                    </option>
+                                                @endforeach
+                                            @endif
                                         </select>
                                     </div>
                                 </div>
@@ -112,6 +133,19 @@
         "use strict";
 
         $(document).ready(function () {
+
+            var lockCompany = @json(!empty($leadFilterLock['locked']) && !empty($leadFilterLock['lock_company']) && !empty($leadFilterLock['company_id']));
+            var lockClient = @json(!empty($leadFilterLock['locked']) && !empty($leadFilterLock['lock_client']) && !empty($leadFilterLock['client_id']));
+            var lockedCompanyId = @json($leadFilterLock['company_id'] ?? null);
+            var lockedClientId = @json($leadFilterLock['client_id'] ?? null);
+
+            function filterCompanyVal() {
+                return $('#company_id_locked').val() || $('#company_id').selectpicker('val') || $('#company_id').val() || '';
+            }
+
+            function filterClientVal() {
+                return $('#client_id_locked').val() || $('#client_id').selectpicker('val') || $('#client_id').val() || '';
+            }
 
             let date = $('.date');
             date.datepicker({
@@ -271,12 +305,18 @@
             }
 
             function resetSelect($select, allLabel) {
+                if ($select.prop('disabled')) {
+                    return;
+                }
                 $select.selectpicker('destroy');
                 $select.html('<option value="">' + allLabel + '</option>');
                 $select.selectpicker();
             }
 
             function loadClients(companyId) {
+                if (lockClient) {
+                    return $.Deferred().resolve().promise();
+                }
                 resetSelect($('#client_id'), @json(__('All')));
 
                 if (!companyId) {
@@ -333,6 +373,10 @@
             }
 
             $('#company_id').on('changed.bs.select', function() {
+                if (lockCompany) {
+                    $(this).selectpicker('val', String(lockedCompanyId));
+                    return;
+                }
                 var companyId = $(this).val();
                 loadClients(companyId).always(function() {
                     loadLocations(companyId, '').always(function() {
@@ -342,7 +386,11 @@
             });
 
             $('#client_id').on('changed.bs.select', function() {
-                var companyId = $('#company_id').val();
+                if (lockClient) {
+                    $(this).selectpicker('val', String(lockedClientId));
+                    return;
+                }
+                var companyId = filterCompanyVal();
                 var clientId = $(this).val();
                 loadLocations(companyId, clientId).always(function() {
                     loadEmployees(companyId, clientId, $('#location_id').val());
@@ -350,14 +398,14 @@
             });
 
             $('#location_id').on('changed.bs.select', function() {
-                loadEmployees($('#company_id').val(), $('#client_id').val(), $(this).val());
+                loadEmployees(filterCompanyVal(), filterClientVal(), $(this).val());
             });
 
             $('#filter_form').on('submit', function (e) {
                 e.preventDefault();
                 var filter_month_year = $('#day_month_year').val();
-                var company_id = $('#company_id').val() || '';
-                var client_id = $('#client_id').val() || '';
+                var company_id = filterCompanyVal();
+                var client_id = filterClientVal();
                 var location_id = $('#location_id').val() || '';
                 var employee_id = $('#employee_id').val() || '';
 
@@ -370,6 +418,16 @@
                     alert(@json(__('Select date to search')));
                 }
             });
+
+            if (lockCompany || lockClient || lockedCompanyId) {
+                var companyId = filterCompanyVal();
+                var clientId = filterClientVal();
+                if (companyId || clientId) {
+                    loadLocations(companyId, clientId).always(function() {
+                        loadEmployees(companyId, clientId, '');
+                    });
+                }
+            }
         });
     })(jQuery);
 </script>

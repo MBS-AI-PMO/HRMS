@@ -253,12 +253,7 @@ class Employee extends Model
 
     public function setDateOfBirthAttribute($value)
     {
-        if (empty($value)) {
-            $this->attributes['date_of_birth'] = null;
-            return;
-        }
-
-        $this->attributes['date_of_birth'] = Carbon::createFromFormat(config('variable.date_format', 'd-m-Y'), trim($value))->format('Y-m-d');
+        $this->attributes['date_of_birth'] = $this->normalizeDateAttribute($value);
     }
 
     public function getDateOfBirthAttribute($value)
@@ -272,12 +267,7 @@ class Employee extends Model
 
     public function setJoiningDateAttribute($value)
     {
-        if (empty($value)) {
-            $this->attributes['joining_date'] = null;
-            return;
-        }
-
-        $this->attributes['joining_date'] = Carbon::createFromFormat(config('variable.date_format', 'd-m-Y'), trim($value))->format('Y-m-d');
+        $this->attributes['joining_date'] = $this->normalizeDateAttribute($value);
     }
 
     public function getJoiningDateAttribute($value)
@@ -291,12 +281,7 @@ class Employee extends Model
 
     public function setExitDateAttribute($value)
     {
-        if (empty($value)) {
-            $this->attributes['exit_date'] = null;
-            return;
-        }
-
-        $this->attributes['exit_date'] = Carbon::createFromFormat(config('variable.date_format', 'd-m-Y'), trim($value))->format('Y-m-d');
+        $this->attributes['exit_date'] = $this->normalizeDateAttribute($value);
     }
 
     public function getExitDateAttribute($value)
@@ -306,6 +291,14 @@ class Employee extends Model
         }
 
         return Carbon::parse($value)->format(config('variable.date_format', 'd-m-Y'));
+    }
+
+    /**
+     * Accept app date format (d-m-Y), ISO (Y-m-d), or other common inputs.
+     */
+    private function normalizeDateAttribute($value): ?string
+    {
+        return \App\Support\AppDate::toYmd($value);
     }
 
     /**
@@ -362,6 +355,6 @@ class Employee extends Model
 
     public static function generatePassword(): string
     {
-        return Str::password(12, true, true, false, false);
+        return Str::password(12, true, true, true, false);
     }
 }

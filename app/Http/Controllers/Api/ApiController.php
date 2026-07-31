@@ -27,6 +27,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use App\Support\PasswordRules;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -260,7 +261,7 @@ class ApiController extends Controller
                 'username' => ['sometimes', 'string', 'max:64', Rule::unique('users', 'username')->ignore($user->id)],
                 'email' => ['sometimes', 'nullable', 'email', 'max:64', Rule::unique('users', 'email')->ignore($user->id)],
                 'contact_no' => ['sometimes', 'string', 'max:15', Rule::unique('users', 'contact_no')->ignore($user->id)],
-                'password' => 'nullable|string|min:4|confirmed',
+                'password' => PasswordRules::optional(),
                 'profile_photo' => 'nullable|image|max:10240|mimes:jpeg,png,jpg,gif',
 
                 /* Employee-only (synced alongside user; HR IDs stay server-side). */

@@ -29,6 +29,8 @@ use App\Models\User;
 use App\Models\Location;
 use App\Models\Project;
 use App\Support\ManagedEmployeeScope;
+use App\Support\PasswordRules;
+use App\Support\AppDate;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Exception;
 use Carbon\Carbon;
@@ -403,7 +405,7 @@ class EmployeeController extends Controller
                     'office_shift_id' => 'required',
                     'username' => 'required|unique:users',
                     'role_users_id' => 'required',
-                    'password' => 'required|min:4|confirmed',
+                    'password' => PasswordRules::required(),
                     'attendance_type' => 'required',
                     'joining_date' => 'required',
                     'profile_photo' => 'nullable|image|max:10240|mimes:jpeg,png,jpg,gif',
@@ -842,7 +844,7 @@ class EmployeeController extends Controller
                     'staff_id'        => 'required|string|max:191|unique:employees,staff_id,' . $employee,
                     'email'           => 'nullable|email|unique:users,email,' . $employee,
                     'contact_no'      => 'required|numeric|unique:users,contact_no,' . $employee,
-                    'password'        => 'nullable|min:4|confirmed',
+                    'password'        => PasswordRules::optional(),
                     'date_of_birth'   => 'required',
                     'department_id'   => 'required',
                     'designation_id'  => 'required',
@@ -888,7 +890,7 @@ class EmployeeController extends Controller
             $data['first_name'] = $request->first_name;
             $data['last_name'] = $request->last_name;
             $data['staff_id'] = $request->staff_id;
-            $data['date_of_birth'] = $request->date_of_birth;
+            $data['date_of_birth'] = AppDate::toYmd($request->date_of_birth);
             $data['email'] = strtolower(trim($request->email));
             $data['contact_no'] = $request->contact_no;
             $this->assignCnicFromRequest($data, $request);
@@ -907,10 +909,13 @@ class EmployeeController extends Controller
             $data['marital_status'] = $request->marital_status;
 
             if ($request->joining_date) {
-                $data['joining_date'] = $request->joining_date;
+                $data['joining_date'] = AppDate::toYmd($request->joining_date);
             }
 
-            $data['exit_date'] = $request->exit_date ? date('Y-m-d', strtotime($request->exit_date)) : null;
+            $data['exit_date'] = AppDate::toYmd($request->input('exit_date'));
+            if ($request->filled('exit_date') && $data['exit_date'] === null) {
+                return response()->json(['errors' => [__('Invalid Date Of Leaving')]]);
+            }
             $data['address'] = $request->address;
             $data['city'] = $request->city;
             $data['state'] = $request->state;
@@ -1066,7 +1071,7 @@ if ($request->remove_profile_photo == 1) {
 }
             $data['first_name'] = $request->first_name;
             $data['last_name'] = $request->last_name;
-            $data['date_of_birth'] = $request->date_of_birth;
+            $data['date_of_birth'] = AppDate::toYmd($request->date_of_birth);
             $data['email'] = strtolower(trim($request->email));
             $data['contact_no'] = $request->contact_no;
             $this->assignCnicFromRequest($data, $request);
@@ -1101,10 +1106,13 @@ if ($request->remove_profile_photo == 1) {
                 $data['status_id'] = $request->status_id;
 
                 if ($request->joining_date) {
-                    $data['joining_date'] = $request->joining_date;
+                    $data['joining_date'] = AppDate::toYmd($request->joining_date);
                 }
 
-                $data['exit_date'] = $request->exit_date ? date('Y-m-d', strtotime($request->exit_date)) : null;
+                $data['exit_date'] = AppDate::toYmd($request->input('exit_date'));
+                if ($request->filled('exit_date') && $data['exit_date'] === null) {
+                    return response()->json(['errors' => [__('Invalid Date Of Leaving')]]);
+                }
                 $data['attendance_type'] = $request->attendance_type;
                 $user['role_users_id'] = $request->role_users_id;
             }

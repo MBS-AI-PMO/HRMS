@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\Company;
 use App\Models\User;
 use App\Support\CompanyScope;
+use App\Support\PasswordRules;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -128,7 +129,7 @@ class ClientController extends Controller {
 				'company_id' => 'required|exists:companies,id',
 				'first_name' => 'required',
 				'last_name' => 'nullable|string|max:191',
-				'password' => 'required|min:4',
+				'password' => PasswordRules::requiredUnconfirmed(),
 			]);
 
 
