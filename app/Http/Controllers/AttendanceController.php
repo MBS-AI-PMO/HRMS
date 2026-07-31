@@ -272,16 +272,39 @@ class AttendanceController extends Controller {
     }
 
     /**
-     * Keep employees who had not left before the report period starts.
-     * Anyone with exit_date in a previous month/day is excluded from current/future reports.
+     * Include anyone employed for at least one day in [periodStart, periodEnd].
+     * Leaving month/day is included; months after exit_date are excluded.
+     * Inactive employees still appear in their last overlapping period (HR often deactivates on leave day).
      */
-    protected function applyEmployedDuringPeriod($query, string $periodStartDate): void
+    protected function applyEmployedDuringPeriod($query, string $periodStartDate, ?string $periodEndDate = null): void
     {
+        $periodEndDate = $periodEndDate ?: $periodStartDate;
+
+        // Active, or inactive but exit falls on/after this period (still relevant to the report).
+        $query->where(function ($q) use ($periodStartDate) {
+            $q->where('is_active', 1)
+                ->orWhere(function ($left) use ($periodStartDate) {
+                    $left->whereNotNull('exit_date')
+                        ->where('exit_date', '!=', '')
+                        ->where('exit_date', '!=', '0000-00-00')
+                        ->where('exit_date', '>=', $periodStartDate);
+                });
+        });
+
+        // Joined on or before the period ends.
+        $query->where(function ($q) use ($periodEndDate) {
+            $q->whereNull('joining_date')
+                ->orWhere('joining_date', '')
+                ->orWhere('joining_date', '0000-00-00')
+                ->orWhere('joining_date', '<=', $periodEndDate);
+        });
+
+        // Had not left before the period starts (exit day itself still counts).
         $query->where(function ($q) use ($periodStartDate) {
             $q->whereNull('exit_date')
-                ->orWhere('exit_date', '0000-00-00')
                 ->orWhere('exit_date', '')
-                ->orWhereDate('exit_date', '>=', $periodStartDate);
+                ->orWhere('exit_date', '0000-00-00')
+                ->orWhere('exit_date', '>=', $periodStartDate);
         });
     }
 
@@ -591,10 +614,8 @@ class AttendanceController extends Controller {
 
 				$employeeQuery = $this->attendanceEmployeeBaseQuery()
                     ->with($this->employeeAttendanceRelations($selected_date))
-					->select('id', 'company_id', 'client_id', 'first_name', 'last_name', 'office_shift_id')
-					->where('joining_date', '<=', $selected_date)
-                    ->where('is_active', 1);
-                $this->applyEmployedDuringPeriod($employeeQuery, $selected_date);
+					->select('id', 'company_id', 'client_id', 'first_name', 'last_name', 'office_shift_id', 'joining_date', 'exit_date');
+                $this->applyEmployedDuringPeriod($employeeQuery, $selected_date, $selected_date);
 
 				if ((int) $logged_user->role_users_id === 1) {
                     if ($request->filled('company_id') || $request->filled('client_id')
@@ -1578,9 +1599,8 @@ class AttendanceController extends Controller {
                     'client:id,company_name',
                     'company.companyHolidays'
                 ])
-                ->select('id', 'company_id', 'client_id', 'first_name', 'last_name', 'office_shift_id', 'joining_date', 'exit_date')
-                ->where('is_active', '=', 1);
-                $this->applyEmployedDuringPeriod($employee, $start_date);
+                ->select('id', 'company_id', 'client_id', 'first_name', 'last_name', 'office_shift_id', 'joining_date', 'exit_date');
+                $this->applyEmployedDuringPeriod($employee, $start_date, $end_date);
 
                 if ((int) $logged_user->role_users_id === 1) {
                     $this->applyAttendanceEmployeeFilters($employee, $request);
@@ -1894,9 +1914,8 @@ class AttendanceController extends Controller {
 						'company.companyHolidays',
 						'client:id,company_name',
 					])
-					->select($this->monthlyEmployeeSelectColumns())
-                    ->where('is_active', 1);
-                $this->applyEmployedDuringPeriod($employeeQuery, $first_date);
+					->select($this->monthlyEmployeeSelectColumns());
+                $this->applyEmployedDuringPeriod($employeeQuery, $first_date, $last_date);
 
 				if ((int) $logged_user->role_users_id === 1) {
 					if (! $request->filter_company && ! $request->filter_employee
