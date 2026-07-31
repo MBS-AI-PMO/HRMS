@@ -33,18 +33,43 @@
                     meridiem: true
                 },
 
-                eventClick: function (event) {
+                eventClick: function (info) {
+                    var detailUrl = info.event.groupId;
+                    if (!detailUrl) {
+                        return;
+                    }
+
+                    info.jsEvent.preventDefault();
+                    $('#table_data').html('');
+
                     $.ajax({
-                        url: event.event.groupId,
+                        url: detailUrl,
+                        dataType: 'json',
                         success: function (data) {
-                            $('#model_name').html(event.event.overlap);
+                            var label = (info.event.extendedProps && info.event.extendedProps.overlap)
+                                || info.event.overlap
+                                || info.event.title
+                                || '';
+                            $('#model_name').html(label);
                             $('#details_model').modal('show');
-                            for (let key in data.data) {
-                                $('#table_data').append('<tr><th>' + key + '</th><td>' + data.data[key] + '</td></tr>');
+                            if (data && data.data) {
+                                for (let key in data.data) {
+                                    if (Object.prototype.hasOwnProperty.call(data.data, key)) {
+                                        $('#table_data').append('<tr><th>' + key + '</th><td>' + (data.data[key] ?? '') + '</td></tr>');
+                                    }
+                                }
+                            }
+                        },
+                        error: function (xhr) {
+                            var message = (xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.message))
+                                || '{{ __('Request failed. Please try again.') }}';
+                            if (window.hrmsSwalResponse) {
+                                window.hrmsSwalResponse(null, { fallbackError: message });
+                            } else {
+                                alert(message);
                             }
                         }
-                    })
-
+                    });
                 },
 
             });
@@ -253,6 +278,9 @@
                             }
                             html += '</div>';
                         }
+                        if (data.error) {
+                            html = '<div class="alert alert-danger">' + data.error + '</div>';
+                        }
                         if (data.success) {
                             html = '<div class="alert alert-success">' + data.success + '</div>';
                             $('#project_sample_form')[0].reset();
@@ -260,8 +288,75 @@
                             $('.js-example-responsive').val(null).trigger('change');
                         }
                         $('#project_form_result').html(html).slideDown(300).delay(5000).slideUp(300);
+                    },
+                    error: function (xhr) {
+                        var data = xhr.responseJSON || {};
+                        var message = (data.errors && data.errors.length)
+                            ? data.errors.join('<br>')
+                            : (data.error || data.message || '{{ __('Request failed. Please try again.') }}');
+                        $('#project_form_result').html('<div class="alert alert-danger">' + message + '</div>')
+                            .slideDown(300).delay(5000).slideUp(300);
+                        if (window.hrmsSwalResponse) {
+                            window.hrmsSwalResponse(data.errors || data.error ? data : null, {
+                                fallbackError: $('<div>').html(message).text()
+                            });
+                        }
                     }
                 })
+            });
+
+            function loadCalendarProjectCategories(clientId) {
+                var $category = $('#project_category_id');
+                if (!$category.length) {
+                    return;
+                }
+                $.ajax({
+                    url: "{{ route('dynamic_project_categories') }}",
+                    method: "POST",
+                    data: {
+                        value: clientId || '',
+                        _token: $('input[name="_token"]').val()
+                    },
+                    success: function (result) {
+                        $category.html(result);
+                        $category.selectpicker('refresh');
+                    }
+                });
+            }
+
+            function loadCalendarProjectEmployees(clientId) {
+                var $employee = $('#project_employee_id');
+                if (!$employee.length) {
+                    return;
+                }
+                $employee.html('').val(null).trigger('change');
+                if (!clientId) {
+                    return;
+                }
+                $.ajax({
+                    url: "{{ route('dynamic_project_employees') }}",
+                    method: "POST",
+                    data: {
+                        value: clientId,
+                        _token: $('input[name="_token"]').val(),
+                        first_name: 'first_name',
+                        last_name: 'last_name'
+                    },
+                    success: function (result) {
+                        $employee.html(result).trigger('change');
+                    }
+                });
+            }
+
+            $(document).on('changed.bs.select', '#project_client_id', function () {
+                var clientId = $(this).val();
+                loadCalendarProjectCategories(clientId);
+                loadCalendarProjectEmployees(clientId);
+            });
+            $(document).on('change', '#project_client_id', function () {
+                var clientId = $(this).val();
+                loadCalendarProjectCategories(clientId);
+                loadCalendarProjectEmployees(clientId);
             });
 
             $('#task_sample_form').on('submit', function (event) {

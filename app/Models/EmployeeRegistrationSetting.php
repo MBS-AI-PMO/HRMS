@@ -81,6 +81,7 @@ class EmployeeRegistrationSetting extends Model
                 'allow_shift_selection' => false,
                 'default_role_users_id' => 3,
                 'default_attendance_type' => 'location_based',
+                'auto_approve' => true,
             ]
         );
     }

@@ -10,6 +10,7 @@ use App\Models\TravelType;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
 
@@ -131,12 +132,25 @@ class TravelController extends Controller {
 
 				if ($travel->status != 'pending')
 				{
-					$notifiable = User::findOrFail($data['employee_id']);
-					$notifiable->notify(new EmployeeTravelStatus($travel->status));
+					try {
+						$notifiable = User::findOrFail($data['employee_id']);
+						$notifiable->notify(new EmployeeTravelStatus($travel->status));
+					} catch (Throwable $notificationError) {
+						Log::warning('Travel created but notification/email failed', [
+							'travel_id' => $travel->id,
+							'employee_id' => $data['employee_id'],
+							'message' => $notificationError->getMessage(),
+						]);
+					}
 				}
 
 				return response()->json(['success' => __('Data Added successfully.')]);
 			} catch (Throwable $e) {
+				Log::error('Travel create failed', [
+					'message' => $e->getMessage(),
+					'employee_id' => $request->employee_id,
+				]);
+
 				return response()->json(['error' => __('Travel request failed: ') . $e->getMessage()], 500);
 			}
 		}
@@ -248,9 +262,16 @@ class TravelController extends Controller {
 
 			if($data['status'] != 'pending')
 			{
-				$notifiable = User::findOrFail($data['employee_id']);
-
-				$notifiable->notify(new EmployeeTravelStatus($data['status']));
+				try {
+					$notifiable = User::findOrFail($data['employee_id']);
+					$notifiable->notify(new EmployeeTravelStatus($data['status']));
+				} catch (Throwable $notificationError) {
+					Log::warning('Travel updated but notification/email failed', [
+						'travel_id' => $id,
+						'employee_id' => $data['employee_id'],
+						'message' => $notificationError->getMessage(),
+					]);
+				}
 			}
 
 			return response()->json(['success' => __('Data is successfully updated')]);

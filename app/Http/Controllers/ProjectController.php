@@ -484,5 +484,41 @@ class ProjectController extends Controller {
 			->values();
 	}
 
+	public function calendarableDetails($id)
+	{
+		if (! request()->ajax()) {
+			return abort(404);
+		}
+
+		$project = Project::with([
+			'company:id,company_name',
+			'client:id,first_name,last_name',
+			'projectCategory:id,category_name',
+		])->findOrFail($id);
+
+		$leads = DB::table('employee_project')
+			->join('employees', 'employees.id', '=', 'employee_project.employee_id')
+			->where('employee_project.project_id', $project->id)
+			->where('employee_project.is_lead', 1)
+			->select(DB::raw("CONCAT(employees.first_name,' ',employees.last_name) as full_name"))
+			->pluck('full_name')
+			->filter()
+			->implode(', ');
+
+		$new = [];
+		$new['Title'] = $project->title;
+		$new['Client'] = trim(($project->client->first_name ?? '').' '.($project->client->last_name ?? '')) ?: '---';
+		$new['Company'] = $project->company->company_name ?? '---';
+		$new['Category'] = $project->projectCategory->category_name ?? '---';
+		$new['Start Date'] = $project->start_date;
+		$new['End Date'] = $project->end_date ?: '---';
+		$new['Status'] = $project->project_status ?: '---';
+		$new['Priority'] = $project->project_priority ?: '---';
+		$new['Project Leads'] = $leads !== '' ? $leads : '---';
+		$new['Summary'] = $project->summary ?: '---';
+
+		return response()->json(['data' => $new]);
+	}
+
 
 }

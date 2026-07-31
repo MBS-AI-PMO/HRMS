@@ -60,7 +60,7 @@
 
                             <div class="col-md-4 form-group">
                                 <label>
-                                    <input type="checkbox" name="auto_approve" id="auto_approve" value="1">
+                                    <input type="checkbox" name="auto_approve" id="auto_approve" value="1" checked>
                                     {{ __('Auto approve (account active immediately)') }}
                                 </label>
                             </div>

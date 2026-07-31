@@ -95,7 +95,15 @@ class ClientRegistrationSettingController extends Controller
         $roles = Role::where('is_active', 1)->select('id', 'name')->orderBy('name')->get();
 
         return view('settings.client_registration.edit', [
-            'setting' => new ClientRegistrationSetting(['is_enabled' => false]),
+            'setting' => new ClientRegistrationSetting([
+                'is_enabled' => false,
+                'auto_approve' => true,
+                'allow_department_selection' => true,
+                'allow_designation_selection' => true,
+                'allow_shift_selection' => false,
+                'default_role_users_id' => 3,
+                'default_attendance_type' => 'location_based',
+            ]),
             'clients' => $clients,
             'roles' => $roles,
             'isNew' => true,
@@ -234,7 +242,7 @@ class ClientRegistrationSettingController extends Controller
             'default_office_shift_id' => $request->default_office_shift_id,
             'default_role_users_id' => $request->default_role_users_id ?: 3,
             'default_attendance_type' => $request->default_attendance_type ?: 'location_based',
-            'auto_approve' => $request->boolean('auto_approve'),
+            'auto_approve' => $request->boolean('auto_approve', true),
             'form_fields' => $this->buildFormFields($request, new ClientRegistrationSetting),
         ]);
 

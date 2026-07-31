@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Http\traits\CalendarableModelTrait;
 use App\Models\LeaveType;
 use App\Models\Project;
+use App\Models\ProjectCategory;
 use App\Models\Trainer;
 use App\Models\TrainingType;
 use App\Models\TravelType;
@@ -29,9 +30,13 @@ class CalendarableController extends Controller {
 			$trainers = Trainer::select('id', 'first_name', 'last_name')->get();
 			$clients = Client::select('id', 'first_name','last_name')->get();
 			$projects = Project::select('id', 'title')->get();
+			$project_categories = ProjectCategory::query()
+				->where('is_active', true)
+				->orderBy('category_name')
+				->get(['id', 'category_name']);
 
 			return view('calendarable.index', compact('companies', 'leave_types',
-				'training_types', 'trainers', 'travel_types', 'clients', 'projects'));
+				'training_types', 'trainers', 'travel_types', 'clients', 'projects', 'project_categories'));
 		}
 		return abort('403', __('You are not authorized'));
 	}
@@ -105,25 +110,39 @@ class CalendarableController extends Controller {
 
 		foreach ($data['projects'] as $row)
 		{
+			$start = $row->getAttributes()["start_date"] ?? null;
+			$endRaw = $row->getAttributes()["end_date"] ?? null;
+			$end = $endRaw
+				? (new DateTime($endRaw))->modify('+1 day')->format('Y-m-d')
+				: $start;
+
 			$a[] = array(
 				'id' => $row["id"],
+				'overlap' => 'Project',
 				'title' => $row["title"],
 				'backgroundColor' => '#168D7E',
-				'start' => $row->getAttributes()["start_date"],
-                'end' => (new DateTime($row->getAttributes()["end_date"]))->modify('+1 day')->format('Y-m-d'),
-				'url' => route('projects.show',$row['id']),
+				'groupId' => route('projects.calendarable', $row['id']),
+				'start' => $start,
+				'end' => $end,
 			);
 		}
 
 		foreach ($data['tasks'] as $row)
         {
+			$start = $row->getAttributes()["start_date"] ?? null;
+			$endRaw = $row->getAttributes()["end_date"] ?? null;
+			$end = $endRaw
+				? (new DateTime($endRaw))->modify('+1 day')->format('Y-m-d')
+				: $start;
+
 			$a[] = array(
 				'id'    => $row["id"],
+				'overlap' => 'Task',
 				'title' => $row["task_name"],
 				'backgroundColor' => '#19aed9',
-				'start' => $row->getAttributes()["start_date"],
-                'end'   => (new DateTime($row->getAttributes()["end_date"]))->modify('+1 day')->format('Y-m-d'),
-				'url'   => route('tasks.show',$row['id']),
+				'groupId' => route('tasks.calendarable', $row['id']),
+				'start' => $start,
+				'end'   => $end,
 			);
 		}
 

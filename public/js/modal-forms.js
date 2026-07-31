@@ -200,9 +200,17 @@
             unlockModalForm(lockedForm);
 
             if (typeof original !== 'function') {
-                window.hrmsSwalResponse(null, {
-                    fallbackError: 'Request failed. Please try again.'
-                });
+                var xhr = args[0];
+                var data = parseJsonResponse(xhr);
+                if (data && (data.error || data.errors || data.message)) {
+                    window.hrmsSwalResponse(data, {
+                        fallbackError: (data && data.message) || 'Request failed. Please try again.'
+                    });
+                } else {
+                    window.hrmsSwalResponse(null, {
+                        fallbackError: 'Request failed. Please try again.'
+                    });
+                }
             }
 
             if (typeof original === 'function') {
