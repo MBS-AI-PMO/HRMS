@@ -7,6 +7,12 @@ return [
     'mailers' => [
         'smtp' => [
             'transport' => 'smtp',
+            // Laravel 10 only auto-sets scheme for encryption=tls. With ssl/465
+            // an empty/null scheme can send without AUTH → SMTP 530 Authentication required.
+            // Note: env('MAIL_SCHEME', default) ignores default when key exists as null.
+            'scheme' => (($scheme = env('MAIL_SCHEME')) && $scheme !== 'null')
+                ? $scheme
+                : ((env('MAIL_ENCRYPTION') === 'ssl' || (int) env('MAIL_PORT', 587) === 465) ? 'smtps' : 'smtp'),
             'host' => env('MAIL_HOST', 'smtp.mailgun.org'),
             'port' => env('MAIL_PORT', 587),
             'encryption' => env('MAIL_ENCRYPTION', env('MAIL_PORT') == 465 ? 'ssl' : 'tls'),

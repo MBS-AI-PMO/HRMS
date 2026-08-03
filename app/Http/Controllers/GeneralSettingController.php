@@ -206,6 +206,11 @@ class GeneralSettingController extends Controller
             }
             $this->dataWriteInENVFile('MAIL_USERNAME',$request->mail_address);
 
+            $encryption = strtolower(trim((string) $request->encryption));
+            $port = (int) $request->port;
+            $scheme = ($encryption === 'ssl' || $port === 465) ? 'smtps' : 'smtp';
+            $this->dataWriteInENVFile('MAIL_SCHEME', $scheme);
+
 
 			return redirect()->back()->with('message', 'Data updated successfully');
 		}
@@ -327,6 +332,7 @@ class GeneralSettingController extends Controller
 		config([
 			'mail.default' => 'smtp',
 			'mail.mailers.smtp.transport' => 'smtp',
+			'mail.mailers.smtp.scheme' => (strtolower($config['encryption']) === 'ssl' || (int) $config['port'] === 465) ? 'smtps' : 'smtp',
 			'mail.mailers.smtp.host' => $config['host'],
 			'mail.mailers.smtp.port' => $config['port'],
 			'mail.mailers.smtp.encryption' => $config['encryption'],
