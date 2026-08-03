@@ -7,9 +7,6 @@ use App\Scopes\AuthCompanyScope;
 use App\Support\CompanyScope;
 use App\Models\Department;
 use App\Models\Employee;
-use App\Models\Location;
-use App\Models\Team;
-use App\Support\ManagedEmployeeScope;
 use App\Models\EmployeeActivityLog;
 use App\Models\Leave;
 use App\Models\LeaveType;
@@ -42,21 +39,36 @@ class LeaveController extends Controller
         ]);
     }
 
-    protected function isTeamLeaveManager(): bool
+    protected function isAdminUser(): bool
     {
-        return (int) auth()->user()->role_users_id !== 1
+        $user = auth()->user();
+
+        if ((int) ($user->role_users_id ?? 0) === 1) {
+            return true;
+        }
+
+        if (method_exists($user, 'hasRole') && $user->hasRole('admin')) {
+            return true;
+        }
+
+        $role = Role::find($user->role_users_id);
+        $roleName = strtolower(trim((string) ($role->name ?? '')));
+
+        return $roleName === 'admin';
+    }
+
+    protected function isHrUser(): bool
+    {
+        $role = Role::find(auth()->user()->role_users_id);
+        $roleName = strtolower(trim((string) ($role->name ?? '')));
+
+        return $roleName === 'hr';
+    }
+
+    protected function isProjectLeadUser(): bool
+    {
+        return ! $this->isAdminUser()
             && \App\Models\Project::userLeadsAnyProject((int) auth()->id());
-    }
-
-    protected function isLocationLeaveManager(): bool
-    {
-        return (int) auth()->user()->role_users_id !== 1
-            && Location::userCanManageLocationLeaveRequests((int) auth()->id());
-    }
-
-    protected function isOrgDepartmentManager(): bool
-    {
-        return Department::where('department_head', auth()->id())->exists();
     }
 
     protected function teamMemberIdsForLeaveManagement(): array
@@ -64,35 +76,24 @@ class LeaveController extends Controller
         return \App\Models\Project::memberEmployeeIdsLedBy((int) auth()->id());
     }
 
+    /**
+     * Leave / WFH management is hardcoded to Admin, HR, and Project Lead only.
+     */
     protected function canAccessLeaveModule(): bool
     {
-        if (auth()->user()->can('view-leave')) {
-            return true;
-        }
-
-        if ($this->isOrgDepartmentManager()) {
-            return true;
-        }
-
-        return ManagedEmployeeScope::canManageScopedLeave((int) auth()->id());
+        return $this->isAdminUser() || $this->isHrUser() || $this->isProjectLeadUser();
     }
 
     protected function canViewLeaveRecord(Leave $leave): bool
     {
-        if (auth()->user()->can('view-leave')) {
+        if ($this->isAdminUser() || $this->isHrUser()) {
             return true;
         }
 
-        if ($this->isOrgDepartmentManager()) {
-            $managedIds = Department::where('department_head', auth()->id())->pluck('id');
-
-            return $managedIds->contains((int) $leave->department_id);
-        }
-
-        if (ManagedEmployeeScope::canManageScopedLeave((int) auth()->id())) {
+        if ($this->isProjectLeadUser()) {
             return in_array(
                 (int) $leave->employee_id,
-                ManagedEmployeeScope::managedEmployeeIds((int) auth()->id()),
+                $this->teamMemberIdsForLeaveManagement(),
                 true
             );
         }
@@ -102,42 +103,17 @@ class LeaveController extends Controller
 
     protected function canManageLeaveRecord(Leave $leave): bool
     {
-        if (auth()->user()->can('edit-leave')) {
-            return true;
-        }
-
-        $leave->loadMissing('department:id,department_head');
-
-        if ($this->isOrgDepartmentManager()
-            && (int) ($leave->department?->department_head ?? 0) === (int) auth()->id()) {
-            return true;
-        }
-
-        if (ManagedEmployeeScope::canManageScopedLeave((int) auth()->id())) {
-            return in_array(
-                (int) $leave->employee_id,
-                ManagedEmployeeScope::managedEmployeeIds((int) auth()->id()),
-                true
-            );
-        }
-
-        return false;
+        // Same actors who can see a request can approve / reject / update it.
+        return $this->canViewLeaveRecord($leave);
     }
 
     protected function applyLeaveListScopeForCurrentUser($query): void
     {
-        if (auth()->user()->can('view-leave')) {
+        if ($this->isAdminUser() || $this->isHrUser()) {
             return;
         }
 
-        if ($this->isOrgDepartmentManager()) {
-            $managedDepartmentIds = Department::where('department_head', auth()->id())->pluck('id');
-            $query->whereIn('department_id', $managedDepartmentIds);
-
-            return;
-        }
-
-        $memberIds = ManagedEmployeeScope::managedEmployeeIds((int) auth()->id());
+        $memberIds = $this->teamMemberIdsForLeaveManagement();
 
         if ($memberIds === []) {
             $query->whereRaw('1 = 0');
@@ -148,16 +124,13 @@ class LeaveController extends Controller
 
     public function index()
     {
-        $logged_user = auth()->user();
-        $isLocationHead = Location::userIsLocationHead((int) $logged_user->id);
-        $companies = $isLocationHead && ! $logged_user->can('view-leave')
-            ? CompanyScope::companiesForLocationHead((int) $logged_user->id)
-            : CompanyScope::companiesForSelect();
+        $companies = CompanyScope::companiesForSelect();
         $leave_types = LeaveType::select('id', 'leave_type', 'allocated_day')->get();
-        $teamLeaveManagerViewOnly = ManagedEmployeeScope::canManageLeaveRequests((int) $logged_user->id)
-            && ! $logged_user->can('view-leave')
-            && ! $this->isOrgDepartmentManager();
+        $teamLeaveManagerViewOnly = $this->isProjectLeadUser()
+            && ! $this->isAdminUser()
+            && ! $this->isHrUser();
         $wfhOnly = request()->boolean('wfh');
+        $canHardDeleteLeave = $this->isAdminUser() || $this->isHrUser();
 
         if ($this->canAccessLeaveModule()) {
             if (request()->ajax()) {
@@ -226,7 +199,7 @@ class LeaveController extends Controller
                     ->make(true);
             }
 
-            return view('timesheet.leave.index', compact('companies', 'leave_types', 'wfhOnly', 'teamLeaveManagerViewOnly'));
+            return view('timesheet.leave.index', compact('companies', 'leave_types', 'wfhOnly', 'teamLeaveManagerViewOnly', 'canHardDeleteLeave'));
         }
 
         return abort(403, __('You are not authorized'));
@@ -629,13 +602,6 @@ class LeaveController extends Controller
     $data['status'] = $requestStatus;
 }
 
-    private function isHrUser(): bool
-    {
-        $role = Role::find(auth()->user()->role_users_id);
-        $roleName = strtolower((string) ($role->name ?? ''));
-        return strpos($roleName, 'hr') !== false || strpos($roleName, 'human') !== false;
-    }
-
     private function syncEmployeeAttendanceTypeForWfh(int $employeeId): void
     {
         $today = now()->toDateString();
@@ -731,9 +697,9 @@ class LeaveController extends Controller
         if (!config('variable.user_verified')) {
             return response()->json(['error' => 'This feature is disabled for demo!']);
         }
-        $logged_user = auth()->user();
 
-        if ($logged_user->can('delete-leave')) {
+        // Only Admin / HR can delete leave/WFH records.
+        if ($this->isAdminUser() || $this->isHrUser()) {
             Leave::whereId($id)->delete();
 
             return response()->json(['success' => __('Data is successfully deleted')]);
@@ -741,20 +707,13 @@ class LeaveController extends Controller
         return response()->json(['success' => __('You are not authorized')]);
     }
 
-
-
-
-
-
     public function delete_by_selection(Request $request)
     {
         if (!config('variable.user_verified')) {
             return response()->json(['error' => 'This feature is disabled for demo!']);
         }
-        $logged_user = auth()->user();
 
-        if ($logged_user->can('delete-leave')) {
-
+        if ($this->isAdminUser() || $this->isHrUser()) {
             $leave_id = $request['leaveIdArray'];
             $leave = Leave::whereIntegerInRaw('id', $leave_id);
             if ($leave->delete()) {

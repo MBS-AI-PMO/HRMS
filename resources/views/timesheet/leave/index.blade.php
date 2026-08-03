@@ -26,14 +26,10 @@
 
         <div class="container-fluid mb-3">
             @empty($teamLeaveManagerViewOnly)
-                @can('store-leave')
-                    {{-- <button type="button" class="btn btn-info" name="create_record" id="create_record"><i
-                                class="fa fa-plus"></i> {{ $addLabel }}</button> --}}
-                @endcan
-                @can('delete-leave')
+                @if (!empty($canHardDeleteLeave))
                     <button type="button" class="btn btn-danger" name="bulk_delete" id="bulk_delete"><i
                                 class="fa fa-minus-circle"></i> {{__('Bulk delete')}}</button>
-                @endcan
+                @endif
             @endempty
         </div>
 
