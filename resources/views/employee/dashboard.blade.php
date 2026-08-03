@@ -601,11 +601,11 @@
                                                                 <strong>{{ __('Employee Details') }}</strong>
                                                                 <span class="badge badge-secondary ml-1">{{ __('Read only') }}</span>
                                                             </div>
-                                                            @if (!empty($canModifyEmployee))
+                                                            <!-- @if (!empty($canModifyEmployee))
                                                                 <a href="{{ route('employees.show', $employee) }}?edit=1" class="btn btn-primary btn-sm">
                                                                     <i class="dripicons-pencil"></i> {{ __('Edit Details') }}
                                                                 </a>
-                                                            @endif
+                                                            @endif -->
                                                         </div>
                                                         <div class="table-responsive">
                                                             <table class="table table-bordered">
@@ -697,13 +697,13 @@
                                                                 </tr>
                                                             </table>
                                                         </div>
-                                                        @if (!empty($canModifyEmployee))
+                                                        <!-- @if (!empty($canModifyEmployee))
                                                             <div class="text-right mt-3">
                                                                 <a href="{{ route('employees.show', $employee) }}?edit=1" class="btn btn-primary">
                                                                     <i class="dripicons-pencil"></i> {{ __('Edit Details') }}
                                                                 </a>
                                                             </div>
-                                                        @endif
+                                                        @endif -->
                                                     @endif
                                                 </div>
 
