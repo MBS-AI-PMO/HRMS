@@ -330,23 +330,21 @@
 
             @php
                 $leaveManagerSidebarUser = auth()->user();
-                $managedDepartmentIds = \App\Models\Department::where(
-                    'department_head',
-                    $leaveManagerSidebarUser->id,
-                )->pluck('id');
-                $isDepartmentManager = $managedDepartmentIds->isNotEmpty();
-                $isHrUser = $leaveManagerSidebarUser->can('view-leave');
-                $isTeamLeaveManager = (int) $leaveManagerSidebarUser->role_users_id !== 1
+                $leaveSidebarRole = \Spatie\Permission\Models\Role::find($leaveManagerSidebarUser->role_users_id);
+                $leaveSidebarRoleName = strtolower(trim((string) ($leaveSidebarRole->name ?? '')));
+                $isAdminLeaveUser = (int) ($leaveManagerSidebarUser->role_users_id ?? 0) === 1
+                    || $leaveSidebarRoleName === 'admin'
+                    || (method_exists($leaveManagerSidebarUser, 'hasRole') && $leaveManagerSidebarUser->hasRole('admin'));
+                $isHrLeaveUser = $leaveSidebarRoleName === 'hr';
+                $isProjectLeadLeaveUser = ! $isAdminLeaveUser
                     && \App\Models\Project::userLeadsAnyProject((int) $leaveManagerSidebarUser->id);
-                $isLocationLeaveManager = \App\Models\Location::userCanManageLocationLeaveRequests((int) $leaveManagerSidebarUser->id)
-                    && $leaveManagerSidebarUser->can('scoped-manage-leave');
-                $showLeaveManagementTabs = $isDepartmentManager || $isHrUser || $isTeamLeaveManager || $isLocationLeaveManager;
+                $showLeaveManagementTabs = $isAdminLeaveUser || $isHrLeaveUser || $isProjectLeadLeaveUser;
 
                 $pendingLeaveCount = 0;
                 $pendingWfhCount = 0;
 
                 if ($showLeaveManagementTabs) {
-                    $scopedLeaveQuery = (! $isHrUser && ($isTeamLeaveManager || $isLocationLeaveManager))
+                    $scopedLeaveQuery = ($isProjectLeadLeaveUser && ! $isHrLeaveUser)
                         ? \App\Models\Leave::withoutGlobalScope(\App\Scopes\AuthCompanyScope::class)
                         : \App\Models\Leave::query();
 
@@ -369,11 +367,8 @@
                                 ->orWhere('leave_type', 'like', '%work from home%');
                         });
 
-                    if (! $isHrUser && $isDepartmentManager) {
-                        $pendingLeaveQuery->whereIn('department_id', $managedDepartmentIds);
-                        $pendingWfhQuery->whereIn('department_id', $managedDepartmentIds);
-                    } elseif (! $isHrUser && ($isTeamLeaveManager || $isLocationLeaveManager)) {
-                        $scopedMemberIds = \App\Support\ManagedEmployeeScope::managedEmployeeIds((int) $leaveManagerSidebarUser->id);
+                    if ($isProjectLeadLeaveUser && ! $isHrLeaveUser) {
+                        $scopedMemberIds = \App\Models\Project::memberEmployeeIdsLedBy((int) $leaveManagerSidebarUser->id);
 
                         if ($scopedMemberIds !== []) {
                             $pendingLeaveQuery->whereIn('employee_id', $scopedMemberIds);
