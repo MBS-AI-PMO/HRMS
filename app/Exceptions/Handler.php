@@ -52,7 +52,23 @@ class Handler extends ExceptionHandler
     public function render($request, Throwable  $exception)
     {
         if ($exception instanceof TransportException) {
-            return redirect()->back()->withErrors(['email' => 'Mail configuration error. Please check your mail settings.']);
+            \Illuminate\Support\Facades\Log::error('SMTP TransportException', [
+                'message' => $exception->getMessage(),
+                'previous' => optional($exception->getPrevious())->getMessage(),
+                'url' => optional($request)->fullUrl(),
+            ]);
+
+            // Surface the real SMTP reason — the old generic text hid auth/SSL/timeout failures.
+            $detail = trim((string) $exception->getMessage());
+            $message = $detail !== ''
+                ? 'Mail configuration error: '.$detail
+                : 'Mail configuration error. Please check your mail settings.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 500);
+            }
+
+            return redirect()->back()->withErrors(['email' => $message])->withInput();
         }
 
         return parent::render($request, $exception);
