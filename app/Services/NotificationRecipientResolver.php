@@ -6,12 +6,14 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Leave;
 use App\Models\Location;
+use App\Models\Project;
 use App\Models\Team;
 use App\Models\User;
 use App\Scopes\AuthCompanyLocationScope;
 use App\Scopes\AuthCompanyScope;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
 
 class NotificationRecipientResolver
 {
@@ -36,9 +38,71 @@ class NotificationRecipientResolver
         return static::filterByCompany($users, $companyId);
     }
 
+    /**
+     * Admin users (role_users_id = 1 or role name "admin").
+     * Not company-filtered — admins manage leave/WFH across companies.
+     */
+    public static function adminUsers(): Collection
+    {
+        $adminRoleIds = Role::query()
+            ->where(function ($query) {
+                $query->where('id', 1)->orWhereRaw('LOWER(name) = ?', ['admin']);
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        return User::query()
+            ->where(function ($query) use ($adminRoleIds) {
+                $query->where('role_users_id', 1);
+
+                if ($adminRoleIds !== []) {
+                    $query->orWhereIn('role_users_id', $adminRoleIds);
+                }
+            })
+            ->get();
+    }
+
+    /**
+     * Project leads (employee_project.is_lead = 1) for projects the employee belongs to.
+     */
+    public static function projectLeadsForEmployee(int $employeeId, ?int $companyId = null): Collection
+    {
+        $leadIds = Project::leadEmployeeIdsForMember($employeeId);
+
+        if ($leadIds === []) {
+            return collect();
+        }
+
+        $users = User::query()->whereIn('id', $leadIds)->get();
+
+        // Project leads are scoped to their team — company filter is best-effort only.
+        if (! $companyId) {
+            return $users;
+        }
+
+        return $users->filter(function (User $user) use ($companyId) {
+            $employee = Employee::withoutGlobalScope(AuthCompanyScope::class)->find($user->id);
+
+            // Keep lead even if employee row is missing company (still their project member).
+            if (! $employee || ! $employee->company_id) {
+                return true;
+            }
+
+            return (int) $employee->company_id === $companyId;
+        })->values();
+    }
+
     public static function filterByCompany(Collection $users, int $companyId): Collection
     {
         return $users->filter(function (User $user) use ($companyId) {
+            // Admins are never dropped by company scope for leave/WFH alerts.
+            if ((int) ($user->role_users_id ?? 0) === 1) {
+                return true;
+            }
+
             $employee = Employee::withoutGlobalScope(AuthCompanyScope::class)->find($user->id);
 
             return $employee && (int) $employee->company_id === $companyId;
@@ -156,7 +220,9 @@ class NotificationRecipientResolver
     public static function leaveWfhEmailRecipients(int $employeeId, int $companyId, ?string $event = null): Collection
     {
         $groups = [
+            static::adminUsers(),
             static::usersWithPermissionInCompany('view-leave', $companyId),
+            static::projectLeadsForEmployee($employeeId, $companyId),
             static::teamPmAndDepartmentHeadsForEmployee($employeeId, $companyId),
             static::departmentHeadForEmployee($employeeId, $companyId),
             static::locationHeadsForEmployee($employeeId),
@@ -316,7 +382,9 @@ class NotificationRecipientResolver
         $employee = static::employeeAccountForNotifications($employeeId);
 
         return static::uniqueUsers(
+            static::adminUsers(),
             static::usersWithPermissionInCompany('view-leave', $companyId),
+            static::projectLeadsForEmployee($employeeId, $companyId),
             static::teamLeadersForEmployee($employeeId, $companyId),
             static::departmentHeadForEmployee($employeeId, $companyId),
             static::locationHeadsForEmployee($employeeId),
