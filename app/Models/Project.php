@@ -64,6 +64,35 @@ class Project extends Model
 	}
 
 	/**
+	 * Lead employee ids (is_lead = 1) for projects where the given user is assigned
+	 * as a member (or on the project at all).
+	 */
+	public static function leadEmployeeIdsForMember(int $employeeId): array
+	{
+		$projectIds = \Illuminate\Support\Facades\DB::table('employee_project')
+			->where('employee_id', $employeeId)
+			->pluck('project_id')
+			->map(fn ($id) => (int) $id)
+			->unique()
+			->values()
+			->all();
+
+		if ($projectIds === []) {
+			return [];
+		}
+
+		return \Illuminate\Support\Facades\DB::table('employee_project')
+			->whereIn('project_id', $projectIds)
+			->where('is_lead', 1)
+			->where('employee_id', '!=', $employeeId)
+			->pluck('employee_id')
+			->map(fn ($id) => (int) $id)
+			->unique()
+			->values()
+			->all();
+	}
+
+	/**
 	 * Employee ids that are members (is_lead = 0) of any project led by the given user.
 	 */
 	public static function memberEmployeeIdsLedBy(int $userId): array
