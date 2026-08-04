@@ -342,6 +342,8 @@ class GeneralSettingController extends Controller
 			'mail.from.name' => $config['from_name'],
 		]);
 
+		\App\Support\MailConfig::ensureSmtpAuth();
+
 		return $config;
 	}
 
