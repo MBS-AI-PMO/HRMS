@@ -6,6 +6,7 @@ use App\Models\Leave;
 use App\Models\User;
 use App\Notifications\LeaveRequestNotification;
 use App\Notifications\WfhRequestNotificationToApprover;
+use App\Support\MailConfig;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -209,6 +210,8 @@ class LeaveNotifier
         $plainBody = static::buildPlainTextBody($viewData);
 
         try {
+            MailConfig::ensureSmtpAuth();
+
             Mail::send(
                 'emails.leave_event',
                 $viewData,

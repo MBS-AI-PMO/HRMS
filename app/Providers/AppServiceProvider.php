@@ -51,6 +51,7 @@ use App\Scopes\AuthCompanyLocationScope;
 use App\Scopes\AuthCompanyScope;
 use App\Scopes\AuthCompanySelfScope;
 use App\Support\RuntimeConfig;
+use App\Support\MailConfig;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
@@ -85,6 +86,8 @@ class AppServiceProvider extends ServiceProvider
         $this->registerCompanyScopes();
 
         RuntimeConfig::applyGeneralSettings();
+
+        MailConfig::ensureSmtpAuth();
 
         // Default application language is English.
         App::setLocale('English');
