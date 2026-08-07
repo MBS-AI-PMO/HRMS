@@ -182,7 +182,9 @@ class GeneralSettingController extends Controller
 	{
 		if (auth()->user()->can('view-mail-setting'))
 		{
-			return view('settings.mail_setting.mail');
+			$mailSettings = \App\Support\MailConfig::formValues();
+
+			return view('settings.mail_setting.mail', compact('mailSettings'));
 		}
 		return abort('403', __('You are not authorized'));
 	}
@@ -195,22 +197,35 @@ class GeneralSettingController extends Controller
 		}
 
 		if (auth()->user()->can('view-mail-setting')) {
+            $passwordFilled = $request->filled('password');
 
-            $this->dataWriteInENVFile('MAIL_ENCRYPTION',$request->encryption);
-            $this->dataWriteInENVFile('MAIL_FROM_ADDRESS',$request->mail_address);
-            $this->dataWriteInENVFile('MAIL_FROM_NAME',$request->mail_name);
-            $this->dataWriteInENVFile('MAIL_HOST',$request->mail_host);
-            $this->dataWriteInENVFile('MAIL_PORT',$request->port);
-            if ($request->filled('password')) {
-                $this->dataWriteInENVFile('MAIL_PASSWORD',$request->password);
-            }
-            $this->dataWriteInENVFile('MAIL_USERNAME',$request->mail_address);
+            // Primary: cache + runtime (works on Coolify/Docker when .env is read-only / config cached).
+            \App\Support\MailConfig::persist([
+                'host' => $request->mail_host,
+                'port' => $request->port,
+                'encryption' => $request->encryption,
+                'username' => $request->mail_address,
+                'password' => $passwordFilled ? $request->password : null,
+                'from_address' => $request->mail_address,
+                'from_name' => $request->mail_name,
+            ], $passwordFilled);
 
+            // Best-effort .env sync for local/dev hosts.
             $encryption = strtolower(trim((string) $request->encryption));
             $port = (int) $request->port;
             $scheme = ($encryption === 'ssl' || $port === 465) ? 'smtps' : 'smtp';
-            $this->dataWriteInENVFile('MAIL_SCHEME', $scheme);
 
+            $this->dataWriteInENVFile('MAIL_MAILER', 'smtp');
+            $this->dataWriteInENVFile('MAIL_SCHEME', $scheme);
+            $this->dataWriteInENVFile('MAIL_ENCRYPTION', $request->encryption);
+            $this->dataWriteInENVFile('MAIL_FROM_ADDRESS', $request->mail_address);
+            $this->dataWriteInENVFile('MAIL_FROM_NAME', $request->mail_name);
+            $this->dataWriteInENVFile('MAIL_HOST', $request->mail_host);
+            $this->dataWriteInENVFile('MAIL_PORT', $request->port);
+            $this->dataWriteInENVFile('MAIL_USERNAME', $request->mail_address);
+            if ($passwordFilled) {
+                $this->dataWriteInENVFile('MAIL_PASSWORD', $request->password);
+            }
 
 			return redirect()->back()->with('message', 'Data updated successfully');
 		}
@@ -237,9 +252,11 @@ class GeneralSettingController extends Controller
 			return response()->json(['error' => $validator->errors()->first()], 422);
 		}
 
-		$password = $request->filled('password') ? $request->password : env('MAIL_PASSWORD');
+		$password = $request->filled('password')
+			? $request->password
+			: (string) config('mail.mailers.smtp.password', '');
 
-		if ($password === null || $password === '') {
+		if ($password === '') {
 			return response()->json([
 				'error' => __('Enter SMTP password in the form, or save mail settings first.'),
 			], 422);
@@ -272,7 +289,9 @@ class GeneralSettingController extends Controller
 					'mail_host' => $mailConfig['host'],
 					'mail_port' => $mailConfig['port'],
 					'mail_encryption' => $mailConfig['encryption'],
+					'mail_scheme' => $mailConfig['scheme'],
 					'mail_from' => $mailConfig['from_address'],
+					'mail_has_password' => $mailConfig['password'] !== '',
 				],
 				function () use ($body, $testEmail, $mailConfig, $sentAt) {
 					Mail::raw($body, function ($message) use ($testEmail, $mailConfig, $sentAt) {
@@ -303,23 +322,35 @@ class GeneralSettingController extends Controller
 				'mail_host' => $mailConfig['host'],
 				'mail_port' => $mailConfig['port'],
 				'mail_encryption' => $mailConfig['encryption'],
+				'mail_scheme' => $mailConfig['scheme'],
 				'mail_from' => $mailConfig['from_address'],
+				'mail_username' => $mailConfig['username'],
+				'mail_has_password' => $mailConfig['password'] !== '',
 				'error' => $e->getMessage(),
 				'exception' => get_class($e),
 			]);
 
+			$hint = '';
+			$host = strtolower($mailConfig['host']);
+			$username = strtolower($mailConfig['username']);
+			if (str_contains($host, 'hostinger') && str_contains($username, '@gmail.com')) {
+				$hint = ' '.__('Hostinger SMTP needs a Hostinger mailbox. For Gmail use smtp.gmail.com + App Password.');
+			} elseif (str_contains($host, 'gmail') && ! str_contains($username, '@gmail.com')) {
+				$hint = ' '.__('Gmail SMTP needs a Gmail address + App Password as username/password.');
+			}
+
 			return response()->json([
-				'error' => __('Mail test failed: ').$e->getMessage(),
+				'error' => __('Mail test failed: ').$e->getMessage().$hint,
 			], 422);
 		}
 	}
 
 	/**
-	 * @return array{host: string, port: mixed, encryption: string, username: string, password: string, from_address: string, from_name: string}
+	 * @return array{host: string, port: mixed, encryption: string, scheme: string, username: string, password: string, from_address: string, from_name: string}
 	 */
 	protected function applyMailConfigFromRequest(Request $request, string $password): array
 	{
-		$config = [
+		$config = \App\Support\MailConfig::normalize([
 			'host' => trim((string) $request->mail_host),
 			'port' => $request->port,
 			'encryption' => trim((string) $request->encryption),
@@ -327,21 +358,9 @@ class GeneralSettingController extends Controller
 			'password' => $password,
 			'from_address' => strtolower(trim((string) $request->mail_address)),
 			'from_name' => trim((string) $request->mail_name),
-		];
-
-		config([
-			'mail.default' => 'smtp',
-			'mail.mailers.smtp.transport' => 'smtp',
-			'mail.mailers.smtp.scheme' => (strtolower($config['encryption']) === 'ssl' || (int) $config['port'] === 465) ? 'smtps' : 'smtp',
-			'mail.mailers.smtp.host' => $config['host'],
-			'mail.mailers.smtp.port' => $config['port'],
-			'mail.mailers.smtp.encryption' => $config['encryption'],
-			'mail.mailers.smtp.username' => $config['username'],
-			'mail.mailers.smtp.password' => $config['password'],
-			'mail.from.address' => $config['from_address'],
-			'mail.from.name' => $config['from_name'],
 		]);
 
+		\App\Support\MailConfig::apply($config);
 		\App\Support\MailConfig::ensureSmtpAuth();
 
 		return $config;
