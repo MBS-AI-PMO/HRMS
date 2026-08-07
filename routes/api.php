@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DemoAutoUpdateController;
 use App\Http\Controllers\Api\ApiController;
+use App\Http\Controllers\Api\MobilePasswordResetController;
 
 
 /*
@@ -20,6 +21,10 @@ use App\Http\Controllers\Api\ApiController;
 Route::get('is-update-available', [DemoAutoUpdateController::class, 'isUpdateAvailable'])->name('is-update-available');
 
 Route::post('login', [ApiController::class, 'login']);
+
+// Mobile app only — OTP reset; does not use / affect web password_resets flow.
+Route::post('forgot-password', [MobilePasswordResetController::class, 'forgotPassword']);
+Route::post('reset-password', [MobilePasswordResetController::class, 'resetPassword']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [ApiController::class, 'logout']);
