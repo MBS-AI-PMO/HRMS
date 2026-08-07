@@ -25,11 +25,12 @@ trait ENVFilePutContent
         }
 
         $content = (string) file_get_contents($path);
+        $formattedValue = $this->formatEnvValue($value);
 
-        if (str_contains($content, "{$key}=")) {
-            $content = preg_replace("/^{$key}=.*/m", "{$key}={$value}", $content);
+        if (preg_match("/^{$key}=.*/m", $content)) {
+            $content = preg_replace("/^{$key}=.*/m", "{$key}={$formattedValue}", $content);
         } else {
-            $content .= PHP_EOL."{$key}={$value}";
+            $content .= PHP_EOL."{$key}={$formattedValue}";
         }
 
         if (@file_put_contents($path, $content) === false) {
@@ -39,5 +40,24 @@ trait ENVFilePutContent
         }
 
         return true;
+    }
+
+    /**
+     * Always wrap .env values in double quotes so spaces / special chars
+     * (mail passwords, from names, white-label titles, etc.) parse safely.
+     */
+    protected function formatEnvValue($value): string
+    {
+        if ($value === null) {
+            return '""';
+        }
+
+        $value = str_replace(
+            ['\\', '"', "\r", "\n"],
+            ['\\\\', '\\"', '', ''],
+            (string) $value
+        );
+
+        return '"'.$value.'"';
     }
 }
