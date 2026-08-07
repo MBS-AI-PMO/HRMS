@@ -87,7 +87,8 @@ class AppServiceProvider extends ServiceProvider
 
         RuntimeConfig::applyGeneralSettings();
 
-        MailConfig::ensureSmtpAuth();
+        // Apply portal-saved mail settings (cache) then force smtps/AUTH for ssl/465.
+        MailConfig::boot();
 
         // Default application language is English.
         App::setLocale('English');

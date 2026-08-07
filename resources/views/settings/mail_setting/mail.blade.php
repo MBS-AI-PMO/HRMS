@@ -24,15 +24,15 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label><strong>{{__('Mail Host')}} *</strong></label>
-                                        <input type="text" name="mail_host" class="form-control" value="{{env('MAIL_HOST')}}" required />
+                                        <input type="text" name="mail_host" class="form-control" value="{{ $mailSettings['host'] ?? '' }}" required />
                                     </div>
                                     <div class="form-group">
                                         <label><strong>{{__('Mail Address')}} *</strong></label>
-                                        <input type="text" name="mail_address" class="form-control" value="{{env('MAIL_FROM_ADDRESS')}}" required />
+                                        <input type="text" name="mail_address" class="form-control" value="{{ $mailSettings['from_address'] ?? '' }}" required />
                                     </div>
                                     <div class="form-group">
                                         <label><strong>{{__('Mail From Name')}} *</strong></label>
-                                        <input type="text" name="mail_name" class="form-control" value="{{env('MAIL_FROM_NAME')}}" required />
+                                        <input type="text" name="mail_name" class="form-control" value="{{ $mailSettings['from_name'] ?? '' }}" required />
                                     </div>
                                     <div class="form-group">
                                         <input type="submit" value="{{trans('file.submit')}}" class="btn btn-primary">
@@ -41,16 +41,22 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label><strong>{{__('Mail Port')}} *</strong></label>
-                                        <input type="text" name="port" class="form-control" value="{{env('MAIL_PORT')}}" required />
+                                        <input type="text" name="port" class="form-control" value="{{ $mailSettings['port'] ?? '' }}" required />
                                     </div>
                                     <div class="form-group">
                                         <label><strong>{{trans('file.Password')}} *</strong></label>
                                         <input type="password" name="password" class="form-control" value="" autocomplete="new-password" />
-                                        <small class="text-muted">{{ __('Leave empty when testing if password is already saved in settings.') }}</small>
+                                        <small class="text-muted">
+                                            @if(!empty($mailSettings['has_password']))
+                                                {{ __('Password is already saved. Leave empty to keep it, or enter a new one.') }}
+                                            @else
+                                                {{ __('Enter SMTP password (Gmail App Password if using Gmail).') }}
+                                            @endif
+                                        </small>
                                     </div>
                                     <div class="form-group">
                                         <label><strong>{{trans('file.Encryption')}} *</strong></label>
-                                        <input type="text" name="encryption" class="form-control" value="{{env('MAIL_ENCRYPTION')}}" required />
+                                        <input type="text" name="encryption" class="form-control" value="{{ $mailSettings['encryption'] ?? '' }}" required />
                                     </div>
                                 </div>
                             </div>
